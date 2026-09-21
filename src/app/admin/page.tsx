@@ -1,20 +1,34 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Edit, Trash2, Settings, Users, Gift, Save, AlertTriangle } from "lucide-react";
 import { FaTwitch } from "react-icons/fa";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("sorteios");
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   
-  // New States for Giveaways
-  const [managingParticipants, setManagingParticipants] = useState<number | null>(null);
-  const [editingParticipant, setEditingParticipant] = useState<number | null>(null);
+  // Real States for Supabase Data
+  const [sorteios, setSorteios] = useState<any[]>([]);
+  const [participants, setParticipants] = useState<any[]>([]);
+  const [winners, setWinners] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // New States for Giveaways UI
+  const [managingParticipants, setManagingParticipants] = useState<string | null>(null);
+  const [editingParticipant, setEditingParticipant] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedColor, setSelectedColor] = useState("Amarelo");
+
+  // Formulário Criar Sorteio
+  const [newTitle, setNewTitle] = useState("");
+  const [newDesc, setNewDesc] = useState("");
+  const [newHighlight, setNewHighlight] = useState("");
+  const [newCoins, setNewCoins] = useState(0);
+  const [newImage, setNewImage] = useState<File | null>(null);
 
   const colorOptions = [
     { name: "Amarelo", hex: "bg-yellow-500" },
@@ -28,25 +42,59 @@ export default function AdminDashboard() {
 
   const router = useRouter();
 
-  // Mock de sorteios para visualização
-  const mockSorteios = [
-    { id: 1, title: "Sorteio Relâmpago pelo Chat", type: "Chat (!BARR4K)", status: "Ativo", participants: 1204 },
-    { id: 2, title: "Sorteio Mensal de Subs - Setembro", type: "Formulário (Subs)", status: "Ativo", participants: 350 },
-    { id: 3, title: "Mousepad BARR4K", type: "Formulário", status: "Encerrado", participants: 890 },
-  ];
+  // Conexão Inicial Supabase
+  useEffect(() => {
+    fetchSorteios();
+    fetchWinners();
+  }, []);
 
-  // Mock de participantes para o Modal
-  const mockParticipants = [
-    { id: 101, user: "fallen_fan", coins: 500, status: "Pendente", proof: "comprovante1.jpg" },
-    { id: 102, user: "gaules_t", coins: 1500, status: "Aprovado", proof: "comprovante2.jpg" },
-    { id: 103, user: "cs2_player", coins: 500, status: "Rejeitado", proof: "comprovante3.jpg" },
-  ];
+  const fetchSorteios = async () => {
+    setIsLoading(true);
+    const { data, error } = await supabase.from('giveaways').select('*').order('created_at', { ascending: false });
+    if (data) setSorteios(data);
+    setIsLoading(false);
+  };
 
-  // Mock de Vencedores
-  const mockWinners = [
-    { id: 1, user: "gaules_t", prize: "Mousepad BARR4K", date: "10/09/2026", inHallOfFame: true },
-    { id: 2, user: "fallen_fan", prize: "Faca Butterfly", date: "15/09/2026", inHallOfFame: false },
-  ];
+  const fetchParticipants = async (giveawayId: string) => {
+    const { data } = await supabase.from('participants').select('*').eq('giveaway_id', giveawayId);
+    if (data) setParticipants(data);
+  };
+
+  const fetchWinners = async () => {
+    const { data } = await supabase.from('winners').select('*').order('won_at', { ascending: false });
+    if (data) setWinners(data);
+  };
+
+  const handleOpenParticipants = (id: string) => {
+    setManagingParticipants(id);
+    fetchParticipants(id);
+  };
+
+  const handleCreateSorteio = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTitle) return alert("Título é obrigatório!");
+
+    let imageUrl = null;
+    // Lógica futura para upload de imagem no Storage iria aqui
+
+    const { error } = await supabase.from('giveaways').insert([{
+      title: newTitle,
+      description: newDesc,
+      highlight_text: newHighlight,
+      highlight_color: selectedColor,
+      coins_cost: newCoins,
+      image_url: imageUrl,
+      type: 'monthly',
+      status: 'active'
+    }]);
+
+    if (!error) {
+      setIsCreateModalOpen(false);
+      fetchSorteios(); // Atualiza a lista
+    } else {
+      alert("Erro ao criar sorteio: " + error.message);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-black pt-24 pb-20 flex flex-col md:flex-row">
@@ -117,19 +165,19 @@ export default function AdminDashboard() {
                         </tr>
                       </thead>
                       <tbody>
-                        {mockParticipants.map((p) => (
+                        {participants.map((p) => (
                           <tr key={p.id} className="border-b border-gray-800 hover:bg-white/5 transition-colors">
                             {/* Se estiver editando */}
                             {editingParticipant === p.id ? (
                               <>
                                 <td className="px-6 py-4">
-                                  <input type="text" defaultValue={p.user} className="bg-black border border-gray-700 rounded px-2 py-1 text-white w-full outline-none focus:border-purple-500" />
+                                  <input type="text" defaultValue={p.twitch_username} className="bg-black border border-gray-700 rounded px-2 py-1 text-white w-full outline-none focus:border-purple-500" />
                                 </td>
                                 <td className="px-6 py-4">
-                                  <input type="number" defaultValue={p.coins} className="bg-black border border-gray-700 rounded px-2 py-1 text-white w-20 outline-none focus:border-purple-500" />
+                                  <input type="number" defaultValue={p.coins_used} className="bg-black border border-gray-700 rounded px-2 py-1 text-white w-20 outline-none focus:border-purple-500" />
                                 </td>
                                 <td className="px-6 py-4">
-                                  <span className="text-blue-400 underline cursor-pointer">{p.proof}</span>
+                                  <span className="text-blue-400 underline cursor-pointer">{p.proof_url || 'Nenhum'}</span>
                                 </td>
                                 <td className="px-6 py-4">
                                   {p.status}
@@ -146,17 +194,17 @@ export default function AdminDashboard() {
                             ) : (
                               /* Visualização Normal */
                               <>
-                                <td className="px-6 py-4 font-bold text-white">@{p.user}</td>
-                                <td className="px-6 py-4 font-bold text-yellow-500">{p.coins}</td>
+                                <td className="px-6 py-4 font-bold text-white">@{p.twitch_username}</td>
+                                <td className="px-6 py-4 font-bold text-yellow-500">{p.coins_used}</td>
                                 <td className="px-6 py-4">
-                                  <a href="#" className="text-blue-400 hover:text-blue-300 underline font-medium" onClick={(e) => e.preventDefault()}>
+                                  <a href={p.proof_url} target="_blank" rel="noreferrer" className="text-blue-400 hover:text-blue-300 underline font-medium">
                                     Ver Imagem
                                   </a>
                                 </td>
                                 <td className="px-6 py-4">
                                   <span className={`px-2 py-1 rounded text-xs font-bold 
-                                    ${p.status === "Aprovado" ? "bg-green-500/20 text-green-400 border border-green-500/30" : 
-                                      p.status === "Rejeitado" ? "bg-red-500/20 text-red-400 border border-red-500/30" : 
+                                    ${p.status === "approved" ? "bg-green-500/20 text-green-400 border border-green-500/30" : 
+                                      p.status === "rejected" ? "bg-red-500/20 text-red-400 border border-red-500/30" : 
                                       "bg-yellow-500/20 text-yellow-500 border border-yellow-500/30"}`}>
                                     {p.status}
                                   </span>
@@ -219,21 +267,21 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {mockSorteios.map((sorteio) => (
+                    {sorteios.map((sorteio) => (
                       <tr key={sorteio.id} className="border-b border-gray-800 hover:bg-white/5 transition-colors">
-                        <td className="px-6 py-4 font-bold text-white">#{sorteio.id}</td>
+                        <td className="px-6 py-4 font-bold text-white text-xs truncate max-w-[100px]" title={sorteio.id}>{sorteio.id}</td>
                         <td className="px-6 py-4 text-white font-medium">{sorteio.title}</td>
                         <td className="px-6 py-4">{sorteio.type}</td>
                         <td className="px-6 py-4">
-                          <span className={`px-2 py-1 rounded text-xs font-bold ${sorteio.status === "Ativo" ? "bg-green-500/20 text-green-400 border border-green-500/30" : "bg-gray-800 text-gray-400"}`}>
+                          <span className={`px-2 py-1 rounded text-xs font-bold ${sorteio.status === "active" ? "bg-green-500/20 text-green-400 border border-green-500/30" : "bg-gray-800 text-gray-400"}`}>
                             {sorteio.status}
                           </span>
                         </td>
-                        <td className="px-6 py-4">{sorteio.participants}</td>
+                        <td className="px-6 py-4">?</td> {/* TODO: Add participant count aggregation */}
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-2">
                             <button 
-                              onClick={() => setManagingParticipants(sorteio.id)}
+                              onClick={() => handleOpenParticipants(sorteio.id)}
                               className="p-2 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 rounded transition-colors" 
                               title="Ver Participantes"
                             >
@@ -412,20 +460,20 @@ export default function AdminDashboard() {
             <div className="p-8 space-y-6">
               <h2 className="text-2xl font-black text-white uppercase italic tracking-wider">Criar Sorteio</h2>
               
-              <form className="space-y-5">
+              <form onSubmit={handleCreateSorteio} className="space-y-5">
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Nome</label>
-                  <input type="text" className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: Sorteio Mensal TopSkin" />
+                  <input type="text" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} required className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: Sorteio Mensal TopSkin" />
                 </div>
                 
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Descrição</label>
-                  <textarea rows={3} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors resize-none" placeholder="Ex: Respostas aceitas de 20/01 até 28/02. Regras, cupom, etc." />
+                  <textarea rows={3} value={newDesc} onChange={(e) => setNewDesc(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors resize-none" placeholder="Ex: Respostas aceitas de 20/01 até 28/02. Regras, cupom, etc." />
                 </div>
                 
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Destaque (Opcional)</label>
-                  <input type="text" className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: BÔNUS, NOVO, URGENTE..." />
+                  <input type="text" value={newHighlight} onChange={(e) => setNewHighlight(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: BÔNUS, NOVO, URGENTE..." />
                 </div>
                 
                 <div className="flex flex-wrap gap-2 pt-1">
@@ -448,20 +496,22 @@ export default function AdminDashboard() {
                 
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Custo em Coins</label>
-                  <input type="number" className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: 500" />
+                  <input type="number" value={newCoins} onChange={(e) => setNewCoins(Number(e.target.value))} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: 500" />
                 </div>
                 
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Imagem</label>
-                  <div className="w-full border-2 border-dashed border-gray-700 hover:border-purple-500 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition-colors bg-[#0a0a0b]">
+                  <label className="w-full border-2 border-dashed border-gray-700 hover:border-purple-500 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition-colors bg-[#0a0a0b] relative">
+                    <input type="file" onChange={(e) => e.target.files && setNewImage(e.target.files[0])} accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500 mb-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                    <span className="text-gray-400 font-bold text-xs uppercase tracking-widest">Clique para enviar</span>
-                  </div>
+                    <span className="text-gray-400 font-bold text-xs uppercase tracking-widest text-center">
+                      {newImage ? newImage.name : "Clique para enviar"}
+                    </span>
+                  </label>
                 </div>
                 
                 <button 
-                  type="button"
-                  onClick={() => setIsCreateModalOpen(false)}
+                  type="submit"
                   className="w-full btn-neon font-bold italic tracking-widest uppercase py-4 rounded-lg mt-2 text-sm text-center block"
                 >
                   Salvar Sorteio
