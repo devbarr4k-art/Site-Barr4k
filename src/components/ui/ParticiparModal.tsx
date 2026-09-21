@@ -18,6 +18,10 @@ export default function ParticiparModal({ isOpen, onClose, sorteioId, sorteioTit
   const [isSuccess, setIsSuccess] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
+  const [twitchId, setTwitchId] = useState("");
+  const [coins, setCoins] = useState("");
+  const [instagram, setInstagram] = useState("");
+
   if (!isOpen) return null;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -37,10 +41,6 @@ export default function ParticiparModal({ isOpen, onClose, sorteioId, sorteioTit
       setSelectedFile(sanitizedFile);
     }
   };
-
-  const [twitchId, setTwitchId] = useState("");
-  const [coins, setCoins] = useState("");
-  const [instagram, setInstagram] = useState("");
 
   const handleConfirm = async (e: React.FormEvent) => {
     e.preventDefault();
