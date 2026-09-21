@@ -70,6 +70,14 @@ export default function AdminDashboard() {
     fetchParticipants(id);
   };
 
+  const handleDeleteGiveaway = async (id: string) => {
+    if (confirm("Tem certeza que deseja excluir este sorteio?")) {
+      const { error } = await supabase.from('giveaways').delete().eq('id', id);
+      if (!error) fetchSorteios();
+      else alert("Erro: " + error.message);
+    }
+  };
+
   const handleCreateSorteio = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle) return alert("Título é obrigatório!");
@@ -78,7 +86,26 @@ export default function AdminDashboard() {
     if (newImage) {
       imageUrl = await new Promise((resolve) => {
         const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+            const max = 600;
+            if (width > height) {
+              if (width > max) { height *= max / width; width = max; }
+            } else {
+              if (height > max) { width *= max / height; height = max; }
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx?.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', 0.6));
+          };
+          img.src = e.target?.result as string;
+        };
         reader.readAsDataURL(newImage);
       });
     }
@@ -296,7 +323,9 @@ export default function AdminDashboard() {
                                 <button className="p-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded transition-colors" title="Editar">
                                   <Edit className="w-4 h-4" />
                                 </button>
-                                <button className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded transition-colors" title="Excluir">
+                                <button 
+                                  onClick={() => handleDeleteGiveaway(sorteio.id)}
+                                  className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded transition-colors" title="Excluir">
                                   <Trash2 className="w-4 h-4" />
                                 </button>
                               </div>
