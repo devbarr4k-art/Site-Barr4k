@@ -112,7 +112,11 @@ export default function Home() {
               <div key={giveaway.id} className="glass-panel rounded-2xl overflow-hidden animated-border-card group">
                 <div className="h-48 relative border-b border-gray-800 bg-[#121214] flex items-center justify-center overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-b from-purple-900/30 to-transparent opacity-50" />
-                  <span className="text-gray-600 font-bold z-10">Imagem do Prêmio</span>
+                  {giveaway.image_url ? (
+                    <img src={giveaway.image_url} alt={giveaway.title} className="w-full h-full object-cover relative z-10" />
+                  ) : (
+                    <span className="text-gray-600 font-bold z-10">Imagem do Prêmio</span>
+                  )}
                 </div>
                 <div className="p-6">
                   <h3 className="text-xl font-bold text-white mb-2 group-hover:text-purple-400 transition-colors">
@@ -122,7 +126,7 @@ export default function Home() {
                     {giveaway.description}
                   </p>
                   <button 
-                    onClick={() => handleOpenModal(giveaway.id, giveaway.title)}
+                    onClick={() => handleOpenModal(String(giveaway.id), giveaway.title)}
                     className="w-full btn-neon font-bold py-3 rounded-lg text-sm uppercase tracking-wider"
                   >
                     Participar

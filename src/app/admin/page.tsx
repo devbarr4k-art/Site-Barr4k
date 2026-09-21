@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 import { Plus, Edit, Trash2, Settings, Users, Gift, Save, AlertTriangle } from "lucide-react";
@@ -75,7 +75,13 @@ export default function AdminDashboard() {
     if (!newTitle) return alert("Título é obrigatório!");
 
     let imageUrl = null;
-    // Lógica futura para upload de imagem no Storage iria aqui
+    if (newImage) {
+      imageUrl = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.readAsDataURL(newImage);
+      });
+    }
 
     const { error } = await supabase.from('giveaways').insert([{
       title: newTitle,

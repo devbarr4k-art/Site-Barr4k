@@ -49,14 +49,21 @@ export default function ParticiparModal({ isOpen, onClose, sorteioId, sorteioTit
       return;
     }
     
-    // Inserção no Supabase
-    // OBS: O upload da imagem para o Supabase Storage deve ser feito aqui futuramente
+    let proofUrl = null;
+    if (selectedFile) {
+      proofUrl = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.readAsDataURL(selectedFile);
+      });
+    }
+
     const { error } = await supabase.from('participants').insert([{
       giveaway_id: sorteioId,
       twitch_username: twitchId,
       coins_used: parseInt(coins),
       instagram: instagram,
-      proof_url: selectedFile ? selectedFile.name : null, // Mock temporário para URL da imagem
+      proof_url: proofUrl, 
       status: 'pending'
     }]);
 
