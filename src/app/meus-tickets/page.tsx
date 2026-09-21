@@ -1,30 +1,44 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FaTwitch, FaTicketAlt } from "react-icons/fa";
 import { Zap, AlertCircle, CheckCircle2 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 export default function MeusTicketsPage() {
-  // Simulando estado de autenticação (Mude para true para ver a interface logada)
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedGiveaway, setSelectedGiveaway] = useState<number | null>(null);
+  const [selectedGiveaway, setSelectedGiveaway] = useState<any>(null);
+  const [myTickets, setMyTickets] = useState<any[]>([]);
 
   const ITEMS_PER_PAGE = 10;
+  
+  // Simulando nome de usuário já logado
+  const currentUser = "gaules_t"; 
 
-  // Gerando mock de tickets para demonstrar a paginação
-  const mockTickets = Array.from({ length: 24 }).map((_, i) => ({
-    id: i + 1,
-    title: i % 2 === 0 ? "Faca Butterfly" : "Sorteio Mensal de Subs",
-    chances: i % 3 === 0 ? 5 : 3,
-    status: "form",
-  }));
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchMyTickets();
+    }
+  }, [isAuthenticated]);
+
+  const fetchMyTickets = async () => {
+    const { data, error } = await supabase
+      .from('participants')
+      .select('*, giveaways(*)')
+      .eq('twitch_username', currentUser)
+      .order('created_at', { ascending: false });
+      
+    if (data) {
+      setMyTickets(data);
+    }
+  };
 
   // Lógica de Paginação
   const indexOfLastItem = currentPage * ITEMS_PER_PAGE;
   const indexOfFirstItem = indexOfLastItem - ITEMS_PER_PAGE;
-  const currentTickets = mockTickets.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(mockTickets.length / ITEMS_PER_PAGE);
+  const currentTickets = myTickets.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(myTickets.length / ITEMS_PER_PAGE) || 1;
 
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
@@ -76,7 +90,7 @@ export default function MeusTicketsPage() {
                   U
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-white">Usuário Exemplo</h2>
+                  <h2 className="text-xl font-bold text-white">@{currentUser}</h2>
                   <p className="text-gray-400 text-sm">Conectado via Twitch</p>
                 </div>
               </div>
@@ -90,27 +104,33 @@ export default function MeusTicketsPage() {
                 {currentTickets.map((ticket) => (
                   <div 
                     key={ticket.id} 
-                    onClick={() => setSelectedGiveaway(ticket.id)}
+                    onClick={() => setSelectedGiveaway(ticket)}
                     className="glass-panel border border-gray-800 hover:border-purple-500/50 rounded-xl p-6 transition-all relative overflow-hidden group cursor-pointer"
                   >
                     <div className="absolute top-0 right-0 w-24 h-24 bg-purple-600/10 blur-[30px] rounded-full group-hover:bg-purple-600/20 transition-all" />
                     <div className="flex justify-between items-start mb-4 relative z-10">
                       <div>
                         <span className="bg-purple-900/40 text-purple-300 text-xs px-2 py-1 rounded font-bold border border-purple-800 mb-2 inline-block">
-                          Ticket Adquirido
+                          {ticket.status === 'approved' ? 'Participando (Aprovado)' : ticket.status === 'rejected' ? 'Rejeitado' : 'Em Análise'}
                         </span>
-                        <h4 className="text-lg font-bold text-white">{ticket.title} #{ticket.id}</h4>
+                        <h4 className="text-lg font-bold text-white truncate max-w-[200px]">{ticket.giveaways?.title}</h4>
                       </div>
                       <div className="text-right">
-                        <span className="text-2xl font-black text-white">{ticket.chances}</span>
-                        <span className="block text-[10px] text-gray-500 uppercase font-bold">Chances</span>
+                        <span className="text-2xl font-black text-white">{Math.floor(ticket.coins_used / 100) || 1}</span>
+                        <span className="block text-[10px] text-gray-500 uppercase font-bold">Chances Estimadas</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-gray-400 relative z-10">
-                      <AlertCircle className="w-4 h-4 text-purple-500" /> Aguardando encerramento
+                      <AlertCircle className="w-4 h-4 text-purple-500" /> Clique para ver os tickets
                     </div>
                   </div>
                 ))}
+
+                {currentTickets.length === 0 && (
+                  <div className="col-span-1 md:col-span-2 text-center py-10">
+                    <p className="text-gray-400">Você ainda não participou de nenhum sorteio.</p>
+                  </div>
+                )}
 
               </div>
 
@@ -173,19 +193,19 @@ export default function MeusTicketsPage() {
             <div className="p-8 space-y-6">
               <h2 className="text-2xl font-black text-white uppercase italic tracking-wider mb-2">Meus Tickets</h2>
               <p className="text-gray-400 text-sm border-b border-gray-800 pb-4">
-                Sorteio: <span className="text-white font-bold">{mockTickets.find(t => t.id === selectedGiveaway)?.title}</span>
+                Sorteio: <span className="text-white font-bold">{selectedGiveaway?.giveaways?.title}</span>
               </p>
               
               <div className="space-y-3 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
                 {/* Simulando os números dos tickets baseado nas chances */}
-                {Array.from({ length: mockTickets.find(t => t.id === selectedGiveaway)?.chances || 0 }).map((_, idx) => (
+                {Array.from({ length: Math.floor(selectedGiveaway?.coins_used / 100) || 1 }).map((_, idx) => (
                   <div key={idx} className="flex items-center justify-between bg-[#0a0a0b] border border-gray-800 rounded-lg p-4">
                     <div className="flex items-center gap-3">
                       <FaTicketAlt className="text-purple-500 w-5 h-5" />
                       <span className="font-bold text-gray-300">Ticket #{String(idx + 1).padStart(4, '0')}</span>
                     </div>
                     <span className="bg-green-500/20 text-green-400 text-xs px-2 py-1 rounded font-bold border border-green-500/30">
-                      Válido
+                      {selectedGiveaway?.status === 'approved' ? 'Aprovado' : 'Em Análise'}
                     </span>
                   </div>
                 ))}

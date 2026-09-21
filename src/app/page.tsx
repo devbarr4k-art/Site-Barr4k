@@ -4,34 +4,42 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Trophy, Gift, Users, ArrowDown, Zap } from "lucide-react";
 import ParticiparModal from "@/components/ui/ParticiparModal";
+import { supabase } from "@/lib/supabase";
 
 export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedGiveaway, setSelectedGiveaway] = useState("");
+  const [selectedGiveaway, setSelectedGiveaway] = useState<{id: string, title: string} | null>(null);
+  
+  const [activeGiveaways, setActiveGiveaways] = useState<any[]>([]);
+  const [winners, setWinners] = useState<any[]>([]);
 
-  // Mock array for active giveaways created in the Admin panel
-  const activeGiveaways = [
-    {
-      id: 1,
-      title: "Sorteio Mensal TOPSKIN - Faca CS2",
-      description: "Sorteio exclusivo para os inscritos que apoiam o canal.",
-      image: "https://www.transparenttextures.com/patterns/stardust.png", 
-      status: "ativo",
-    },
-    {
-      id: 2,
-      title: "Mousepad GG BARR4K",
-      description: "Sorteio aberto para toda a comunidade via chat.",
-      image: "https://www.transparenttextures.com/patterns/stardust.png",
-      status: "ativo",
-    }
-  ];
+  useEffect(() => {
+    fetchActiveGiveaways();
+    fetchHallOfFame();
+  }, []);
 
-  // Simulando que não há ganhadores ainda para mostrar o card especial
-  const winners: any[] = []; 
+  const fetchActiveGiveaways = async () => {
+    const { data } = await supabase
+      .from('giveaways')
+      .select('*')
+      .eq('status', 'active')
+      .order('created_at', { ascending: false });
+    
+    if (data) setActiveGiveaways(data);
+  };
 
-  const handleOpenModal = (title: string) => {
-    setSelectedGiveaway(title);
+  const fetchHallOfFame = async () => {
+    const { data } = await supabase
+      .from('winners')
+      .select('*')
+      .eq('in_hall_of_fame', true)
+      .order('won_at', { ascending: false });
+      
+    if (data) setWinners(data);
+  };
+
+  const handleOpenModal = (id: string, title: string) => {
+    setSelectedGiveaway({ id, title });
     setIsModalOpen(true);
   };
 
@@ -114,7 +122,7 @@ export default function Home() {
                     {giveaway.description}
                   </p>
                   <button 
-                    onClick={() => handleOpenModal(giveaway.title)}
+                    onClick={() => handleOpenModal(giveaway.id, giveaway.title)}
                     className="w-full btn-neon font-bold py-3 rounded-lg text-sm uppercase tracking-wider"
                   >
                     Participar
@@ -157,7 +165,7 @@ export default function Home() {
                       </div>
                       <div>
                         <p className="text-xs text-gray-500 uppercase font-bold tracking-wider">Vencedor</p>
-                        <p className="text-purple-400 font-medium text-sm">@{winner.username}</p>
+                        <p className="text-purple-400 font-medium text-sm">@{winner.twitch_username}</p>
                       </div>
                     </div>
                   </div>
@@ -240,7 +248,8 @@ export default function Home() {
       <ParticiparModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
-        sorteioTitle={selectedGiveaway} 
+        sorteioId={selectedGiveaway?.id || ""}
+        sorteioTitle={selectedGiveaway?.title || ""} 
         isLoggedIn={true} // Hardcoded for preview, normally comes from Context/Redux
       />
     </div>

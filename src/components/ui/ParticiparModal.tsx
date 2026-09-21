@@ -3,15 +3,17 @@
 import { X, Gift, Upload, CheckCircle2 } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
 interface ParticiparModalProps {
   isOpen: boolean;
   onClose: () => void;
+  sorteioId: string;
   sorteioTitle: string;
   isLoggedIn: boolean; // Simulating auth state
 }
 
-export default function ParticiparModal({ isOpen, onClose, sorteioTitle, isLoggedIn }: ParticiparModalProps) {
+export default function ParticiparModal({ isOpen, onClose, sorteioId, sorteioTitle, isLoggedIn }: ParticiparModalProps) {
   const router = useRouter();
   const [isSuccess, setIsSuccess] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -36,21 +38,38 @@ export default function ParticiparModal({ isOpen, onClose, sorteioTitle, isLogge
     }
   };
 
-  const handleConfirm = (e: React.FormEvent) => {
+  const [twitchId, setTwitchId] = useState("");
+  const [coins, setCoins] = useState("");
+  const [instagram, setInstagram] = useState("");
+
+  const handleConfirm = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isLoggedIn) {
-      // In a real app, we would redirect to Twitch Auth here.
-      // For now, we simulate the redirection to login or just alert.
       alert("Redirecionando para o Login da Twitch...");
       return;
     }
     
-    setIsSuccess(true);
-    setTimeout(() => {
-      setIsSuccess(false);
-      onClose();
-      router.push("/meus-tickets"); // Redirect to tickets after success
-    }, 2500);
+    // Inserção no Supabase
+    // OBS: O upload da imagem para o Supabase Storage deve ser feito aqui futuramente
+    const { error } = await supabase.from('participants').insert([{
+      giveaway_id: sorteioId,
+      twitch_username: twitchId,
+      coins_used: parseInt(coins),
+      instagram: instagram,
+      proof_url: selectedFile ? selectedFile.name : null, // Mock temporário para URL da imagem
+      status: 'pending'
+    }]);
+
+    if (!error) {
+      setIsSuccess(true);
+      setTimeout(() => {
+        setIsSuccess(false);
+        onClose();
+        router.push("/meus-tickets"); // Redirect to tickets after success
+      }, 2500);
+    } else {
+      alert("Erro ao participar: " + error.message);
+    }
   };
 
   return (
@@ -85,6 +104,8 @@ export default function ParticiparModal({ isOpen, onClose, sorteioTitle, isLogge
                 <input 
                   type="text" 
                   placeholder="Seu ID ou @"
+                  value={twitchId}
+                  onChange={(e) => setTwitchId(e.target.value)}
                   required
                   className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white placeholder:text-gray-600 focus:outline-none focus:border-purple-500 transition-colors"
                 />
@@ -95,6 +116,8 @@ export default function ParticiparModal({ isOpen, onClose, sorteioTitle, isLogge
                   type="number"
                   min="0"
                   placeholder="Ex: 500"
+                  value={coins}
+                  onChange={(e) => setCoins(e.target.value)}
                   required
                   className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500 transition-colors"
                 />
@@ -106,6 +129,8 @@ export default function ParticiparModal({ isOpen, onClose, sorteioTitle, isLogge
               <input 
                 type="text" 
                 placeholder="@seu.usuario"
+                value={instagram}
+                onChange={(e) => setInstagram(e.target.value)}
                 required
                 className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white placeholder:text-gray-600 focus:outline-none focus:border-purple-500 transition-colors"
               />
