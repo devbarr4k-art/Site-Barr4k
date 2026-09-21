@@ -384,20 +384,20 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {mockWinners.map((winner) => (
+                    {winners.map((winner: any) => (
                       <tr key={winner.id} className="border-b border-gray-800 hover:bg-white/5 transition-colors">
-                        <td className="px-6 py-4 font-bold text-white">@{winner.user}</td>
+                        <td className="px-6 py-4 font-bold text-white">@{winner.twitch_username}</td>
                         <td className="px-6 py-4 text-purple-400 font-bold">{winner.prize}</td>
-                        <td className="px-6 py-4">{winner.date}</td>
+                        <td className="px-6 py-4">{new Date(winner.won_at).toLocaleDateString()}</td>
                         <td className="px-6 py-4 text-center">
                           <button 
                             className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${
-                              winner.inHallOfFame 
+                              winner.in_hall_of_fame 
                                 ? "bg-purple-600/20 text-purple-400 border-purple-500/50 hover:bg-purple-600/40" 
                                 : "bg-gray-800/50 text-gray-500 border-gray-700 hover:bg-gray-700"
                             }`}
                           >
-                            {winner.inHallOfFame ? "Destacado" : "Destacar"}
+                            {winner.in_hall_of_fame ? "Destacado" : "Destacar"}
                           </button>
                         </td>
                       </tr>
