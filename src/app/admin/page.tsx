@@ -51,6 +51,7 @@ export default function AdminDashboard() {
   const [newDetailImage, setNewDetailImage] = useState<File | null>(null);
   const [newLoginText, setNewLoginText] = useState("");
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [previewDetailImage, setPreviewDetailImage] = useState<string | null>(null);
 
   const [editingGiveaway, setEditingGiveaway] = useState<string | null>(null);
 
@@ -764,7 +765,7 @@ export default function AdminDashboard() {
                     </div>
                   )}
 
-                  {previewMode === "sorteio" && (
+                  {(previewMode === "sorteio" || previewMode === "destaque") && (
                     <>
                       <div className="space-y-2 animate-fade-in">
                         <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
@@ -780,7 +781,14 @@ export default function AdminDashboard() {
                             <TooltipIcon text="Imagem grande/fundo para a aba do sorteio." />
                         </label>
                         <label className="w-full border-2 border-dashed border-gray-700 hover:border-purple-500 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition-colors bg-[#0a0a0b] relative">
-                          <input type="file" onChange={(e) => e.target.files && setNewDetailImage(e.target.files[0])} accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                          <input type="file" onChange={(e) => {
+                            if (e.target.files) {
+                              setNewDetailImage(e.target.files[0]);
+                              const reader = new FileReader();
+                              reader.onload = (e) => setPreviewDetailImage(e.target?.result as string);
+                              reader.readAsDataURL(e.target.files[0]);
+                            }
+                          }} accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500 mb-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
                           <span className="text-gray-400 font-bold text-xs uppercase tracking-widest text-center truncate px-2 w-full">
                             {newDetailImage ? newDetailImage.name : "Imagem Interna"}
@@ -806,7 +814,7 @@ export default function AdminDashboard() {
             <div className="hidden md:block md:w-[45%] bg-[#080809] border-l border-gray-800 p-8 flex flex-col items-center justify-center">
               <div className="flex items-center justify-between w-full max-w-[320px] mb-6">
                 <h3 className="text-gray-500 font-bold text-xs tracking-widest uppercase">
-                  {previewMode === "home" ? "Prévia (Home)" : "Prévia (Sorteio)"}
+                  {previewMode === "home" ? "Prévia (Home)" : previewMode === "destaque" ? "Prévia (Destaque)" : "Prévia (Sorteio)"}
                 </h3>
                 <div className="flex bg-[#121214] border border-gray-800 rounded-lg overflow-hidden">
                   <button 
@@ -815,6 +823,13 @@ export default function AdminDashboard() {
                     className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-colors ${previewMode === "home" ? "bg-purple-600 text-white" : "text-gray-500 hover:text-gray-300"}`}
                   >
                     Home
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => setPreviewMode("destaque")}
+                    className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-colors ${previewMode === "destaque" ? "bg-purple-600 text-white" : "text-gray-500 hover:text-gray-300"}`}
+                  >
+                    Destaque
                   </button>
                   <button 
                     type="button"
@@ -889,8 +904,8 @@ export default function AdminDashboard() {
                 /* O Card Simulado do Anúncio Destaque (Popup Vertical) */
                 <div className="w-full max-w-[320px] rounded-[24px] overflow-hidden bg-[#101010] flex flex-col relative border border-purple-500/50 mx-auto shadow-2xl">
                   <div className="relative h-[220px] w-full bg-black">
-                    {previewImage ? (
-                      <img src={previewImage} alt="Preview" className="w-full h-full object-cover" />
+                    {previewDetailImage || previewImage ? (
+                      <img src={(previewDetailImage || previewImage) as string} alt="Preview" className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex flex-col items-center justify-center text-gray-700 bg-black/50">
                         <Gift className="w-12 h-12 mb-2" />
@@ -921,9 +936,12 @@ export default function AdminDashboard() {
                     <p className="text-[#a0a0a0] mt-3 mb-5 text-[11px] leading-relaxed font-medium line-clamp-3">
                       {newDesc || "Respostas aceitas até a data estipulada. Siga as regras para participar!"}
                     </p>
-                    <button type="button" className="w-full bg-purple-600 text-white font-black uppercase tracking-widest py-3 rounded-xl text-xs flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(147,51,234,0.3)]">
+                    <button type="button" className="w-full bg-purple-600 text-white font-black uppercase tracking-widest py-3 rounded-xl text-xs flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(147,51,234,0.3)] mb-3">
                       QUERO PARTICIPAR <ArrowRight className="w-3 h-3" />
                     </button>
+                    <p className="w-full text-center text-[#606060] text-[9px] font-bold uppercase tracking-widest">
+                      {newLoginText || "Entrada Gratuita . Login com a Twitch"}
+                    </p>
                   </div>
                 </div>
               ) : (
@@ -957,8 +975,8 @@ export default function AdminDashboard() {
                   {/* Bloco 2: Imagem do Prêmio */}
                   <div className="overflow-hidden border-t border-b border-white/5">
                     <div className="relative h-[250px] w-full bg-black">
-                      {newDetailImage || previewImage ? (
-                        <img src={newDetailImage ? URL.createObjectURL(newDetailImage) : previewImage!} alt="Preview" className="w-full h-full object-cover" />
+                      {previewDetailImage || previewImage ? (
+                        <img src={(previewDetailImage || previewImage) as string} alt="Preview" className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-gray-700"><Gift className="w-12 h-12" /></div>
                       )}
