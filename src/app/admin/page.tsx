@@ -496,7 +496,7 @@ export default function AdminDashboard() {
                                 </button>
                                 <button 
                                   onClick={() => handleEditGiveaway(sorteio)}
-                                  className="p-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded transition-colors" title="Editar">
+                                  className="p-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded transition-colors" title="Editar Sorteio">
                                   <Edit className="w-4 h-4" />
                                 </button>
                                 <button 
@@ -947,34 +947,34 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               ) : (
-                /* O Card Simulado da Página de Sorteio (Modal Horizontal) */
-                <div className="w-[500px] origin-top scale-[0.6] bg-[#121214] border border-gray-800 rounded-2xl shadow-2xl overflow-hidden relative flex flex-row mx-auto">
-                  <div className="w-1/2 h-[350px] bg-[#0a0a0c] relative flex items-center justify-center border-r border-gray-800">
+                /* O Card Simulado da Página de Sorteio (Modal Empilhado para Prévia) */
+                <div className="w-full max-w-[320px] bg-[#121214] border border-gray-800 rounded-2xl shadow-2xl overflow-hidden relative flex flex-col mx-auto">
+                  <div className="w-full h-[200px] bg-[#0a0a0c] relative flex items-center justify-center border-b border-gray-800">
                     {newDetailImage || previewImage ? (
                       <img src={newDetailImage ? URL.createObjectURL(newDetailImage) : previewImage!} alt="Preview" className="w-full h-full object-cover" />
                     ) : (
-                      <Gift className="w-20 h-20 text-gray-700" />
+                      <Gift className="w-16 h-16 text-gray-700" />
                     )}
                   </div>
-                  <div className="w-1/2 p-8 flex flex-col justify-center">
-                    <div className="flex items-center gap-2 mb-4">
-                      <span className="px-3 py-1 bg-yellow-500/20 text-yellow-500 rounded text-xs font-bold border border-yellow-500/30">
+                  <div className="w-full p-6 flex flex-col justify-center">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="px-2 py-1 bg-yellow-500/20 text-yellow-500 rounded text-[10px] font-bold border border-yellow-500/30">
                         CUSTO: {newCoins || 0} COINS
                       </span>
                       {newHighlight && (
-                        <span className={`px-3 py-1 rounded text-xs font-bold bg-purple-500/20 text-purple-500`}>
+                        <span className={`px-2 py-1 rounded text-[10px] font-bold bg-purple-500/20 text-purple-500`}>
                           {newHighlight}
                         </span>
                       )}
                     </div>
-                    <h2 className="text-3xl font-black italic text-white uppercase tracking-wider mb-4 leading-tight">
+                    <h2 className="text-xl font-black italic text-white uppercase tracking-wider mb-3 leading-tight line-clamp-2">
                       {newTitle || "TÍTULO DO SORTEIO"}
                     </h2>
-                    <h4 className="text-gray-500 text-xs font-bold uppercase tracking-widest mb-2">Descrição do Prêmio</h4>
-                    <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap mb-6 line-clamp-4">
+                    <h4 className="text-gray-500 text-[10px] font-bold uppercase tracking-widest mb-1">Descrição do Prêmio</h4>
+                    <p className="text-gray-300 text-xs leading-relaxed whitespace-pre-wrap mb-5 line-clamp-3">
                       {newDesc || "Descrição completa das regras do sorteio. Aparece dentro da página do sorteio..."}
                     </p>
-                    <button type="button" className="w-full btn-neon font-bold italic tracking-widest uppercase py-4 rounded-lg mt-auto text-sm">
+                    <button type="button" className="w-full btn-neon font-bold italic tracking-widest uppercase py-3 rounded-lg mt-auto text-xs">
                       Participar Agora
                     </button>
                   </div>
