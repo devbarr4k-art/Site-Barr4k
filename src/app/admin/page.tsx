@@ -78,6 +78,28 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleEditGiveaway = (giveaway: any) => {
+    setNewTitle(giveaway.title);
+    setNewDesc(giveaway.description || "");
+    setNewHighlight(giveaway.highlight_text || "");
+    setSelectedColor(giveaway.highlight_color || "Amarelo");
+    setNewCoins(giveaway.coins_cost || 0);
+    setNewImage(null);
+    setEditingGiveaway(giveaway.id);
+    setIsCreateModalOpen(true);
+  };
+
+  const openCreateModal = () => {
+    setNewTitle("");
+    setNewDesc("");
+    setNewHighlight("");
+    setSelectedColor("Amarelo");
+    setNewCoins(0);
+    setNewImage(null);
+    setEditingGiveaway(null);
+    setIsCreateModalOpen(true);
+  };
+
   const handleCreateSorteio = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle) return alert("Título é obrigatório!");
@@ -110,22 +132,41 @@ export default function AdminDashboard() {
       });
     }
 
-    const { error } = await supabase.from('giveaways').insert([{
-      title: newTitle,
-      description: newDesc,
-      highlight_text: newHighlight,
-      highlight_color: selectedColor,
-      coins_cost: newCoins,
-      image_url: imageUrl,
-      type: 'monthly',
-      status: 'active'
-    }]);
+    if (editingGiveaway) {
+      const updateData: any = {
+        title: newTitle,
+        description: newDesc,
+        highlight_text: newHighlight,
+        highlight_color: selectedColor,
+        coins_cost: Number(newCoins) || 0,
+      };
+      if (imageUrl) updateData.image_url = imageUrl;
 
-    if (!error) {
-      setIsCreateModalOpen(false);
-      fetchSorteios(); // Atualiza a lista
+      const { error } = await supabase.from('giveaways').update(updateData).eq('id', editingGiveaway);
+      
+      if (!error) {
+        setIsCreateModalOpen(false);
+        setEditingGiveaway(null);
+        fetchSorteios();
+      } else alert("Erro ao editar: " + error.message);
     } else {
-      alert("Erro ao criar sorteio: " + error.message);
+      const { error } = await supabase.from('giveaways').insert([{
+        title: newTitle,
+        description: newDesc,
+        highlight_text: newHighlight,
+        highlight_color: selectedColor,
+        coins_cost: Number(newCoins) || 0,
+        image_url: imageUrl,
+        type: 'monthly',
+        status: 'active'
+      }]);
+
+      if (!error) {
+        setIsCreateModalOpen(false);
+        fetchSorteios(); // Atualiza a lista
+      } else {
+        alert("Erro ao criar sorteio: " + error.message);
+      }
     }
   };
 
@@ -277,7 +318,7 @@ export default function AdminDashboard() {
                     <p className="text-gray-400">Crie, edite ou encerre os sorteios da plataforma.</p>
                   </div>
                   <button
-                    onClick={() => setIsCreateModalOpen(true)}
+                    onClick={openCreateModal}
                     className="btn-neon px-6 py-3 rounded-lg font-bold flex items-center gap-2"
                   >
                     <Plus className="w-5 h-5" />
@@ -320,7 +361,9 @@ export default function AdminDashboard() {
                                 >
                                   <Users className="w-4 h-4" />
                                 </button>
-                                <button className="p-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded transition-colors" title="Editar">
+                                <button 
+                                  onClick={() => handleEditGiveaway(sorteio)}
+                                  className="p-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded transition-colors" title="Editar">
                                   <Edit className="w-4 h-4" />
                                 </button>
                                 <button 

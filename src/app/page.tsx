@@ -2,13 +2,27 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Trophy, Gift, Users, ArrowDown, Zap } from "lucide-react";
+import { Trophy, Gift, Users, ArrowDown, Zap, X, Info } from "lucide-react";
 import ParticiparModal from "@/components/ui/ParticiparModal";
 import { supabase } from "@/lib/supabase";
+
+const getColorClass = (color: string) => {
+  switch (color) {
+    case 'yellow': return 'bg-yellow-500 text-black';
+    case 'green': return 'bg-green-500 text-white';
+    case 'blue': return 'bg-blue-500 text-white';
+    case 'purple': return 'bg-purple-500 text-white';
+    case 'red': return 'bg-red-500 text-white';
+    case 'orange': return 'bg-orange-500 text-white';
+    case 'pink': return 'bg-pink-500 text-white';
+    default: return 'bg-purple-500 text-white';
+  }
+};
 
 export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedGiveaway, setSelectedGiveaway] = useState<{id: string, title: string} | null>(null);
+  const [detailsGiveaway, setDetailsGiveaway] = useState<any>(null);
   
   const [activeGiveaways, setActiveGiveaways] = useState<any[]>([]);
   const [winners, setWinners] = useState<any[]>([]);
@@ -111,7 +125,7 @@ export default function Home() {
       </section>
 
       {/* Sorteios Ativos (Grid Dinâmico) */}
-      <section id="active-giveaways" className="py-16 bg-black relative border-t border-white/5 scroll-mt-20">
+      <section id="active-giveaways" className="py-16 bg-[#050505] relative border-t border-white/5 scroll-mt-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 flex items-center justify-center gap-3">
@@ -122,28 +136,50 @@ export default function Home() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {activeGiveaways.map((giveaway) => (
-              <div key={giveaway.id} className="glass-panel rounded-2xl overflow-hidden animated-border-card group">
+              <div key={giveaway.id} className="glass-panel rounded-2xl overflow-hidden animated-border-card group flex flex-col">
                 <div className="h-48 relative border-b border-gray-800 bg-[#121214] flex items-center justify-center overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-b from-purple-900/30 to-transparent opacity-50" />
+                  
+                  {giveaway.highlight_text && (
+                    <div className={`absolute top-3 left-3 px-3 py-1 rounded text-xs font-bold z-20 shadow-lg ${getColorClass(giveaway.highlight_color)}`}>
+                      {giveaway.highlight_text}
+                    </div>
+                  )}
+
+                  <div className="absolute inset-0 bg-gradient-to-b from-purple-900/30 to-transparent opacity-50 z-0" />
                   {giveaway.image_url ? (
-                    <img src={giveaway.image_url} alt={giveaway.title} className="w-full h-full object-cover relative z-10" />
+                    <img src={giveaway.image_url} alt={giveaway.title} className="w-full h-full object-cover relative z-10 transition-transform duration-500 group-hover:scale-105" />
                   ) : (
                     <span className="text-gray-600 font-bold z-10">Imagem do Prêmio</span>
                   )}
                 </div>
-                <div className="p-6">
-                  <h3 className="text-xl font-bold text-white mb-2 group-hover:text-purple-400 transition-colors">
+                <div className="p-6 flex flex-col flex-1">
+                  <h3 className="text-xl font-bold text-white mb-2 group-hover:text-purple-400 transition-colors line-clamp-1">
                     {giveaway.title}
                   </h3>
-                  <p className="text-gray-400 text-sm mb-6 h-10">
+                  <p className="text-gray-400 text-sm mb-6 line-clamp-2 flex-1">
                     {giveaway.description}
                   </p>
-                  <button 
-                    onClick={() => handleOpenModal(String(giveaway.id), giveaway.title)}
-                    className="w-full btn-neon font-bold py-3 rounded-lg text-sm uppercase tracking-wider"
-                  >
-                    Participar
-                  </button>
+                  
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-yellow-500 font-bold text-sm bg-yellow-500/10 px-2 py-1 rounded border border-yellow-500/20">
+                      {giveaway.coins_cost} Coins
+                    </span>
+                  </div>
+
+                  <div className="flex gap-2 mt-auto">
+                    <button 
+                      onClick={() => setDetailsGiveaway(giveaway)}
+                      className="flex-1 bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 rounded-lg text-sm transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Info className="w-4 h-4" /> Detalhes
+                    </button>
+                    <button 
+                      onClick={() => handleOpenModal(String(giveaway.id), giveaway.title)}
+                      className="flex-1 btn-neon font-bold py-3 rounded-lg text-sm uppercase tracking-wider"
+                    >
+                      Participar
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -260,6 +296,60 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Details Modal */}
+      {detailsGiveaway && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="bg-[#121214] border border-gray-800 rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden relative flex flex-col md:flex-row">
+            {/* Left side Image */}
+            <div className="w-full md:w-1/2 h-64 md:h-auto bg-[#0a0a0c] relative flex items-center justify-center border-b md:border-b-0 md:border-r border-gray-800">
+              {detailsGiveaway.image_url ? (
+                <img src={detailsGiveaway.image_url} alt={detailsGiveaway.title} className="w-full h-full object-cover" />
+              ) : (
+                <Gift className="w-20 h-20 text-gray-700" />
+              )}
+            </div>
+            {/* Right side Content */}
+            <div className="w-full md:w-1/2 p-6 md:p-8 flex flex-col max-h-[80vh] overflow-y-auto">
+              <button onClick={() => setDetailsGiveaway(null)} className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors bg-black/50 rounded-full p-1 z-10">
+                <X className="w-6 h-6" />
+              </button>
+              
+              <div className="flex items-center gap-2 mb-4 mt-2">
+                <span className="px-3 py-1 bg-yellow-500/20 text-yellow-500 rounded text-xs font-bold border border-yellow-500/30">
+                  CUSTO: {detailsGiveaway.coins_cost} COINS
+                </span>
+                {detailsGiveaway.highlight_text && (
+                  <span className={`px-3 py-1 rounded text-xs font-bold ${getColorClass(detailsGiveaway.highlight_color)}`}>
+                    {detailsGiveaway.highlight_text}
+                  </span>
+                )}
+              </div>
+
+              <h2 className="text-2xl md:text-3xl font-black italic text-white uppercase tracking-wider mb-4 leading-tight">
+                {detailsGiveaway.title}
+              </h2>
+              
+              <div className="flex-1">
+                <h4 className="text-gray-500 text-xs font-bold uppercase tracking-widest mb-2">Descrição do Prêmio</h4>
+                <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap mb-6">
+                  {detailsGiveaway.description}
+                </p>
+              </div>
+              
+              <button 
+                onClick={() => {
+                  setDetailsGiveaway(null);
+                  handleOpenModal(String(detailsGiveaway.id), detailsGiveaway.title);
+                }}
+                className="w-full btn-neon font-bold italic tracking-widest uppercase py-4 rounded-lg mt-auto text-sm"
+              >
+                Participar Agora
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal Render */}
       <ParticiparModal 
