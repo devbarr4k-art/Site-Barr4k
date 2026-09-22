@@ -116,7 +116,7 @@ export default function MeusTicketsPage() {
                             <span className={`text-xs px-2 py-1 rounded font-bold border mb-2 inline-block ${statusStyle.className}`}>
                               {statusStyle.label}
                             </span>
-                            <h4 className="text-lg font-bold text-white truncate">{ticket.giveaways?.title || "Sorteio removido"}</h4>
+                            <h4 className="text-lg font-bold text-white truncate">{ticket.giveaways?.title?.replace("|", " ") || "Sorteio removido"}</h4>
                           </div>
                           {ticket.coins_used > 0 && (
                             <div className="text-right shrink-0">

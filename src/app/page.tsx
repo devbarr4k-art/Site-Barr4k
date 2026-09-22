@@ -315,7 +315,7 @@ export default function Home() {
                 {/* Informações */}
                 <div className="p-6 flex flex-col flex-1 bg-[#0c0d10]">
                   <h3 className="text-xl font-black text-white mb-6 uppercase tracking-tight line-clamp-1" style={{ fontFamily: 'var(--font-kanit)' }}>
-                    <span className="text-purple-500 mr-2">★</span>{giveaway.title}
+                    <span className="text-purple-500 mr-2">★</span>{giveaway.title.replace("|", " ")}
                   </h3>
 
                   <div className="w-full h-[1px] bg-white/5 mb-6" />

@@ -112,7 +112,7 @@ export async function POST(request: Request) {
         .insert({
           giveaway_id: body.giveawayId ?? null,
           twitch_username: body.twitchUsername,
-          prize: body.prize,
+          prize: String(body.prize ?? "").replace(/\s*\|\s*/g, " "),
           in_hall_of_fame: false,
         })
         .select()

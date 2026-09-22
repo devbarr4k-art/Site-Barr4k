@@ -183,7 +183,7 @@ export default function SorteioPage() {
                 <span className="text-[10px] font-bold tracking-widest uppercase">PRÊMIO</span>
               </div>
               <h3 className="text-2xl md:text-3xl font-bold text-white leading-tight">
-                <span className="text-white">★</span> {giveaway.title}
+                <span className="text-white">★</span> {giveaway.title.replace("|", " ")}
               </h3>
               {giveaway.prize_value && (
                 <p className="text-purple-400 font-bold text-lg mt-1">R$ {giveaway.prize_value}</p>
