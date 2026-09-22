@@ -7,6 +7,17 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
+const TooltipIcon = ({ text }: { text: string }) => (
+  <div className="relative flex items-center justify-center group/tooltip">
+    <span className="cursor-help text-purple-500">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+    </span>
+    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-[220px] bg-[#0c0d10] text-gray-300 text-[10px] font-normal leading-relaxed rounded-md p-2 shadow-2xl border border-white/10 z-50 pointer-events-none opacity-0 group-hover/tooltip:opacity-100 transition-opacity">
+      {text}
+    </div>
+  </div>
+);
+
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("sorteios");
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -663,9 +674,7 @@ export default function AdminDashboard() {
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
                     Nome
-                    <span className="cursor-help text-purple-500" title="Nome principal do sorteio, ex: Sorteio Mensal TopSkin. Se quiser dividir o título em duas linhas e duas cores, use o caractere | ex: BAIONETA | FOREST DDPAT">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                    </span>
+                    <TooltipIcon text="Nome principal do sorteio, ex: Sorteio Mensal TopSkin. Se quiser dividir o título em duas linhas e duas cores, use o caractere | ex: BAIONETA | FOREST DDPAT" />
                   </label>
                   <input type="text" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} required className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: BAIONETA | FOREST DDPAT" />
                 </div>
@@ -673,9 +682,7 @@ export default function AdminDashboard() {
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
                     Descrição
-                    <span className="cursor-help text-purple-500" title="Texto completo com as regras do sorteio. Aparece dentro da página do sorteio.">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                    </span>
+                    <TooltipIcon text="Texto completo com as regras do sorteio. Aparece dentro da página do sorteio." />
                   </label>
                   <textarea rows={3} value={newDesc} onChange={(e) => setNewDesc(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors resize-none" placeholder="Ex: Respostas aceitas de 20/01 até 28/02. Regras, cupom, etc." />
                 </div>
@@ -683,9 +690,7 @@ export default function AdminDashboard() {
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
                     Destaque (Opcional)
-                    <span className="cursor-help text-purple-500" title="Balão colorido que aparece no canto superior esquerdo da imagem no card da Home.">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                    </span>
+                    <TooltipIcon text="Balão colorido que aparece no canto superior esquerdo da imagem no card da Home." />
                   </label>
                   <input type="text" value={newHighlight} onChange={(e) => setNewHighlight(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: CSGO-SKINS" />
                 </div>
@@ -694,18 +699,14 @@ export default function AdminDashboard() {
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
                       Linha Fina (Subtítulo)
-                      <span className="cursor-help text-purple-500" title="Opcional. Outro balão colorido ao lado do destaque, ex: FACTORY-NEW.">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                      </span>
+                        <TooltipIcon text="Opcional. Outro balão colorido ao lado do destaque, ex: FACTORY-NEW." />
                     </label>
                     <input type="text" value={newSubtitle} onChange={(e) => setNewSubtitle(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: FACTORY-NEW" />
                   </div>
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
                       Texto da Entrada
-                      <span className="cursor-help text-purple-500" title="O texto que aparece em 'ENTRADA' no card inferior esquerdo. Ex: Gratuito ou R$ 12,00">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                      </span>
+                        <TooltipIcon text="O texto que aparece em 'ENTRADA' no card inferior esquerdo. Ex: Gratuito ou R$ 12,00" />
                     </label>
                     <input type="text" value={newPrizeLabel} onChange={(e) => setNewPrizeLabel(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: Gratuito" />
                   </div>
@@ -715,18 +716,14 @@ export default function AdminDashboard() {
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
                       Valor do Prêmio (R$)
-                      <span className="cursor-help text-purple-500" title="Aparece em VALOR no card. Ex: 1.364,35">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                      </span>
+                        <TooltipIcon text="Aparece em VALOR no card. Ex: 1.364,35" />
                     </label>
                     <input type="text" value={newPrizeValue} onChange={(e) => setNewPrizeValue(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: 1.364,35" />
                   </div>
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
                       Data do Sorteio
-                      <span className="cursor-help text-purple-500" title="Data exata de encerramento. Serve para alimentar o cronômetro automaticamente.">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                      </span>
+                        <TooltipIcon text="Data exata de encerramento. Serve para alimentar o cronômetro automaticamente." />
                     </label>
                     <input type="datetime-local" value={newDrawDate} onChange={(e) => setNewDrawDate(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors [color-scheme:dark]" />
                   </div>
@@ -735,9 +732,7 @@ export default function AdminDashboard() {
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
                     Texto de Login (Página Sorteio)
-                    <span className="cursor-help text-purple-500" title="Texto que aparece abaixo do botão QUERO PARTICIPAR na página interna.">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                    </span>
+                    <TooltipIcon text="Texto que aparece abaixo do botão QUERO PARTICIPAR na página interna." />
                   </label>
                   <input type="text" value={newLoginText} onChange={(e) => setNewLoginText(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: Entrada Gratuita . Login com a Twitch" />
                 </div>
@@ -746,9 +741,7 @@ export default function AdminDashboard() {
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
                       Imagem (Capa / Home)
-                      <span className="cursor-help text-purple-500" title="Imagem do prêmio, de preferência com fundo transparente, para os cards da tela inicial.">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                      </span>
+                        <TooltipIcon text="Imagem do prêmio, de preferência com fundo transparente, para os cards da tela inicial." />
                     </label>
                     <label className="w-full border-2 border-dashed border-gray-700 hover:border-purple-500 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition-colors bg-[#0a0a0b] relative">
                       <input type="file" onChange={(e) => {
@@ -768,9 +761,7 @@ export default function AdminDashboard() {
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
                       Imagem (Página Sorteio)
-                      <span className="cursor-help text-purple-500" title="Imagem grande (com fundo) que aparece dentro da aba do sorteio, em alta resolução.">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                      </span>
+                        <TooltipIcon text="Imagem grande (com fundo) que aparece dentro da aba do sorteio, em alta resolução." />
                     </label>
                     <label className="w-full border-2 border-dashed border-gray-700 hover:border-purple-500 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition-colors bg-[#0a0a0b] relative">
                       <input type="file" onChange={(e) => e.target.files && setNewDetailImage(e.target.files[0])} accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
