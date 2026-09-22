@@ -243,13 +243,13 @@ export default function SorteioPage() {
               </div>
 
               <div>
-                <label className="block text-[#a0a0a0] text-xs font-bold uppercase tracking-wider mb-2">Seu @ no Instagram (Opcional)</label>
+                <label className="block text-[#a0a0a0] text-xs font-bold uppercase tracking-wider mb-2">SEU ID NA CASA</label>
                 <input 
                   type="text" 
                   value={instagram}
                   onChange={(e) => setInstagram(e.target.value)}
                   className="w-full bg-[#050505] border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500 transition-colors"
-                  placeholder="Ex: @barr4k"
+                  placeholder="Ex: 12345678"
                 />
               </div>
 
