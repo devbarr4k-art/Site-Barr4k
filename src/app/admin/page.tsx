@@ -30,6 +30,8 @@ export default function AdminDashboard() {
   const [newCoins, setNewCoins] = useState(0);
   const [newImage, setNewImage] = useState<File | null>(null);
 
+  const [editingGiveaway, setEditingGiveaway] = useState<string | null>(null);
+
   const colorOptions = [
     { name: "Amarelo", hex: "bg-yellow-500" },
     { name: "Verde", hex: "bg-green-500" },
