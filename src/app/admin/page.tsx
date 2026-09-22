@@ -53,7 +53,12 @@ export default function AdminDashboard() {
   // Bot da Twitch
   const [botStatus, setBotStatus] = useState<"disconnected" | "connecting" | "connected">("disconnected");
   const [botCommand, setBotCommand] = useState("!sorteio");
-  const [subMultiplier, setSubMultiplier] = useState(2);
+  const [subMultiplierT1, setSubMultiplierT1] = useState(2);
+  const [subMultiplierT2, setSubMultiplierT2] = useState(3);
+  const [subMultiplierT3, setSubMultiplierT3] = useState(5);
+  const [twitchGiveawayTitle, setTwitchGiveawayTitle] = useState("");
+  const [twitchGiveawayImage, setTwitchGiveawayImage] = useState<File | null>(null);
+  const [isCreatingTwitchGiveaway, setIsCreatingTwitchGiveaway] = useState(false);
   const tmiClient = useRef<any>(null);
 
   // Formulário Criar Sorteio
@@ -237,7 +242,7 @@ export default function AdminDashboard() {
     if (!activeGiveaways || activeGiveaways.length === 0) return;
     
     // Calcula quantas entradas o usuário terá (1 normal, ou 'subMultiplier' se for sub)
-    const chances = isSub ? subMultiplier : 1;
+    const chances = isSub ? subMultiplierT1 : 1;
     
     for (const g of activeGiveaways) {
        const { data: existing } = await supabase.from('participants')

@@ -4,25 +4,26 @@ import { useState, useEffect } from "react";
 import { FaTwitch, FaTicketAlt } from "react-icons/fa";
 import { Zap, AlertCircle, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { useSession } from "next-auth/react";
 
 export default function MeusTicketsPage() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { data: session, status } = useSession();
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedGiveaway, setSelectedGiveaway] = useState<any>(null);
   const [myTickets, setMyTickets] = useState<any[]>([]);
 
   const ITEMS_PER_PAGE = 10;
   
-  // Simulando nome de usuário já logado
-  const currentUser = "gaules_t"; 
+  const currentUser = (session?.user as any)?.username || session?.user?.name;
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (status === "authenticated" && currentUser) {
       fetchMyTickets();
     }
-  }, [isAuthenticated]);
+  }, [status, currentUser]);
 
   const fetchMyTickets = async () => {
+    if (!currentUser) return;
     const { data, error } = await supabase
       .from('participants')
       .select('*, giveaways(*)')
