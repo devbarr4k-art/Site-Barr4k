@@ -24,6 +24,7 @@ export default function AdminDashboard() {
   const [editCoinsUsed, setEditCoinsUsed] = useState(0);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedColor, setSelectedColor] = useState("Amarelo");
+  const [previewMode, setPreviewMode] = useState<"home" | "inner">("home");
 
   // Formulário Criar Sorteio
   const [newTitle, setNewTitle] = useState("");
@@ -814,10 +815,31 @@ export default function AdminDashboard() {
 
             {/* Live Preview Side */}
             <div className="hidden md:block md:w-[45%] bg-[#080809] border-l border-gray-800 p-8 flex flex-col items-center justify-center">
-              <h3 className="text-gray-500 font-bold text-sm tracking-widest uppercase mb-6 w-full text-center">Prévia do Card (Home)</h3>
+              <div className="flex items-center justify-between w-full max-w-[320px] mb-6">
+                <h3 className="text-gray-500 font-bold text-xs tracking-widest uppercase">
+                  {previewMode === "home" ? "Prévia (Home)" : "Prévia (Sorteio)"}
+                </h3>
+                <div className="flex bg-[#121214] border border-gray-800 rounded-lg overflow-hidden">
+                  <button 
+                    type="button"
+                    onClick={() => setPreviewMode("home")}
+                    className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-colors ${previewMode === "home" ? "bg-purple-600 text-white" : "text-gray-500 hover:text-gray-300"}`}
+                  >
+                    Home
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => setPreviewMode("inner")}
+                    className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-colors ${previewMode === "inner" ? "bg-purple-600 text-white" : "text-gray-500 hover:text-gray-300"}`}
+                  >
+                    Sorteio
+                  </button>
+                </div>
+              </div>
               
-              {/* O Card Simulado */}
-              <div className="w-full max-w-[320px] rounded-[16px] p-6 bg-[#0c0d10] relative group transition-colors animated-border-card border border-white/5 mx-auto">
+              {previewMode === "home" ? (
+                /* O Card Simulado da Home */
+                <div className="w-full max-w-[320px] rounded-xl p-6 bg-[#0c0d10] relative group transition-colors animated-border-card border border-white/5 mx-auto">
                 {/* Destaques */}
                 <div className="flex gap-2 flex-wrap mb-4 z-20 relative">
                   {newHighlight && (
@@ -874,9 +896,51 @@ export default function AdminDashboard() {
                   </button>
                 </div>
               </div>
+              ) : (
+                /* O Card Simulado da Página de Sorteio (Popup) */
+                <div className="w-full max-w-[320px] rounded-[24px] overflow-hidden bg-[#101010] flex flex-col relative border border-purple-500/50 mx-auto shadow-2xl">
+                  <div className="relative h-[220px] w-full bg-black">
+                    {previewImage ? (
+                      <img src={previewImage} alt="Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center text-gray-700 bg-black/50">
+                        <Gift className="w-12 h-12 mb-2" />
+                        <span className="text-[10px] font-bold uppercase tracking-widest">Sem Imagem</span>
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#101010] via-black/20 to-transparent z-10" />
+                    <div className="absolute top-3 left-3 z-20 flex gap-2">
+                      <div className="bg-purple-600 rounded-full px-2 py-1 flex items-center gap-1 shadow-lg">
+                        <Gift className="w-3 h-3 text-white" />
+                        <span className="text-[9px] font-bold text-white tracking-widest uppercase">100% GRÁTIS</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-5 bg-[#101010] flex flex-col items-start w-full relative z-30">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <span className="text-orange-500 text-xs">🔥</span>
+                      <span className="text-[9px] font-bold text-purple-500 tracking-widest uppercase">
+                        {newSubtitle || newTitle.split('|')[0] || "SORTEIO ACONTECENDO"}
+                      </span>
+                    </div>
+                    <h1 className="text-2xl font-black text-white uppercase tracking-tighter leading-tight" style={{ fontFamily: 'var(--font-kanit)' }}>
+                      SORTEIO {newTitle.split('|')[0] || "BAIONETA"} <br/>
+                      {newTitle.includes('|') && (
+                        <span className="text-purple-500 inline-block mt-0.5">{newTitle.split('|')[1]}</span>
+                      )}
+                    </h1>
+                    <p className="text-[#a0a0a0] mt-3 mb-5 text-[11px] leading-relaxed font-medium line-clamp-3">
+                      {newDesc || "Respostas aceitas até a data estipulada. Siga as regras para participar!"}
+                    </p>
+                    <button type="button" className="w-full bg-purple-600 text-white font-black uppercase tracking-widest py-3 rounded-xl text-xs flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(147,51,234,0.3)]">
+                      QUERO PARTICIPAR <ArrowRight className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              )}
               
               <p className="text-gray-600 text-[10px] uppercase font-bold text-center mt-6 max-w-[250px]">
-                A prévia é uma aproximação visual do card que aparecerá na página inicial.
+                A prévia é uma aproximação visual do card.
               </p>
             </div>
           </div>
