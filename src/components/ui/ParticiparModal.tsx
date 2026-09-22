@@ -5,22 +5,32 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { FaTwitch } from "react-icons/fa";
+import { useSession, signIn } from "next-auth/react";
+import { useEffect } from "react";
 
 interface ParticiparModalProps {
   isOpen: boolean;
   onClose: () => void;
   giveaway: any;
-  isLoggedIn: boolean; // Simulating auth state
 }
 
-export default function ParticiparModal({ isOpen, onClose, giveaway, isLoggedIn }: ParticiparModalProps) {
+export default function ParticiparModal({ isOpen, onClose, giveaway }: ParticiparModalProps) {
   const router = useRouter();
+  const { data: session } = useSession();
+  const isLoggedIn = !!session;
+
   const [isSuccess, setIsSuccess] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const [twitchId, setTwitchId] = useState("");
   const [instagram, setInstagram] = useState("");
-  const [isParticipating, setIsParticipating] = useState(false); // To show the form
+  const [isParticipating, setIsParticipating] = useState(false); 
+
+  useEffect(() => {
+    if (session?.user?.name) {
+      setTwitchId(session.user.name);
+    }
+  }, [session]);
 
   if (!isOpen || !giveaway) return null;
 
@@ -42,7 +52,7 @@ export default function ParticiparModal({ isOpen, onClose, giveaway, isLoggedIn 
   const handleConfirm = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isLoggedIn) {
-      alert("Redirecionando para o Login da Twitch...");
+      signIn('twitch');
       return;
     }
     
@@ -183,10 +193,16 @@ export default function ParticiparModal({ isOpen, onClose, giveaway, isLoggedIn 
                 Entre com sua conta da Twitch para garantir sua vaga no sorteio. Uma participação por usuário.
               </p>
               <button 
-                onClick={() => setIsParticipating(true)}
+                onClick={() => {
+                  if (!isLoggedIn) {
+                    signIn('twitch');
+                  } else {
+                    setIsParticipating(true);
+                  }
+                }}
                 className="w-full max-w-[280px] bg-white hover:bg-gray-200 text-black font-black uppercase tracking-widest py-3.5 rounded-xl transition-all duration-300 flex items-center justify-center gap-3 text-[11px]"
               >
-                <FaTwitch className="w-4 h-4" /> ENTRAR COM A TWITCH
+                <FaTwitch className="w-4 h-4" /> {isLoggedIn ? 'PREENCHER DADOS' : 'ENTRAR COM A TWITCH'}
               </button>
             </>
           ) : (

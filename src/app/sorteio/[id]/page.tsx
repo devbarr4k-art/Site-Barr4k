@@ -6,6 +6,7 @@ import { ArrowLeft, CheckCircle2, Gift, Sparkles, Trophy, Upload, Clock } from "
 import Link from "next/link";
 import { FaTwitch } from "react-icons/fa";
 import { supabase } from "@/lib/supabase";
+import { useSession, signIn } from "next-auth/react";
 
 const useCountdown = (targetDateString: string | null) => {
   const [timeLeft, setTimeLeft] = useState({
@@ -46,8 +47,12 @@ const useCountdown = (targetDateString: string | null) => {
 export default function SorteioPage() {
   const params = useParams();
   const router = useRouter();
+  const { data: session } = useSession();
+  const isLoggedIn = !!session;
+
   const [giveaway, setGiveaway] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   
   const [isSuccess, setIsSuccess] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -56,10 +61,13 @@ export default function SorteioPage() {
   const [coinsSpent, setCoinsSpent] = useState("");
   const [isParticipating, setIsParticipating] = useState(false);
   
-  const timeLeft = useCountdown(giveaway?.draw_date || null);
+  useEffect(() => {
+    if (session?.user?.name) {
+      setTwitchId(session.user.name);
+    }
+  }, [session]);
 
-  // Simulating Auth for now
-  const isLoggedIn = true;
+  const timeLeft = useCountdown(giveaway?.draw_date || null);
 
   useEffect(() => {
     async function fetchGiveaway() {
@@ -73,7 +81,7 @@ export default function SorteioPage() {
       if (data) {
         setGiveaway(data);
       }
-      setIsLoading(false);
+      setLoading(false);
     }
     fetchGiveaway();
   }, [params.id]);
@@ -92,7 +100,7 @@ export default function SorteioPage() {
   const handleConfirm = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isLoggedIn) {
-      alert("Redirecionando para o Login da Twitch...");
+      signIn('twitch');
       return;
     }
     
@@ -247,10 +255,16 @@ export default function SorteioPage() {
                 Entre com sua conta da Twitch para garantir sua vaga no sorteio. Uma participação por usuário.
               </p>
               <button 
-                onClick={() => setIsParticipating(true)}
+                onClick={() => {
+                  if (!isLoggedIn) {
+                    signIn('twitch');
+                  } else {
+                    setIsParticipating(true);
+                  }
+                }}
                 className="w-full max-w-[280px] bg-white hover:bg-gray-200 text-black font-black uppercase tracking-widest py-3.5 rounded-xl transition-all duration-300 flex items-center justify-center gap-3 text-[11px]"
               >
-                <FaTwitch className="w-4 h-4 text-purple-600" /> ENTRAR COM A TWITCH
+                <FaTwitch className="w-4 h-4 text-purple-600" /> {isLoggedIn ? 'PREENCHER DADOS' : 'ENTRAR COM A TWITCH'}
               </button>
             </>
           ) : (

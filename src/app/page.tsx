@@ -532,6 +532,12 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      <ParticiparModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        giveaway={selectedGiveaway}
+      />
     </div>
   );
 }
