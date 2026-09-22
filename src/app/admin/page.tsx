@@ -48,6 +48,7 @@ export default function AdminDashboard() {
 
   // Bot da Twitch
   const [botStatus, setBotStatus] = useState<"disconnected" | "connecting" | "connected">("disconnected");
+  const [botCommand, setBotCommand] = useState("!sorteio");
   const tmiClient = useRef<any>(null);
 
   // Formulário Criar Sorteio
@@ -234,12 +235,10 @@ export default function AdminDashboard() {
     client.on('message', async (channel, tags, message, self) => {
        if (self) return;
        
-       if (message.toLowerCase().trim() === '!sorteio') {
+       if (message.toLowerCase().trim() === botCommand.toLowerCase().trim()) {
           const username = tags.username;
           if (username) {
              await handleChatEntry(username);
-             // Se quisermos ver em tempo real, podemos forçar um fetch caso estejamos na tela de participantes, mas o Supabase real-time seria melhor.
-             // Como workaround, se o admin estiver com a aba aberta, ele pode atualizar.
           }
        }
     });
@@ -648,7 +647,18 @@ export default function AdminDashboard() {
                     <h1 className="text-3xl font-bold text-white">Sorteios Ativos</h1>
                     <p className="text-gray-400">Crie, edite ou encerre os sorteios da plataforma.</p>
                   </div>
-                  <div className="flex gap-4">
+                  <div className="flex gap-4 items-center">
+                    <div className="relative flex items-center">
+                      <input 
+                        type="text" 
+                        value={botCommand}
+                        onChange={(e) => setBotCommand(e.target.value)}
+                        disabled={botStatus !== 'disconnected'}
+                        placeholder="Ex: !sorteio"
+                        className="bg-black/50 border border-gray-700 text-white font-mono rounded-lg px-4 py-3 w-40 disabled:opacity-50 focus:border-purple-500 focus:outline-none transition-colors"
+                        title="Comando que o bot vai escutar no chat"
+                      />
+                    </div>
                     <button 
                       onClick={toggleTwitchBot}
                       className={`flex items-center gap-2 font-bold px-6 py-3 rounded-lg shadow-[0_0_20px_rgba(0,0,0,0.5)] border transition-all ${
