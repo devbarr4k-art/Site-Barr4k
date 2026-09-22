@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Edit, Trash2, Settings, Users, Gift, Save, AlertTriangle, Star, ArrowRight } from "lucide-react";
+import { Plus, Edit, Trash2, Settings, Users, Gift, Save, AlertTriangle, Star, ArrowRight, Trophy, Sparkles } from "lucide-react";
 import { FaTwitch } from "react-icons/fa";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -947,35 +947,69 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               ) : (
-                /* O Card Simulado da Página de Sorteio (Modal Empilhado para Prévia) */
-                <div className="w-full max-w-[320px] bg-[#121214] border border-gray-800 rounded-2xl shadow-2xl overflow-hidden relative flex flex-col mx-auto">
-                  <div className="w-full h-[200px] bg-[#0a0a0c] relative flex items-center justify-center border-b border-gray-800">
-                    {newDetailImage || previewImage ? (
-                      <img src={newDetailImage ? URL.createObjectURL(newDetailImage) : previewImage!} alt="Preview" className="w-full h-full object-cover" />
-                    ) : (
-                      <Gift className="w-16 h-16 text-gray-700" />
-                    )}
-                  </div>
-                  <div className="w-full p-6 flex flex-col justify-center">
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="px-2 py-1 bg-yellow-500/20 text-yellow-500 rounded text-[10px] font-bold border border-yellow-500/30">
-                        CUSTO: {newCoins || 0} COINS
-                      </span>
-                      {newHighlight && (
-                        <span className={`px-2 py-1 rounded text-[10px] font-bold bg-purple-500/20 text-purple-500`}>
-                          {newHighlight}
-                        </span>
-                      )}
+                /* O Card Simulado da Página de Sorteio (Standalone Page Preview) */
+                <div className="w-full max-w-[400px] border border-purple-500 rounded-[20px] bg-[#101010] overflow-hidden relative flex flex-col mx-auto scale-90 origin-top">
+                  {/* Bloco 1: Host & Título */}
+                  <div className="p-6 flex flex-col items-center text-center">
+                    <div className="w-10 h-10 rounded-full overflow-hidden bg-black mb-4 border border-white/10">
+                      <img src="https://ui-avatars.com/api/?name=BARR4K&background=a855f7&color=fff&size=128" alt="" className="w-full h-full object-cover" />
                     </div>
-                    <h2 className="text-xl font-black italic text-white uppercase tracking-wider mb-3 leading-tight line-clamp-2">
-                      {newTitle || "TÍTULO DO SORTEIO"}
-                    </h2>
-                    <h4 className="text-gray-500 text-[10px] font-bold uppercase tracking-widest mb-1">Descrição do Prêmio</h4>
-                    <p className="text-gray-300 text-xs leading-relaxed whitespace-pre-wrap mb-5 line-clamp-3">
-                      {newDesc || "Descrição completa das regras do sorteio. Aparece dentro da página do sorteio..."}
+
+                    <div className="flex items-center justify-center gap-3 mb-3 w-full max-w-[200px]">
+                      <div className="h-[1px] flex-1 bg-purple-600" />
+                      <span className="text-purple-500 font-bold text-[8px] tracking-[0.2em] uppercase">{newSubtitle || "SORTEIO ESPECIAL"}</span>
+                      <div className="h-[1px] flex-1 bg-purple-600" />
+                    </div>
+
+                    <h2 className="text-[#a0a0a0] font-bold text-[10px] tracking-[0.4em] mb-1 uppercase">SORTEIO</h2>
+                    <h1 className="text-3xl font-black text-white uppercase tracking-tighter leading-[0.9]" style={{ fontFamily: 'Impact, sans-serif' }}>
+                      {(newTitle || "TÍTULO DO SORTEIO").split('|')[0]} <br/>
+                      {(newTitle || "").includes('|') && (
+                        <span className="text-purple-500 block mt-1">{(newTitle || "").split('|')[1]}</span>
+                      )}
+                    </h1>
+
+                    <p className="text-[#a0a0a0] mt-4 text-xs leading-relaxed font-medium line-clamp-3">
+                      {newDesc || "Descrição completa das regras do sorteio. Siga no Instagram, inscreva-se nos três canais..."}
                     </p>
-                    <button type="button" className="w-full btn-neon font-bold italic tracking-widest uppercase py-3 rounded-lg mt-auto text-xs">
-                      Participar Agora
+                  </div>
+
+                  {/* Bloco 2: Imagem do Prêmio */}
+                  <div className="overflow-hidden border-t border-b border-white/5">
+                    <div className="relative h-[250px] w-full bg-black">
+                      {newDetailImage || previewImage ? (
+                        <img src={newDetailImage ? URL.createObjectURL(newDetailImage) : previewImage!} alt="Preview" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-700"><Gift className="w-12 h-12" /></div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#101010] via-black/20 to-transparent z-10" />
+                      
+                      {/* Title Overlay in Image */}
+                      <div className="absolute bottom-4 left-4 right-4 z-20 text-left">
+                        <div className="flex items-center gap-1.5 mb-1.5 text-purple-500">
+                          <Trophy className="w-3 h-3" />
+                          <span className="text-[9px] font-bold tracking-widest uppercase">{newPrizeLabel || "PRÊMIO"}</span>
+                        </div>
+                        <h3 className="text-xl font-bold text-white leading-tight">
+                          <span className="text-white">★</span> {newTitle || "TÍTULO DO SORTEIO"}
+                        </h3>
+                        <p className="text-purple-400 font-bold text-sm mt-0.5">
+                          {newPrizeValue ? `R$ ${newPrizeValue}` : (Number(newCoins) === 0 ? "R$ 0,00" : "R$ 1.364,35")}
+                        </p>
+                        <p className="text-[#808080] text-[9px] mt-1 font-bold uppercase tracking-wide">{newShippingText || "100% grátis · Enviado direto via Steam Trade"}</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Bloco 3: Formulário de Participação */}
+                  <div className="p-6 text-center flex flex-col items-center">
+                    <Sparkles className="w-6 h-6 text-purple-500 mb-4" />
+                    <h3 className="text-lg font-black text-white italic tracking-wider uppercase mb-2">
+                      PARTICIPE AGORA
+                    </h3>
+                    <button type="button" className="w-full btn-neon font-bold italic tracking-widest uppercase py-3 rounded-lg mt-2 text-xs flex items-center justify-center gap-2">
+                      <FaTwitch className="w-3 h-3" />
+                      {newLoginText || "Entrada Gratuita . Login com a Twitch"}
                     </button>
                   </div>
                 </div>
