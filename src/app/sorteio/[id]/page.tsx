@@ -16,6 +16,7 @@ export default function SorteioPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [twitchId, setTwitchId] = useState("");
   const [instagram, setInstagram] = useState("");
+  const [coinsSpent, setCoinsSpent] = useState("");
   const [isParticipating, setIsParticipating] = useState(false);
   
   // Simulating Auth for now
@@ -68,7 +69,7 @@ export default function SorteioPage() {
     const { error } = await supabase.from('participants').insert([{
       giveaway_id: giveaway.id,
       twitch_username: twitchId,
-      coins_used: giveaway.coins_cost || 0,
+      coins_used: coinsSpent ? parseInt(coinsSpent) : 0,
       instagram: instagram,
       proof_url: proofUrl, 
       status: 'pending'
@@ -116,21 +117,21 @@ export default function SorteioPage() {
           </div>
 
           <div className="flex items-center justify-center gap-4 mb-4 w-full max-w-[280px]">
-            <div className="h-[1px] flex-1 bg-[#FF6B1C]" />
-            <span className="text-[#FF6B1C] font-bold text-[10px] tracking-[0.2em] uppercase">Sorteio Especial</span>
-            <div className="h-[1px] flex-1 bg-[#FF6B1C]" />
+            <div className="h-[1px] flex-1 bg-purple-600" />
+            <span className="text-purple-500 font-bold text-[10px] tracking-[0.2em] uppercase">Sorteio Especial</span>
+            <div className="h-[1px] flex-1 bg-purple-600" />
           </div>
 
           <h2 className="text-[#a0a0a0] font-bold text-sm tracking-[0.4em] mb-2 uppercase">SORTEIO</h2>
           <h1 className="text-5xl md:text-[4rem] font-black text-white uppercase tracking-tighter leading-[0.9]" style={{ fontFamily: 'Impact, sans-serif' }}>
             {giveaway.title.split('|')[0] || giveaway.title} <br/>
             {giveaway.title.includes('|') && (
-              <span className="text-[#FF6B1C] block mt-1">{giveaway.title.split('|')[1]}</span>
+              <span className="text-purple-500 block mt-1">{giveaway.title.split('|')[1]}</span>
             )}
           </h1>
 
           <p className="text-[#a0a0a0] mt-6 max-w-md text-sm leading-relaxed font-medium">
-            Estou sorteando essa baioneta de forma <strong className="text-[#FF6B1C]">totalmente gratuita</strong>. Siga no Instagram, inscreva-se nos três canais e garanta até <strong className="text-white">4 entradas</strong>.
+            Estou sorteando essa baioneta de forma <strong className="text-purple-500">totalmente gratuita</strong>. Siga no Instagram, inscreva-se nos três canais e garanta até <strong className="text-white">4 entradas</strong>.
           </p>
         </div>
 
@@ -146,14 +147,14 @@ export default function SorteioPage() {
             
             {/* Title Overlay in Image */}
             <div className="absolute bottom-6 left-6 right-6 z-20">
-              <div className="flex items-center gap-1.5 mb-2 text-[#FF6B1C]">
+              <div className="flex items-center gap-1.5 mb-2 text-purple-500">
                 <Trophy className="w-3 h-3" />
                 <span className="text-[10px] font-bold tracking-widest uppercase">PRÊMIO</span>
               </div>
               <h3 className="text-2xl md:text-3xl font-bold text-white leading-tight">
                 <span className="text-white">★</span> {giveaway.title}
               </h3>
-              <p className="text-[#FF6B1C] font-bold text-lg mt-1">R$ {giveaway.coins_cost === 0 ? "860,54" : "1.364,35"}</p>
+              <p className="text-purple-400 font-bold text-lg mt-1">R$ {giveaway.coins_cost === 0 ? "860,54" : "1.364,35"}</p>
               <p className="text-[#808080] text-[11px] mt-2 font-bold uppercase tracking-wide">100% grátis · Enviado direto via Steam Trade</p>
             </div>
           </div>
@@ -193,7 +194,7 @@ export default function SorteioPage() {
             </div>
           ) : !isParticipating ? (
             <>
-              <Sparkles className="w-8 h-8 text-[#FF6B1C] mb-6" />
+              <Sparkles className="w-8 h-8 text-purple-500 mb-6" />
               <h3 className="text-2xl font-black text-white italic tracking-wider uppercase mb-3">
                 PARTICIPE AGORA
               </h3>
@@ -204,7 +205,7 @@ export default function SorteioPage() {
                 onClick={() => setIsParticipating(true)}
                 className="w-full max-w-[280px] bg-white hover:bg-gray-200 text-black font-black uppercase tracking-widest py-3.5 rounded-xl transition-all duration-300 flex items-center justify-center gap-3 text-[11px]"
               >
-                <FaTwitch className="w-4 h-4" /> ENTRAR COM A TWITCH
+                <FaTwitch className="w-4 h-4 text-purple-600" /> ENTRAR COM A TWITCH
               </button>
             </>
           ) : (
@@ -213,7 +214,6 @@ export default function SorteioPage() {
                 <h3 className="text-2xl font-black text-white italic tracking-wider uppercase mb-2">
                   Preencher Requisitos
                 </h3>
-                <p className="text-[#FF6B1C] text-sm font-bold">Custo: {giveaway.coins_cost} Coins</p>
               </div>
 
               <div>
@@ -223,8 +223,20 @@ export default function SorteioPage() {
                   required
                   value={twitchId}
                   onChange={(e) => setTwitchId(e.target.value)}
-                  className="w-full bg-[#050505] border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#FF6B1C] transition-colors"
+                  className="w-full bg-[#050505] border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500 transition-colors"
                   placeholder="Ex: gaules"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[#a0a0a0] text-xs font-bold uppercase tracking-wider mb-2">Valor em Coins</label>
+                <input 
+                  type="number" 
+                  required
+                  value={coinsSpent}
+                  onChange={(e) => setCoinsSpent(e.target.value)}
+                  className="w-full bg-[#050505] border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500 transition-colors"
+                  placeholder="Ex: 5000"
                 />
               </div>
 
@@ -234,7 +246,7 @@ export default function SorteioPage() {
                   type="text" 
                   value={instagram}
                   onChange={(e) => setInstagram(e.target.value)}
-                  className="w-full bg-[#050505] border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#FF6B1C] transition-colors"
+                  className="w-full bg-[#050505] border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500 transition-colors"
                   placeholder="Ex: @barr4k"
                 />
               </div>
@@ -248,7 +260,7 @@ export default function SorteioPage() {
                     accept="image/*"
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
                   />
-                  <Upload className="w-6 h-6 text-[#505050] mb-2 group-hover:text-[#FF6B1C] transition-colors" />
+                  <Upload className="w-6 h-6 text-[#505050] mb-2 group-hover:text-purple-500 transition-colors" />
                   <p className="text-[#a0a0a0] text-sm font-medium">
                     {selectedFile ? selectedFile.name : "Clique ou arraste a imagem aqui"}
                   </p>
@@ -265,7 +277,7 @@ export default function SorteioPage() {
                 </button>
                 <button 
                   type="submit"
-                  className="flex-1 bg-[#FF6B1C] hover:bg-[#ff7a33] text-white font-black italic uppercase tracking-wider py-4 rounded-xl transition-all shadow-lg text-sm"
+                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-black italic uppercase tracking-wider py-4 rounded-xl transition-all shadow-lg text-sm"
                 >
                   Confirmar
                 </button>

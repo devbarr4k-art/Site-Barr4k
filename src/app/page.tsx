@@ -149,14 +149,14 @@ export default function Home() {
 
               {/* Top Badges */}
               <div className="absolute top-4 left-4 z-10">
-                <div className="px-3 py-1.5 bg-[#FF6B1C] text-white rounded-full font-bold text-[10px] uppercase tracking-wider flex items-center gap-1.5 shadow-lg">
+                <div className="px-3 py-1.5 bg-purple-600 text-white rounded-full font-bold text-[10px] uppercase tracking-wider flex items-center gap-1.5 shadow-lg">
                   <Gift className="w-3 h-3" /> 100% GRÁTIS
                 </div>
               </div>
 
               {/* Top Right Value & Close */}
               <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
-                <div className="px-3 py-1.5 bg-black/60 backdrop-blur-md text-[#FF6B1C] rounded-full font-bold text-[10px] tracking-wider">
+                <div className="px-3 py-1.5 bg-black/60 backdrop-blur-md text-purple-400 rounded-full font-bold text-[10px] tracking-wider">
                   R$ {featuredGiveaway.coins_cost === 0 ? "860,54" : "1.364,35"}
                 </div>
                 <button 
@@ -172,28 +172,28 @@ export default function Home() {
 
               {/* Title Overlay in Image */}
               <div className="absolute bottom-4 left-6 right-6 z-10">
-                <div className="flex items-center gap-1.5 mb-1 text-orange-500">
+                <div className="flex items-center gap-1.5 mb-1 text-purple-500">
                   <Trophy className="w-3 h-3" />
                   <span className="text-[10px] font-bold tracking-widest uppercase">PRÊMIO</span>
                 </div>
                 <h3 className="text-xl font-bold text-white leading-tight">
                   <span className="text-white">★</span> {featuredGiveaway.title}
                 </h3>
-                <p className="text-[#FF6B1C] font-bold text-sm mt-0.5">R$ {featuredGiveaway.coins_cost === 0 ? "860,54" : "1.364,35"}</p>
+                <p className="text-purple-400 font-bold text-sm mt-0.5">R$ {featuredGiveaway.coins_cost === 0 ? "860,54" : "1.364,35"}</p>
               </div>
             </div>
 
             {/* Content & Action Area */}
             <div className="bg-[#101010] p-6 flex flex-col pt-4">
               <div className="flex items-center gap-1.5 mb-3">
-                <span className="text-[#FF6B1C] text-sm">🔥</span>
-                <span className="text-[#FF6B1C] text-[10px] font-bold tracking-[0.2em] uppercase">SORTEIO ACONTECENDO AGORA</span>
+                <span className="text-purple-500 text-sm">🔥</span>
+                <span className="text-purple-500 text-[10px] font-bold tracking-[0.2em] uppercase">SORTEIO ACONTECENDO AGORA</span>
               </div>
               
               <h2 className="text-4xl font-black text-white uppercase tracking-tighter leading-none mb-1" style={{ fontFamily: 'Impact, sans-serif' }}>
                 SORTEIO {featuredGiveaway.title.split('|')[0] || "BAIONETA"}
               </h2>
-              <h2 className="text-2xl font-black text-[#FF6B1C] uppercase tracking-tighter mb-4" style={{ fontFamily: 'Impact, sans-serif' }}>
+              <h2 className="text-2xl font-black text-purple-500 uppercase tracking-tighter mb-4" style={{ fontFamily: 'Impact, sans-serif' }}>
                 {featuredGiveaway.title.split('|')[1] || "FOREST DDPAT"}
               </h2>
 
@@ -207,7 +207,7 @@ export default function Home() {
                   sessionStorage.setItem('featured_closed', 'true');
                   handleOpenModal(featuredGiveaway);
                 }}
-                className="w-full bg-[#FF6B1C] hover:bg-[#ff7a33] text-white font-bold uppercase tracking-widest py-4 rounded-xl transition-colors flex items-center justify-center gap-2 text-sm"
+                className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold uppercase tracking-widest py-4 rounded-xl transition-colors flex items-center justify-center gap-2 text-sm"
               >
                 QUERO PARTICIPAR <ArrowRight className="w-4 h-4" />
               </button>
@@ -243,7 +243,7 @@ export default function Home() {
               <div 
                 key={giveaway.id} 
                 onClick={() => handleOpenModal(giveaway)}
-                className={`bg-[#121214] rounded-2xl overflow-hidden border cursor-pointer transition-all hover:scale-[1.02] flex flex-col group ${index === 0 ? 'border-orange-500' : 'border-white/5 hover:border-white/20'}`}
+                className={`bg-[#121214] rounded-2xl overflow-hidden border cursor-pointer transition-all hover:scale-[1.02] flex flex-col group ${index === 0 ? 'border-purple-500' : 'border-white/5 hover:border-white/20'}`}
               >
                 {/* Imagem e Badges */}
                 <div className="relative h-64 bg-[#121214] p-4 flex flex-col">
@@ -267,7 +267,7 @@ export default function Home() {
                 {/* Informações */}
                 <div className="p-6 flex flex-col flex-1 border-t border-white/5">
                   <h3 className="text-xl font-black text-white mb-6 uppercase tracking-tight line-clamp-1" style={{ fontFamily: 'Impact, sans-serif' }}>
-                    <span className="text-orange-500 mr-2">★</span>{giveaway.title}
+                    <span className="text-purple-500 mr-2">★</span>{giveaway.title}
                   </h3>
                   
                   <div className="grid grid-cols-2 gap-4 mb-6">
@@ -279,7 +279,7 @@ export default function Home() {
                     </div>
                     <div className="text-right">
                       <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest mb-1">Valor</p>
-                      <p className="text-orange-500 font-bold text-sm">R$ {giveaway.coins_cost === 0 ? "860,54" : "1.364,35"}</p>
+                      <p className="text-purple-400 font-bold text-sm">R$ {giveaway.coins_cost === 0 ? "860,54" : "1.364,35"}</p>
                     </div>
                   </div>
 
