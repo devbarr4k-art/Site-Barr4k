@@ -174,7 +174,7 @@ export default function Home() {
               <div className="absolute bottom-4 left-6 right-6 z-10">
                 <div className="flex items-center gap-1.5 mb-1 text-purple-500">
                   <Trophy className="w-3 h-3" />
-                  <span className="text-[10px] font-bold tracking-widest uppercase">PRÊMIO</span>
+                  <span className="text-[10px] font-bold tracking-widest uppercase">{featuredGiveaway.prize_label || "PRÊMIO"}</span>
                 </div>
                 <h3 className="text-xl font-bold text-white leading-tight">
                   <span className="text-white">★</span> {featuredGiveaway.title}
@@ -187,7 +187,7 @@ export default function Home() {
             <div className="bg-[#101010] p-6 flex flex-col pt-4">
               <div className="flex items-center gap-1.5 mb-3">
                 <span className="text-purple-500 text-sm">🔥</span>
-                <span className="text-purple-500 text-[10px] font-bold tracking-[0.2em] uppercase">SORTEIO ACONTECENDO AGORA</span>
+                <span className="text-purple-500 text-[10px] font-bold tracking-[0.2em] uppercase">{featuredGiveaway.subtitle || "SORTEIO ACONTECENDO AGORA"}</span>
               </div>
               
               <h2 className="text-4xl font-black text-white uppercase tracking-tighter leading-none mb-1" style={{ fontFamily: 'Impact, sans-serif' }}>
@@ -198,7 +198,9 @@ export default function Home() {
               </h2>
 
               <p className="text-[#a0a0a0] text-sm mb-6 leading-relaxed font-medium">
-                <span className="text-white">★ {featuredGiveaway.title}</span> — grátis para quem segue o Instagram e é inscrito nos três canais.
+                {featuredGiveaway.description || (
+                  <><span className="text-white">★ {featuredGiveaway.title}</span> — grátis para quem segue o Instagram e é inscrito nos três canais.</>
+                )}
               </p>
 
               <button 

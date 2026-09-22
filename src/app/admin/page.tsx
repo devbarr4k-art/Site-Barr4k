@@ -29,6 +29,9 @@ export default function AdminDashboard() {
   const [newHighlight, setNewHighlight] = useState("");
   const [newCoins, setNewCoins] = useState(0);
   const [newImage, setNewImage] = useState<File | null>(null);
+  const [newSubtitle, setNewSubtitle] = useState("");
+  const [newPrizeLabel, setNewPrizeLabel] = useState("");
+  const [newShippingText, setNewShippingText] = useState("");
 
   const [editingGiveaway, setEditingGiveaway] = useState<string | null>(null);
 
@@ -96,6 +99,9 @@ export default function AdminDashboard() {
     setNewHighlight(giveaway.highlight_text || "");
     setSelectedColor(giveaway.highlight_color || "Amarelo");
     setNewCoins(giveaway.coins_cost || 0);
+    setNewSubtitle(giveaway.subtitle || "");
+    setNewPrizeLabel(giveaway.prize_label || "");
+    setNewShippingText(giveaway.shipping_text || "");
     setNewImage(null);
     setEditingGiveaway(giveaway.id);
     setIsCreateModalOpen(true);
@@ -107,6 +113,9 @@ export default function AdminDashboard() {
     setNewHighlight("");
     setSelectedColor("Amarelo");
     setNewCoins(0);
+    setNewSubtitle("");
+    setNewPrizeLabel("");
+    setNewShippingText("");
     setNewImage(null);
     setEditingGiveaway(null);
     setIsCreateModalOpen(true);
@@ -151,6 +160,9 @@ export default function AdminDashboard() {
         highlight_text: newHighlight,
         highlight_color: selectedColor,
         coins_cost: Number(newCoins) || 0,
+        subtitle: newSubtitle,
+        prize_label: newPrizeLabel,
+        shipping_text: newShippingText,
       };
       if (imageUrl) updateData.image_url = imageUrl;
 
@@ -168,6 +180,9 @@ export default function AdminDashboard() {
         highlight_text: newHighlight,
         highlight_color: selectedColor,
         coins_cost: Number(newCoins) || 0,
+        subtitle: newSubtitle,
+        prize_label: newPrizeLabel,
+        shipping_text: newShippingText,
         image_url: imageUrl,
         type: 'monthly',
         status: 'active'
@@ -569,6 +584,22 @@ export default function AdminDashboard() {
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Destaque (Opcional)</label>
                   <input type="text" value={newHighlight} onChange={(e) => setNewHighlight(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: BÔNUS, NOVO, URGENTE..." />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Linha Fina (Subtítulo)</label>
+                    <input type="text" value={newSubtitle} onChange={(e) => setNewSubtitle(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: SORTEIO ESPECIAL" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Label do Prêmio</label>
+                    <input type="text" value={newPrizeLabel} onChange={(e) => setNewPrizeLabel(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: PRÊMIO" />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Texto de Envio</label>
+                  <input type="text" value={newShippingText} onChange={(e) => setNewShippingText(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: 100% grátis · Enviado via Trade" />
                 </div>
 
                 <div className="flex flex-wrap gap-2 pt-1">

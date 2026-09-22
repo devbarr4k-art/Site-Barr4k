@@ -118,7 +118,7 @@ export default function SorteioPage() {
 
           <div className="flex items-center justify-center gap-4 mb-4 w-full max-w-[280px]">
             <div className="h-[1px] flex-1 bg-purple-600" />
-            <span className="text-purple-500 font-bold text-[10px] tracking-[0.2em] uppercase">Sorteio Especial</span>
+            <span className="text-purple-500 font-bold text-[10px] tracking-[0.2em] uppercase">{giveaway.subtitle || "SORTEIO ESPECIAL"}</span>
             <div className="h-[1px] flex-1 bg-purple-600" />
           </div>
 
@@ -131,7 +131,9 @@ export default function SorteioPage() {
           </h1>
 
           <p className="text-[#a0a0a0] mt-6 max-w-md text-sm leading-relaxed font-medium">
-            Estou sorteando essa baioneta de forma <strong className="text-purple-500">totalmente gratuita</strong>. Siga no Instagram, inscreva-se nos três canais e garanta até <strong className="text-white">4 entradas</strong>.
+            {giveaway.description || (
+              <>Estou sorteando essa baioneta de forma <strong className="text-purple-500">totalmente gratuita</strong>. Siga no Instagram, inscreva-se nos três canais e garanta até <strong className="text-white">4 entradas</strong>.</>
+            )}
           </p>
         </div>
 
@@ -149,13 +151,13 @@ export default function SorteioPage() {
             <div className="absolute bottom-6 left-6 right-6 z-20">
               <div className="flex items-center gap-1.5 mb-2 text-purple-500">
                 <Trophy className="w-3 h-3" />
-                <span className="text-[10px] font-bold tracking-widest uppercase">PRÊMIO</span>
+                <span className="text-[10px] font-bold tracking-widest uppercase">{giveaway.prize_label || "PRÊMIO"}</span>
               </div>
               <h3 className="text-2xl md:text-3xl font-bold text-white leading-tight">
                 <span className="text-white">★</span> {giveaway.title}
               </h3>
               <p className="text-purple-400 font-bold text-lg mt-1">R$ {giveaway.coins_cost === 0 ? "860,54" : "1.364,35"}</p>
-              <p className="text-[#808080] text-[11px] mt-2 font-bold uppercase tracking-wide">100% grátis · Enviado direto via Steam Trade</p>
+              <p className="text-[#808080] text-[11px] mt-2 font-bold uppercase tracking-wide">{giveaway.shipping_text || "100% grátis · Enviado direto via Steam Trade"}</p>
             </div>
           </div>
           
