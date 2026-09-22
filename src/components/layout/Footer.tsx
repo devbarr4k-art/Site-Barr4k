@@ -16,6 +16,7 @@ export default function Footer() {
                   src="/avatar.png" 
                   alt="BARR4K Avatar" 
                   fill
+                  sizes="64px"
                   className="object-cover"
                 />
               </div>

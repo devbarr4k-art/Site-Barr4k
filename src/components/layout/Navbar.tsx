@@ -3,16 +3,17 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { FaTwitch, FaInstagram, FaHandshake, FaGamepad, FaHome } from "react-icons/fa";
+import { FaTwitch, FaHandshake, FaGamepad, FaHome } from "react-icons/fa";
 import { ShieldAlert, Ticket, LogOut, ChevronDown, Menu, X } from "lucide-react";
 import { signIn, signOut, useSession } from "next-auth/react";
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  
+
   const { data: session } = useSession();
   const isLoggedIn = !!session;
+  const isAdmin = !!(session?.user as any)?.isAdmin;
 
   const navLinks = [
     { name: "HOME", href: "/", icon: <FaHome className="w-4 h-4" /> },
@@ -29,7 +30,7 @@ export default function Navbar() {
         setIsDropdownOpen(false);
       }
     }
-    
+
     if (isDropdownOpen) {
       document.addEventListener("mousedown", handleClickOutside);
     }
@@ -42,15 +43,16 @@ export default function Navbar() {
     <header className="fixed top-0 left-0 right-0 z-50 bg-[#050505] border-b border-purple-900/50 shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
-          
+
           {/* Logo (Avatar BARR4K) */}
           <div className="flex-shrink-0">
             <Link href="/" className="flex items-center gap-3 group">
               <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-purple-500/50 group-hover:border-purple-400 group-hover:shadow-[0_0_15px_rgba(168,85,247,0.5)] transition-all duration-300 relative">
-                <Image 
-                  src="/avatar.png" 
-                  alt="BARR4K Avatar" 
+                <Image
+                  src="/avatar.png"
+                  alt="BARR4K Avatar"
                   fill
+                  sizes="48px"
                   className="object-cover"
                 />
               </div>
@@ -77,7 +79,7 @@ export default function Navbar() {
           {/* User Section (Right) */}
           <div className="hidden lg:flex items-center border-l border-white/10 pl-6">
             {!isLoggedIn ? (
-              <button 
+              <button
                 onClick={() => signIn('twitch')}
                 className="btn-neon px-6 py-2.5 rounded font-black tracking-widest uppercase transition-all flex items-center gap-2"
               >
@@ -85,16 +87,12 @@ export default function Navbar() {
               </button>
             ) : (
               <div className="relative" ref={dropdownRef}>
-                <button 
+                <button
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                   className="flex items-center gap-3 hover:bg-white/5 p-2 rounded-lg transition-colors focus:outline-none"
                 >
                   <div className="w-10 h-10 rounded-full bg-purple-900 border border-purple-500 flex items-center justify-center font-bold text-white overflow-hidden relative">
-                    {session?.user?.image ? (
-                      <Image src={session.user.image} alt="User" fill className="object-cover" />
-                    ) : (
-                      <Image src="/avatar.png" alt="User" fill className="object-cover" />
-                    )}
+                    <Image src={session?.user?.image || "/avatar.png"} alt="" fill sizes="40px" className="object-cover" />
                   </div>
                   <div className="text-left hidden xl:block">
                     <p className="text-sm font-bold text-white uppercase">{session?.user?.name || "Usuário"}</p>
@@ -106,16 +104,18 @@ export default function Navbar() {
                 {/* Dropdown Menu */}
                 {isDropdownOpen && (
                   <div className="absolute right-0 mt-3 w-56 bg-[#0a0a0c] border border-gray-800 rounded-xl shadow-2xl py-2 animate-fade-in z-50">
-                    <Link 
-                      href="/admin" 
-                      onClick={() => setIsDropdownOpen(false)}
-                      className="flex items-center gap-3 px-4 py-3 text-sm text-purple-400 font-bold hover:bg-white/5 transition-colors"
-                    >
-                      <ShieldAlert className="w-4 h-4" />
-                      Painel Admin
-                    </Link>
-                    <Link 
-                      href="/meus-tickets" 
+                    {isAdmin && (
+                      <Link
+                        href="/admin"
+                        onClick={() => setIsDropdownOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3 text-sm text-purple-400 font-bold hover:bg-white/5 transition-colors"
+                      >
+                        <ShieldAlert className="w-4 h-4" />
+                        Painel Admin
+                      </Link>
+                    )}
+                    <Link
+                      href="/meus-tickets"
                       onClick={() => setIsDropdownOpen(false)}
                       className="flex items-center gap-3 px-4 py-3 text-sm text-gray-200 hover:text-white hover:bg-white/5 transition-colors"
                     >
@@ -123,7 +123,7 @@ export default function Navbar() {
                       Meus Tickets
                     </Link>
                     <div className="border-t border-gray-800 my-1"></div>
-                    <button 
+                    <button
                       onClick={() => {
                         signOut();
                         setIsDropdownOpen(false);
@@ -143,6 +143,7 @@ export default function Navbar() {
           <div className="lg:hidden flex items-center">
             <button
               onClick={() => setIsOpen(!isOpen)}
+              aria-label={isOpen ? "Fechar menu" : "Abrir menu"}
               className="text-gray-300 hover:text-white focus:outline-none p-2"
             >
               {isOpen ? <X className="w-7 h-7" /> : <Menu className="w-7 h-7" />}
@@ -171,10 +172,10 @@ export default function Navbar() {
               </Link>
             ))}
           </nav>
-          
+
           <div className="mt-6 pt-6 border-t border-gray-800">
             {!isLoggedIn ? (
-              <button 
+              <button
                 onClick={() => signIn('twitch')}
                 className="w-full btn-neon text-white px-5 py-4 rounded font-black uppercase flex items-center justify-center gap-3 transition-all"
               >
@@ -182,9 +183,11 @@ export default function Navbar() {
               </button>
             ) : (
               <div className="flex flex-col gap-2">
-                <Link href="/admin" onClick={() => setIsOpen(false)} className="flex items-center gap-3 px-4 py-3 text-purple-400 font-bold bg-white/5 rounded-lg">
-                  <ShieldAlert className="w-4 h-4" /> Painel Admin
-                </Link>
+                {isAdmin && (
+                  <Link href="/admin" onClick={() => setIsOpen(false)} className="flex items-center gap-3 px-4 py-3 text-purple-400 font-bold bg-white/5 rounded-lg">
+                    <ShieldAlert className="w-4 h-4" /> Painel Admin
+                  </Link>
+                )}
                 <Link href="/meus-tickets" onClick={() => setIsOpen(false)} className="flex items-center gap-3 px-4 py-3 text-white font-bold bg-white/5 rounded-lg">
                   <Ticket className="w-4 h-4" /> Meus Tickets
                 </Link>

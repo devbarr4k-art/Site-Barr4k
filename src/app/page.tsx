@@ -2,22 +2,9 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Trophy, Gift, Users, ArrowDown, Zap, X, Info, ArrowRight, Clock } from "lucide-react";
+import { Trophy, Gift, Users, ArrowDown, Zap, X, ArrowRight, Clock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-
-const getColorClass = (color: string) => {
-  switch (color) {
-    case 'yellow': return 'bg-yellow-500 text-black';
-    case 'green': return 'bg-green-500 text-white';
-    case 'blue': return 'bg-blue-500 text-white';
-    case 'purple': return 'bg-purple-500 text-white';
-    case 'red': return 'bg-red-500 text-white';
-    case 'orange': return 'bg-orange-500 text-white';
-    case 'pink': return 'bg-pink-500 text-white';
-    default: return 'bg-purple-500 text-white';
-  }
-};
 
 const useCountdown = (targetDateString: string | null) => {
   const [timeLeft, setTimeLeft] = useState({
@@ -26,7 +13,7 @@ const useCountdown = (targetDateString: string | null) => {
 
   useEffect(() => {
     if (!targetDateString) return;
-    
+
     const targetDate = new Date(targetDateString).getTime();
 
     const updateTimer = () => {
@@ -57,8 +44,7 @@ const useCountdown = (targetDateString: string | null) => {
 
 export default function Home() {
   const router = useRouter();
-  const [detailsGiveaway, setDetailsGiveaway] = useState<any>(null);
-  
+
   const [featuredGiveaway, setFeaturedGiveaway] = useState<any>(null);
   const [showFeaturedPopup, setShowFeaturedPopup] = useState(false);
   const [activeGiveaways, setActiveGiveaways] = useState<any[]>([]);
@@ -78,12 +64,15 @@ export default function Home() {
       .from('giveaways')
       .select('*')
       .eq('status', 'active')
+      .neq('type', 'daily') // o sorteio da live tem página própria (/diario)
       .order('created_at', { ascending: false });
     if (data) {
       const featured = data.find(g => g.type === 'featured');
       if (featured) {
         setFeaturedGiveaway(featured);
-        if (!sessionStorage.getItem('featured_closed')) {
+        let closed = false;
+        try { closed = !!sessionStorage.getItem('featured_closed'); } catch {}
+        if (!closed) {
           setShowFeaturedPopup(true);
         }
       }
@@ -98,7 +87,7 @@ export default function Home() {
       .select('*, giveaways(image_url)')
       .eq('in_hall_of_fame', true)
       .order('won_at', { ascending: false });
-      
+
     if (data) setWinners(data);
   };
 
@@ -106,47 +95,33 @@ export default function Home() {
     router.push(`/sorteio/${giveaway.id}`);
   };
 
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting && entry.target.id) {
-            // Update the hash in URL without jumping
-            window.history.replaceState(null, "", `#${entry.target.id}`);
-          }
-        });
-      },
-      { threshold: 0.5 } // Triggers when 50% of the section is visible
-    );
-
-    const sections = document.querySelectorAll("section[id]");
-    sections.forEach((section) => observer.observe(section));
-
-    return () => observer.disconnect();
-  }, []);
+  const closeFeaturedPopup = () => {
+    setShowFeaturedPopup(false);
+    try { sessionStorage.setItem('featured_closed', 'true'); } catch {}
+  };
 
   return (
     <div className="flex flex-col min-h-screen">
       {/* Hero Section */}
       <section id="home" className="relative py-20 lg:py-32 overflow-hidden flex flex-col justify-center min-h-[90vh]">
-        
+
         {/* Background Video */}
-        <video 
-          autoPlay 
-          loop 
-          muted 
-          playsInline 
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
           className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none"
         >
           <source src="/bg-video.mp4" type="video/mp4" />
         </video>
-        
+
         {/* Gradient Overlays for Readability */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-[#050505] z-0 pointer-events-none" />
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20 pointer-events-none animate-[pulse_4s_ease-in-out_infinite] z-0" />
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-purple-700/30 blur-[120px] rounded-full pointer-events-none animate-[pulse-glow_6s_ease-in-out_infinite] z-0" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
-          
+
           {/* Alerta Chamativo para Inscritos */}
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-900/40 border border-purple-500/50 text-purple-200 text-sm font-bold mb-8 animate-[float_4s_ease-in-out_infinite] shadow-[0_0_15px_rgba(168,85,247,0.4)]">
             <Zap className="w-4 h-4 text-purple-400 fill-purple-400" />
@@ -163,7 +138,7 @@ export default function Home() {
             Participe dos melhores sorteios da Twitch. Apoie o canal, interaja no chat e multiplique suas chances de ganhar prêmios incríveis todos os meses.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <Link 
+            <Link
               href="#active-giveaways"
               className="btn-neon px-8 py-4 rounded-full font-bold text-lg flex items-center justify-center gap-2"
             >
@@ -175,11 +150,11 @@ export default function Home() {
 
       {/* Featured Giveaway Popup Modal */}
       {featuredGiveaway && showFeaturedPopup && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6 bg-black/90 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-[420px] rounded-[24px] overflow-hidden bg-[#101010] flex flex-col relative animate-scale-up border border-purple-500/50 shadow-2xl">
-            
+        <div className="fixed inset-0 z-[120] flex overflow-y-auto p-4 sm:p-6 bg-black/90 backdrop-blur-sm animate-fade-in" onClick={(e) => { if (e.target === e.currentTarget) closeFeaturedPopup(); }}>
+          <div className="m-auto w-full max-w-[420px] shrink-0 rounded-[24px] overflow-hidden bg-[#101010] flex flex-col relative animate-scale-up border border-purple-500/50 shadow-2xl">
+
             {/* Top Image Area */}
-            <div className="relative h-[380px] w-full bg-black">
+            <div className="relative h-[300px] sm:h-[380px] w-full bg-black">
               {featuredGiveaway.detail_image_url || featuredGiveaway.image_url ? (
                 <img src={featuredGiveaway.detail_image_url || featuredGiveaway.image_url} alt={featuredGiveaway.title} className="w-full h-full object-cover" />
               ) : (
@@ -187,25 +162,25 @@ export default function Home() {
               )}
               {/* Gradient Overlay for bottom text */}
               <div className="absolute inset-0 bg-gradient-to-t from-[#101010] via-black/20 to-transparent z-10" />
-              
+
               {/* Top Badges */}
               <div className="absolute top-4 left-4 z-20 flex gap-2 w-[calc(100%-32px)] justify-between items-start">
                 <div className="bg-purple-600 rounded-full px-3 py-1.5 flex items-center gap-1.5 shadow-lg">
                   <Gift className="w-3.5 h-3.5 text-white" />
                   <span className="text-[10px] font-bold text-white tracking-widest uppercase">100% GRÁTIS</span>
                 </div>
-                
+
                 <div className="flex gap-2">
-                  <div className="bg-black/70 backdrop-blur-md rounded-full px-3 py-1.5 border border-white/10 flex items-center shadow-lg">
-                    <span className="text-[10px] font-bold text-purple-400 tracking-widest">
-                      R$ {featuredGiveaway.prize_value || "1.364,35"}
-                    </span>
-                  </div>
-                  <button 
-                    onClick={() => {
-                      setShowFeaturedPopup(false);
-                      sessionStorage.setItem('featured_closed', 'true');
-                    }}
+                  {featuredGiveaway.prize_value && (
+                    <div className="bg-black/70 backdrop-blur-md rounded-full px-3 py-1.5 border border-white/10 flex items-center shadow-lg">
+                      <span className="text-[10px] font-bold text-purple-400 tracking-widest">
+                        R$ {featuredGiveaway.prize_value}
+                      </span>
+                    </div>
+                  )}
+                  <button
+                    onClick={closeFeaturedPopup}
+                    aria-label="Fechar"
                     className="w-8 h-8 rounded-full bg-black/70 backdrop-blur-md flex items-center justify-center border border-white/10 hover:bg-white/20 transition-colors shadow-lg"
                   >
                     <X className="w-4 h-4 text-white" />
@@ -217,14 +192,16 @@ export default function Home() {
               <div className="absolute bottom-6 left-6 right-6 z-20">
                 <div className="flex items-center gap-1.5 mb-1.5 text-purple-500">
                   <Trophy className="w-3 h-3" />
-                  <span className="text-[10px] font-bold tracking-widest uppercase">{featuredGiveaway.prize_label || "PRÊMIO"}</span>
+                  <span className="text-[10px] font-bold tracking-widest uppercase">PRÊMIO</span>
                 </div>
                 <h3 className="text-2xl font-bold text-white leading-tight">
                   <span className="text-white mr-1.5">★</span> {featuredGiveaway.title.split('|')[0] || featuredGiveaway.title}
                 </h3>
-                <p className="text-purple-400 font-bold text-sm mt-1">
-                  R$ {featuredGiveaway.prize_value || "1.364,35"}
-                </p>
+                {featuredGiveaway.prize_value && (
+                  <p className="text-purple-400 font-bold text-sm mt-1">
+                    R$ {featuredGiveaway.prize_value}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -236,21 +213,22 @@ export default function Home() {
                   {featuredGiveaway.subtitle || featuredGiveaway.title.split('|')[0]}
                 </span>
               </div>
-              
+
               <h1 className="text-4xl sm:text-[2.5rem] font-black text-white uppercase tracking-tighter leading-[0.95]" style={{ fontFamily: 'var(--font-kanit)' }}>
-                SORTEIO {featuredGiveaway.title.split('|')[0] || "BAIONETA DOPLER"} <br/>
+                SORTEIO {featuredGiveaway.title.split('|')[0]} <br/>
                 {featuredGiveaway.title.includes('|') && (
                   <span className="text-purple-500 inline-block mt-1">{featuredGiveaway.title.split('|')[1]}</span>
                 )}
               </h1>
-              
+
               <p className="text-[#a0a0a0] mt-4 mb-6 text-sm leading-relaxed font-medium">
                 {featuredGiveaway.description || (
-                  `Respostas aceitas até dia ${featuredGiveaway.draw_date ? new Date(featuredGiveaway.draw_date).toLocaleDateString('pt-BR') : '30/09/2026'}!`
+                  featuredGiveaway.draw_date ? `Respostas aceitas até dia ${new Date(featuredGiveaway.draw_date).toLocaleDateString('pt-BR')}!` : ""
                 )}
               </p>
 
               {/* Cronômetro Compacto */}
+              {featuredGiveaway.draw_date && (
               <div className="w-full flex items-center justify-between bg-black/50 border border-white/5 rounded-xl p-4 mb-6">
                 <div className="flex flex-col">
                   <span className="text-[9px] text-[#606060] uppercase tracking-widest font-bold mb-1">Encerra em</span>
@@ -260,18 +238,18 @@ export default function Home() {
                   </div>
                 </div>
               </div>
+              )}
 
-              <button 
+              <button
                 onClick={() => {
-                  setShowFeaturedPopup(false);
-                  sessionStorage.setItem('featured_closed', 'true');
+                  closeFeaturedPopup();
                   handleOpenModal(featuredGiveaway);
                 }}
                 className="w-full bg-purple-600 hover:bg-purple-500 text-white font-black uppercase tracking-widest py-4 rounded-xl transition-all duration-300 flex items-center justify-center gap-3 text-sm shadow-[0_0_20px_rgba(147,51,234,0.3)] mb-4"
               >
                 QUERO PARTICIPAR <ArrowRight className="w-4 h-4" />
               </button>
-              
+
               <p className="w-full text-center text-[#606060] text-[10px] font-bold uppercase tracking-widest">
                 {featuredGiveaway.login_text || "Entrada Gratuita . Login com a Twitch"}
               </p>
@@ -283,7 +261,7 @@ export default function Home() {
       {/* Sorteios Ativos (Grid Dinâmico) */}
       <section id="active-giveaways" className="py-16 bg-[#0c0d10] relative scroll-mt-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          
+
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
             <div>
               <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter" style={{ fontFamily: 'var(--font-kanit)' }}>
@@ -306,17 +284,19 @@ export default function Home() {
           ) : activeGiveaways.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {activeGiveaways.map((giveaway, index) => (
-              <div 
-                key={giveaway.id} 
+              <div
+                key={giveaway.id}
                 onClick={() => handleOpenModal(giveaway)}
                 className={`bg-[#0c0d10] rounded-xl overflow-hidden border cursor-pointer transition-all hover:scale-[1.02] flex flex-col group ${index === 0 ? 'border-purple-500/50' : 'border-white/5 hover:border-white/20'}`}
               >
                 {/* Imagem e Badges */}
                 <div className="relative h-64 bg-[#0c0d10] p-4 flex flex-col">
                   <div className="flex gap-2 relative z-10">
-                    <span className="px-3 py-1 bg-black/60 backdrop-blur-sm border border-white/10 text-gray-300 rounded-md text-[10px] font-bold uppercase tracking-wider shadow-sm truncate max-w-full">
-                      {giveaway.highlight_text || "FIELD-TESTED"}
-                    </span>
+                    {giveaway.highlight_text && (
+                      <span className="px-3 py-1 bg-black/60 backdrop-blur-sm border border-white/10 text-gray-300 rounded-md text-[10px] font-bold uppercase tracking-wider shadow-sm truncate max-w-full">
+                        {giveaway.highlight_text}
+                      </span>
+                    )}
                     {giveaway.subtitle && (
                       <span className="px-3 py-1 bg-black/60 backdrop-blur-sm border border-white/10 text-gray-400 rounded-md text-[10px] font-bold uppercase tracking-wider shadow-sm truncate max-w-full">
                         {giveaway.subtitle}
@@ -331,26 +311,26 @@ export default function Home() {
                     )}
                   </div>
                 </div>
-                
+
                 {/* Informações */}
                 <div className="p-6 flex flex-col flex-1 bg-[#0c0d10]">
                   <h3 className="text-xl font-black text-white mb-6 uppercase tracking-tight line-clamp-1" style={{ fontFamily: 'var(--font-kanit)' }}>
                     <span className="text-purple-500 mr-2">★</span>{giveaway.title}
                   </h3>
-                  
+
                   <div className="w-full h-[1px] bg-white/5 mb-6" />
 
                   <div className="flex justify-between items-center mb-6">
                     <div className="text-left">
                       <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest mb-1">Entrada</p>
                       <p className="text-white font-bold text-sm">
-                        {giveaway.coins_cost === 0 ? "Gratuito" : `${giveaway.coins_cost} Coins`}
+                        {giveaway.prize_label || (giveaway.coins_cost > 0 ? `${giveaway.coins_cost} Coins` : "Gratuito")}
                       </p>
                     </div>
                     <div className="text-right">
                       <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest mb-1">Valor</p>
                       <p className="text-purple-500 font-bold text-sm">
-                        {giveaway.prize_value ? `R$ ${giveaway.prize_value}` : (giveaway.coins_cost === 0 ? "R$ 860,54" : "R$ 1.364,35")}
+                        {giveaway.prize_value ? `R$ ${giveaway.prize_value}` : "—"}
                       </p>
                     </div>
                   </div>
@@ -384,7 +364,7 @@ export default function Home() {
           {winners.length > 0 ? (
             <div className="flex overflow-x-auto gap-6 pb-6 snap-x snap-mandatory custom-scrollbar">
               {winners.map((winner, i) => (
-                <div key={i} className="min-w-[280px] md:min-w-[320px] snap-center shrink-0 glass-panel rounded-xl overflow-hidden group hover:border-purple-500/50 transition-all hover:-translate-y-2 animated-border-card p-1">
+                <div key={winner.id ?? i} className="min-w-[280px] md:min-w-[320px] snap-center shrink-0 glass-panel rounded-xl overflow-hidden group hover:border-purple-500/50 transition-all hover:-translate-y-2 animated-border-card p-1">
                   <div className="h-48 bg-black/60 rounded-t-lg flex items-center justify-center border-b border-gray-800 relative overflow-hidden">
                     <div className="absolute inset-0 bg-gradient-to-b from-purple-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                     {winner.giveaways?.image_url ? (
@@ -424,7 +404,7 @@ export default function Home() {
                     Ainda não tivemos nosso primeiro sorteio concluído. Participe dos sorteios ativos e garanta seu lugar no Hall da Fama da família BARR4K!
                   </p>
                 </div>
-                <Link 
+                <Link
                   href="#active-giveaways"
                   className="mt-4 bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 border border-purple-500/50 px-6 py-3 rounded-full font-medium transition-all"
                 >
@@ -448,9 +428,9 @@ export default function Home() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
             {/* CSGO ROLL */}
-            <a 
-              href="https://www.csgoroll.com/r/BARRAK" 
-              target="_blank" 
+            <a
+              href="https://www.csgoroll.com/r/BARRAK"
+              target="_blank"
               rel="noreferrer"
               className="group flex items-center justify-center relative rounded-2xl overflow-hidden border border-purple-500/20 hover:border-purple-500/80 transition-all hover:scale-105 shadow-lg hover:shadow-[0_0_30px_rgba(168,85,247,0.3)] bg-[#0a0a0c] h-[450px]"
             >
@@ -458,9 +438,9 @@ export default function Home() {
             </a>
 
             {/* CSGO BIG */}
-            <a 
-              href="https://csgobig.com/#!/r/barr4k" 
-              target="_blank" 
+            <a
+              href="https://csgobig.com/#!/r/barr4k"
+              target="_blank"
               rel="noreferrer"
               className="group flex items-center justify-center relative rounded-2xl overflow-hidden border border-purple-500/20 hover:border-purple-500/80 transition-all hover:scale-105 shadow-lg hover:shadow-[0_0_30px_rgba(168,85,247,0.3)] bg-[#0a0a0c] h-[450px]"
             >
@@ -468,9 +448,9 @@ export default function Home() {
             </a>
 
             {/* FALLEN STORE */}
-            <a 
-              href="https://www.fallenstore.com.br/" 
-              target="_blank" 
+            <a
+              href="https://www.fallenstore.com.br/"
+              target="_blank"
               rel="noreferrer"
               className="group flex items-center justify-center relative rounded-2xl overflow-hidden border border-purple-500/20 hover:border-purple-500/80 transition-all hover:scale-105 shadow-lg hover:shadow-[0_0_30px_rgba(168,85,247,0.3)] bg-[#0a0a0c] h-[450px]"
             >
@@ -480,58 +460,6 @@ export default function Home() {
         </div>
       </section>
 
-      {detailsGiveaway && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="bg-[#121214] border border-gray-800 rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden relative flex flex-col md:flex-row">
-            {/* Left side Image */}
-            <div className="w-full md:w-1/2 h-64 md:h-auto bg-[#0a0a0c] relative flex items-center justify-center border-b md:border-b-0 md:border-r border-gray-800">
-              {detailsGiveaway.image_url ? (
-                <img src={detailsGiveaway.image_url} alt={detailsGiveaway.title} className="w-full h-full object-cover" />
-              ) : (
-                <Gift className="w-20 h-20 text-gray-700" />
-              )}
-            </div>
-            {/* Right side Content */}
-            <div className="w-full md:w-1/2 p-6 md:p-8 flex flex-col max-h-[80vh] overflow-y-auto">
-              <button onClick={() => setDetailsGiveaway(null)} className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors bg-black/50 rounded-full p-1 z-10">
-                <X className="w-6 h-6" />
-              </button>
-              
-              <div className="flex items-center gap-2 mb-4 mt-2">
-                <span className="px-3 py-1 bg-yellow-500/20 text-yellow-500 rounded text-xs font-bold border border-yellow-500/30">
-                  CUSTO: {detailsGiveaway.coins_cost} COINS
-                </span>
-                {detailsGiveaway.highlight_text && (
-                  <span className={`px-3 py-1 rounded text-xs font-bold ${getColorClass(detailsGiveaway.highlight_color)}`}>
-                    {detailsGiveaway.highlight_text}
-                  </span>
-                )}
-              </div>
-
-              <h2 className="text-2xl md:text-3xl font-black italic text-white uppercase tracking-wider mb-4 leading-tight">
-                {detailsGiveaway.title}
-              </h2>
-              
-              <div className="flex-1">
-                <h4 className="text-gray-500 text-xs font-bold uppercase tracking-widest mb-2">Descrição do Prêmio</h4>
-                <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap mb-6">
-                  {detailsGiveaway.description}
-                </p>
-              </div>
-              
-              <button 
-                onClick={() => {
-                  setDetailsGiveaway(null);
-                  router.push(`/sorteio/${detailsGiveaway.id}`);
-                }}
-                className="w-full btn-neon font-bold italic tracking-widest uppercase py-4 rounded-lg mt-auto text-sm"
-              >
-                Participar Agora
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

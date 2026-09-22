@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
 import { Trophy, Users, History, Calendar, Star, Sparkles, CheckCircle2, Gift } from "lucide-react";
 
 export default function DiarioPage() {
@@ -11,76 +10,25 @@ export default function DiarioPage() {
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchDailyGiveaway = async () => {
-    // Busca o sorteio marcado como diário atual
-    const { data: activeData } = await supabase
-      .from('giveaways')
-      .select('*')
-      .eq('is_daily_highlight', true)
-      .single();
-
-    if (activeData) {
-      setDailyGiveaway(activeData);
-      
-      // Busca participantes
-      const { data: parts } = await supabase
-        .from('participants')
-        .select('*')
-        .eq('giveaway_id', activeData.id);
-      
-      if (parts) setParticipants(parts);
-
-      // Busca se já tem vencedor deste sorteio
-      const { data: win } = await supabase
-        .from('winners')
-        .select('*')
-        .eq('giveaway_id', activeData.id)
-        .single();
-      
-      if (win) setWinner(win);
-    } else {
-      setDailyGiveaway(null);
+  const loadData = async () => {
+    try {
+      const res = await fetch("/api/diario", { cache: "no-store" });
+      if (!res.ok) return;
+      const json = await res.json();
+      setDailyGiveaway(json.giveaway);
+      setParticipants(json.participants ?? []);
+      setWinner(json.winner);
+      setHistory(json.history ?? []);
+    } finally {
+      setLoading(false);
     }
-  };
-
-  const fetchHistory = async () => {
-    // Pegar os últimos vencedores diários
-    const { data } = await supabase
-      .from('winners')
-      .select('*, giveaways!inner(type)')
-      .eq('giveaways.type', 'daily')
-      .order('won_at', { ascending: false })
-      .limit(30);
-
-    if (data) setHistory(data);
   };
 
   useEffect(() => {
-    async function loadData() {
-      setLoading(true);
-      await fetchDailyGiveaway();
-      await fetchHistory();
-      setLoading(false);
-    }
     loadData();
-
-    // Inscricao Realtime para participantes e vencedores
-    const channel = supabase.channel('daily_updates')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'participants' }, payload => {
-        fetchDailyGiveaway();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'winners' }, payload => {
-        fetchDailyGiveaway();
-        fetchHistory();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'giveaways' }, payload => {
-        fetchDailyGiveaway();
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    // Atualiza a lista ao vivo a cada 5 segundos
+    const interval = setInterval(loadData, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   if (loading) {
@@ -94,7 +42,7 @@ export default function DiarioPage() {
   return (
     <div className="min-h-screen pt-24 pb-12 bg-[#050505] selection:bg-purple-500/30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
-        
+
         {/* CABEÇALHO */}
         <div className="text-center space-y-4">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 font-bold text-xs tracking-widest uppercase">
@@ -112,7 +60,7 @@ export default function DiarioPage() {
         {/* ÁREA CENTRAL - AO VIVO */}
         {dailyGiveaway ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            
+
             {/* Vencedor em Destaque (se houver) ou Prêmio */}
             <div className="lg:col-span-1 space-y-6">
               {winner ? (
@@ -129,12 +77,16 @@ export default function DiarioPage() {
                 </div>
               ) : (
                 <div className="glass-panel rounded-2xl p-8 border border-purple-500/30 flex flex-col items-center text-center h-full justify-center">
-                  <Gift className="w-20 h-20 text-purple-500 mb-6" />
+                  {dailyGiveaway.image_url ? (
+                    <img src={dailyGiveaway.image_url} alt={dailyGiveaway.title} className="w-40 h-40 object-contain mb-6" />
+                  ) : (
+                    <Gift className="w-20 h-20 text-purple-500 mb-6" />
+                  )}
                   <h2 className="text-purple-500 font-black tracking-widest uppercase text-sm mb-2">PRÊMIO DE HOJE</h2>
                   <div className="text-3xl font-black text-white uppercase tracking-tighter mb-4">
                     {dailyGiveaway.title}
                   </div>
-                  <p className="text-gray-400 text-sm">Aguardando o encerramento da live para o sorteio final.</p>
+                  <p className="text-gray-400 text-sm">Aguardando o sorteio ao vivo.</p>
                 </div>
               )}
             </div>
@@ -160,12 +112,12 @@ export default function DiarioPage() {
               <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
                 {participants.length > 0 ? (
                   participants.map((p, i) => (
-                    <div key={i} className="flex items-center justify-between bg-black/40 border border-white/5 rounded-lg p-3 hover:bg-white/5 transition-colors">
+                    <div key={p.twitch_username + i} className="flex items-center justify-between bg-black/40 border border-white/5 rounded-lg p-3 hover:bg-white/5 transition-colors">
                       <div className="flex items-center gap-3">
                         <CheckCircle2 className="w-4 h-4 text-green-500" />
                         <span className="text-white font-bold">@{p.twitch_username}</span>
                       </div>
-                      {p.coins_used > 0 && (
+                      {p.coins_used > 1 && (
                         <span className="text-[10px] uppercase font-bold tracking-widest text-purple-400 bg-purple-500/10 px-2 py-1 rounded border border-purple-500/20">
                           {p.coins_used} Chances
                         </span>

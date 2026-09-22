@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Lato } from "next/font/google";
+import { Lato, Kanit } from "next/font/google";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import Navbar from "@/components/layout/Navbar";
@@ -11,6 +11,14 @@ const lato = Lato({
   variable: "--font-lato",
   subsets: ["latin"],
   weight: ["100", "300", "400", "700", "900"],
+  style: ["normal", "italic"]
+});
+
+// Usada nos títulos via style={{ fontFamily: 'var(--font-kanit)' }}
+const kanit = Kanit({
+  variable: "--font-kanit",
+  subsets: ["latin"],
+  weight: ["700", "800", "900"],
   style: ["normal", "italic"]
 });
 
@@ -27,7 +35,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className="dark scroll-smooth">
       <body
-        className={`${lato.variable} antialiased bg-black text-slate-100 min-h-screen flex flex-col font-sans italic`}
+        className={`${lato.variable} ${kanit.variable} antialiased bg-black text-slate-100 min-h-screen flex flex-col font-sans italic`}
       >
         <Providers>
           <Navbar />

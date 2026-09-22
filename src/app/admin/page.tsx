@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Plus, Edit, Trash2, Settings, Users, Gift, Save, AlertTriangle, Star, ArrowRight, Trophy, Sparkles, Bot, Calendar } from "lucide-react";
+import { Plus, Edit, Trash2, Settings, Users, Gift, Star, ArrowRight, Trophy, Sparkles, Bot, Calendar, CheckCircle2, X } from "lucide-react";
 import tmi from "tmi.js";
 import { FaTwitch } from "react-icons/fa";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "next-auth/react";
+import { isAdmin } from "@/lib/admins";
+import { adminApi } from "@/lib/adminApi";
+import { compressImage } from "@/lib/image";
 
 const TooltipIcon = ({ text }: { text: string }) => (
   <div className="relative flex items-center justify-center group/tooltip">
@@ -20,35 +22,57 @@ const TooltipIcon = ({ text }: { text: string }) => (
   </div>
 );
 
+// Converte uma data ISO para o formato do <input type="datetime-local"> no fuso local.
+const toLocalInputValue = (iso: string) => {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+// Tier do sub pela versão do badge: 3000+ = T3, 2000+ = T2, demais = T1.
+const getSubTier = (tags: tmi.ChatUserstate): 0 | 1 | 2 | 3 => {
+  const version = tags.badges?.subscriber ?? tags.badges?.founder;
+  if (version === undefined) return tags.subscriber ? 1 : 0;
+  const n = parseInt(version, 10) || 0;
+  return n >= 3000 ? 3 : n >= 2000 ? 2 : 1;
+};
+
+const ITEM_STEP = 160; // largura do card da roleta (144px) + gap (16px)
+const WINNER_INDEX = 40;
+
 export default function AdminDashboard() {
   const router = useRouter();
   const { data: session, status } = useSession();
+  const currentUsername = ((session?.user as any)?.username || session?.user?.name || "").toLowerCase();
+  const allowed = isAdmin(currentUsername);
 
   const [activeTab, setActiveTab] = useState("sorteios");
-  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
-  // Real States for Supabase Data
   const [sorteios, setSorteios] = useState<any[]>([]);
   const [participants, setParticipants] = useState<any[]>([]);
   const [participantCounts, setParticipantCounts] = useState<Record<string, number>>({});
   const [winners, setWinners] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
 
-  // New States for Giveaways UI
+  // Gerenciamento de participantes
   const [managingParticipants, setManagingParticipants] = useState<string | null>(null);
   const [editingParticipant, setEditingParticipant] = useState<string | null>(null);
   const [editTwitchUsername, setEditTwitchUsername] = useState("");
   const [editCoinsUsed, setEditCoinsUsed] = useState(0);
-  
+  const [proofPreview, setProofPreview] = useState<string | null>(null);
+
+  // Roleta do sorteio mensal
   const [isDrawing, setIsDrawing] = useState(false);
   const [rouletteItems, setRouletteItems] = useState<any[]>([]);
   const [rouletteOffset, setRouletteOffset] = useState(0);
   const [showWinner, setShowWinner] = useState(false);
   const [drawnWinner, setDrawnWinner] = useState<any>(null);
   const [localWinners, setLocalWinners] = useState<any[]>([]);
+  const rouletteTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedColor, setSelectedColor] = useState("Amarelo");
   const [previewMode, setPreviewMode] = useState<"home" | "destaque" | "sorteio">("home");
+  const [isSaving, setIsSaving] = useState(false);
 
   // Bot da Twitch
   const [botStatus, setBotStatus] = useState<"disconnected" | "connecting" | "connected">("disconnected");
@@ -59,7 +83,20 @@ export default function AdminDashboard() {
   const [twitchGiveawayTitle, setTwitchGiveawayTitle] = useState("");
   const [twitchGiveawayImage, setTwitchGiveawayImage] = useState<File | null>(null);
   const [isCreatingTwitchGiveaway, setIsCreatingTwitchGiveaway] = useState(false);
-  const tmiClient = useRef<any>(null);
+  const tmiClient = useRef<tmi.Client | null>(null);
+  // O handler do chat é registrado uma vez só; os refs mantêm os valores atuais.
+  const multipliersRef = useRef({ t1: 2, t2: 3, t3: 5 });
+  const seenChatUsers = useRef<Set<string>>(new Set());
+
+  // Sorteio diário (live)
+  const [twitchTimer, setTwitchTimer] = useState(60);
+  const [isRolling, setIsRolling] = useState(false);
+  const [currentRollName, setCurrentRollName] = useState("");
+  const [winnerResult, setWinnerResult] = useState<any>(null);
+  const [timerCount, setTimerCount] = useState<number | null>(null);
+  const [liveDailyParticipants, setLiveDailyParticipants] = useState<any[]>([]);
+  const [dailyImage, setDailyImage] = useState<string | null>(null);
+  const activeDailyGiveaway = sorteios.find((s: any) => s.is_daily_highlight && s.status === "active");
 
   // Formulário Criar Sorteio
   const [newTitle, setNewTitle] = useState("");
@@ -79,118 +116,130 @@ export default function AdminDashboard() {
 
   const [editingGiveaway, setEditingGiveaway] = useState<string | null>(null);
 
-  const colorOptions = [
-    { name: "Amarelo", hex: "bg-yellow-500" },
-    { name: "Verde", hex: "bg-green-500" },
-    { name: "Azul", hex: "bg-blue-500" },
-    { name: "Roxo", hex: "bg-purple-500" },
-    { name: "Vermelho", hex: "bg-red-500" },
-    { name: "Laranja", hex: "bg-orange-500" },
-    { name: "Rosa", hex: "bg-pink-500" },
-  ];
-
-  // Segurança da Rota
+  // Segurança da rota (a proteção real está na /api/admin, que confere no servidor)
   useEffect(() => {
     if (status === "loading") return;
-    if (!session) {
-      router.push("/");
-      return;
-    }
+    if (!allowed) router.push("/");
+  }, [allowed, status, router]);
 
-    // LISTA DE ADMINS PERMITIDOS
-    const allowedAdmins = ["barr4k", "luizpragi"];
-    // O NextAuth costuma colocar o nome de usuário no name ou username (que a gente injetou)
-    const username = (session.user as any)?.username?.toLowerCase() || session.user?.name?.toLowerCase();
-
-    if (!username || !allowedAdmins.includes(username)) {
-      alert("Acesso negado. Você não é um administrador.");
-      router.push("/");
-    }
-  }, [session, status, router]);
-
-  // Conexão Inicial Supabase
   useEffect(() => {
+    multipliersRef.current = { t1: subMultiplierT1, t2: subMultiplierT2, t3: subMultiplierT3 };
+  }, [subMultiplierT1, subMultiplierT2, subMultiplierT3]);
+
+  useEffect(() => {
+    if (!allowed) return;
     fetchSorteios();
     fetchWinners();
+  }, [allowed]);
+
+  // Desconecta o bot e cancela a roleta ao sair da página
+  useEffect(() => {
+    return () => {
+      tmiClient.current?.disconnect().catch(() => {});
+      rouletteTimers.current.forEach(clearTimeout);
+    };
   }, []);
 
-  const fetchSorteios = async () => {
-    setIsLoading(true);
-    const { data, error } = await supabase.from('giveaways').select('id, title, description, highlight_text, highlight_color, coins_cost, subtitle, prize_label, shipping_text, prize_value, draw_date, login_text, type, status, is_daily_highlight, created_at').order('created_at', { ascending: false });
-    if (data) {
-      setSorteios(data);
-      // Fetch participant counts
-      const { data: countData } = await supabase.from('participants').select('giveaway_id');
-      if (countData) {
-        const counts = countData.reduce((acc: Record<string, number>, p: any) => {
-          acc[p.giveaway_id] = (acc[p.giveaway_id] || 0) + 1;
-          return acc;
-        }, {});
-        setParticipantCounts(counts);
-      }
+  // Lista ao vivo do sorteio diário (atualiza a cada 4s enquanto houver um ativo)
+  useEffect(() => {
+    const id = activeDailyGiveaway?.id;
+    if (!id) {
+      setLiveDailyParticipants([]);
+      setDailyImage(null);
+      return;
     }
-    setIsLoading(false);
+    supabase.from("giveaways").select("image_url").eq("id", id).maybeSingle()
+      .then(({ data }) => setDailyImage(data?.image_url || null));
+
+    const load = () =>
+      adminApi<{ data: any[] }>("listParticipants", { giveawayId: id })
+        .then(({ data }) => setLiveDailyParticipants(data))
+        .catch(() => {});
+    load();
+    const interval = setInterval(load, 4000);
+    return () => clearInterval(interval);
+  }, [activeDailyGiveaway?.id]);
+
+  // Contagem regressiva para o vencedor do diário responder
+  useEffect(() => {
+    if (timerCount === null || timerCount <= 0) return;
+    const t = setTimeout(() => setTimerCount(timerCount - 1), 1000);
+    return () => clearTimeout(t);
+  }, [timerCount]);
+
+  const fetchSorteios = async () => {
+    const { data } = await supabase
+      .from("giveaways")
+      .select("id, title, description, highlight_text, highlight_color, coins_cost, subtitle, prize_label, shipping_text, prize_value, draw_date, login_text, type, status, is_daily_highlight, created_at")
+      .order("created_at", { ascending: false });
+    if (data) setSorteios(data);
+    adminApi<{ data: Record<string, number> }>("participantCounts")
+      .then(({ data }) => setParticipantCounts(data))
+      .catch(() => {});
+  };
+
+  const run = async (action: string, payload: Record<string, unknown> = {}) => {
+    try {
+      return await adminApi(action, payload);
+    } catch (err: any) {
+      alert("Erro: " + err.message);
+      return null;
+    }
   };
 
   const toggleDailyHighlight = async (id: string, currentState: boolean) => {
-    if (!currentState) {
-      await supabase.from('giveaways').update({ is_daily_highlight: false }).neq('id', id);
-    }
-    await supabase.from('giveaways').update({ is_daily_highlight: !currentState }).eq('id', id);
+    await run("setDailyHighlight", { id, on: !currentState });
     fetchSorteios();
   };
 
   const fetchParticipants = async (giveawayId: string) => {
-    const { data } = await supabase.from('participants').select('*').eq('giveaway_id', giveawayId);
-    if (data) setParticipants(data);
+    const res = await run("listParticipants", { giveawayId });
+    if (res) setParticipants(res.data);
   };
 
-  const handleUpdateParticipantStatus = async (id: string, status: string) => {
-    const { error } = await supabase.from('participants').update({ status }).eq('id', id);
-    if (!error && managingParticipants) {
-      fetchParticipants(managingParticipants);
-    } else if (error) {
-      alert("Erro ao atualizar status: " + error.message);
+  const handleUpdateParticipantStatus = async (id: string, newStatus: string) => {
+    if (await run("updateParticipant", { id, fields: { status: newStatus } })) {
+      if (managingParticipants) fetchParticipants(managingParticipants);
     }
   };
 
   const handleSaveParticipantEdit = async (id: string) => {
-    const { error } = await supabase.from('participants').update({
-      twitch_username: editTwitchUsername,
-      coins_used: editCoinsUsed
-    }).eq('id', id);
-
-    if (!error && managingParticipants) {
+    const ok = await run("updateParticipant", {
+      id,
+      fields: { twitch_username: editTwitchUsername, coins_used: editCoinsUsed },
+    });
+    if (ok && managingParticipants) {
       setEditingParticipant(null);
       fetchParticipants(managingParticipants);
-    } else if (error) {
-      alert("Erro ao salvar: " + error.message);
     }
   };
 
   const fetchWinners = async () => {
-    const { data } = await supabase.from('winners').select('*').order('won_at', { ascending: false });
+    const { data } = await supabase.from("winners").select("*").order("won_at", { ascending: false });
     if (data) setWinners(data);
   };
 
   const fetchLocalWinners = async (giveawayId: string) => {
-    const { data } = await supabase.from('winners').select('*').eq('giveaway_id', giveawayId);
+    const { data } = await supabase.from("winners").select("*").eq("giveaway_id", giveawayId);
     if (data) setLocalWinners(data);
   };
 
   const handleOpenParticipants = (id: string) => {
+    setParticipants([]);
+    setLocalWinners([]);
     setManagingParticipants(id);
     fetchParticipants(id);
     fetchLocalWinners(id);
   };
 
-  const startRoulette = () => {
-    // Remover aprovados que já ganharam nesta sessão
-    const alreadyWon = localWinners.map(w => w.twitch_username);
-    const approved = participants.filter(p => p.status === 'approved' && !alreadyWon.includes(p.twitch_username));
-    
+  // excludeNames: quem já ganhou (passado explicitamente porque o estado pode estar desatualizado)
+  const startRoulette = (excludeNames: string[] = localWinners.map((w) => w.twitch_username)) => {
+    const approved = participants.filter((p) => p.status === "approved" && !excludeNames.includes(p.twitch_username));
+
     if (approved.length === 0) {
       alert("Não há mais participantes aprovados e não-sorteados disponíveis.");
+      setIsDrawing(false);
+      setShowWinner(false);
       return;
     }
 
@@ -198,161 +247,205 @@ export default function AdminDashboard() {
     for (let i = 0; i < 50; i++) {
       items.push(approved[Math.floor(Math.random() * approved.length)]);
     }
-
-    const trueWinnerIndex = 40;
     const trueWinner = approved[Math.floor(Math.random() * approved.length)];
-    items[trueWinnerIndex] = trueWinner;
+    items[WINNER_INDEX] = trueWinner;
 
+    rouletteTimers.current.forEach(clearTimeout);
     setRouletteItems(items);
     setDrawnWinner(trueWinner);
     setRouletteOffset(0);
     setIsDrawing(true);
     setShowWinner(false);
 
-    // Inicia o spin após 100ms
-    setTimeout(() => {
-      setRouletteOffset(trueWinnerIndex * 160); // 144px width + 16px gap = 160px
-    }, 100);
-
-    // Revela vencedor após 10s
-    setTimeout(() => {
-      setShowWinner(true);
-    }, 10100);
-  };
-
-  const handleDrawWinner = () => {
-    startRoulette();
+    rouletteTimers.current = [
+      setTimeout(() => setRouletteOffset(WINNER_INDEX * ITEM_STEP), 100),
+      setTimeout(() => setShowWinner(true), 10100),
+    ];
   };
 
   const toggleHallOfFame = async (winnerId: string, currentState: boolean) => {
-    const { error } = await supabase.from('winners').update({ in_hall_of_fame: !currentState }).eq('id', winnerId);
-    if (!error) {
-       fetchWinners();
-       if (managingParticipants) {
-          fetchLocalWinners(managingParticipants);
-       }
-    } else {
-       console.error("Erro ao destacar vencedor:", error);
-    }
-  };
-
-  const handleChatEntry = async (username: string, isSub: boolean) => {
-    // Busca o sorteio diário atual (ou todos os ativos se preferir)
-    const { data: activeGiveaways } = await supabase.from('giveaways').select('id').eq('is_daily_highlight', true);
-    if (!activeGiveaways || activeGiveaways.length === 0) return;
-    
-    // Calcula quantas entradas o usuário terá (1 normal, ou 'subMultiplier' se for sub)
-    const chances = isSub ? subMultiplierT1 : 1;
-    
-    for (const g of activeGiveaways) {
-       const { data: existing } = await supabase.from('participants')
-         .select('id')
-         .eq('giveaway_id', g.id)
-         .eq('twitch_username', username)
-         .maybeSingle();
-         
-       if (!existing) {
-          // Vamos usar o coins_used para simular as 'chances' extras por conta da badge de Sub
-          await supabase.from('participants').insert({
-             giveaway_id: g.id,
-             twitch_username: username,
-             coins_used: chances,
-             status: 'approved' 
-          });
-       }
+    if (await run("setHallOfFame", { id: winnerId, value: !currentState })) {
+      fetchWinners();
+      if (managingParticipants) fetchLocalWinners(managingParticipants);
     }
   };
 
   const toggleTwitchBot = () => {
     if (botStatus === "connected" || botStatus === "connecting") {
-       tmiClient.current?.disconnect();
-       setBotStatus("disconnected");
-       return;
+      tmiClient.current?.disconnect().catch(() => {});
+      tmiClient.current = null;
+      setBotStatus("disconnected");
+      return;
     }
-    
-    setBotStatus("connecting");
-    
-    // Conecta automaticamente no canal da Twitch do admin logado
-    const streamerChannel = (session?.user as any)?.username || session?.user?.name || 'barr4k';
 
-    const client = new tmi.Client({
-      channels: [streamerChannel]
+    setBotStatus("connecting");
+    seenChatUsers.current = new Set();
+
+    // Conecta no canal da Twitch do admin logado
+    const streamerChannel = currentUsername || "barr4k";
+    const command = botCommand.toLowerCase().trim();
+    const client = new tmi.Client({ channels: [streamerChannel] });
+
+    client.on("message", async (_channel, tags, message, self) => {
+      if (self || message.toLowerCase().trim() !== command) return;
+      const username = tags.username;
+      if (!username || seenChatUsers.current.has(username)) return;
+      seenChatUsers.current.add(username);
+
+      const tier = getSubTier(tags);
+      const m = multipliersRef.current;
+      const chances = tier === 3 ? m.t3 : tier === 2 ? m.t2 : tier === 1 ? m.t1 : 1;
+      try {
+        await adminApi("chatEntry", { username, chances });
+      } catch (err) {
+        seenChatUsers.current.delete(username);
+        console.error("Erro ao registrar entrada do chat:", err);
+      }
     });
-    
-    client.connect().then(() => {
-       setBotStatus("connected");
-    }).catch(err => {
-       console.error("Erro ao conectar bot:", err);
-       setBotStatus("disconnected");
-    });
-    
-    client.on('message', async (channel, tags, message, self) => {
-       if (self) return;
-       
-       if (message.toLowerCase().trim() === botCommand.toLowerCase().trim()) {
-          const username = tags.username;
-          const isSub = !!tags.subscriber || !!tags.mod || !!(tags.badges && tags.badges.founder);
-          
-          if (username) {
-             await handleChatEntry(username, isSub);
-          }
-       }
-    });
-    
+
+    client.connect()
+      .then(() => setBotStatus("connected"))
+      .catch((err) => {
+        console.error("Erro ao conectar bot:", err);
+        setBotStatus("disconnected");
+      });
+
     tmiClient.current = client;
   };
 
   const saveWinner = async (drawAgain: boolean) => {
-    const sorteio = sorteios.find(s => s.id === managingParticipants);
-    const prize = sorteio ? sorteio.title : "Prêmio Sorteado";
-    
-    const { data, error } = await supabase.from('winners').insert([{
-      twitch_username: drawnWinner.twitch_username,
-      prize: prize,
-      in_hall_of_fame: false,
-      giveaway_id: managingParticipants
-    }]).select();
-    
-    if (error) {
-       alert("Erro ao salvar: " + error.message);
-    } else {
-       if (data && data[0]) setLocalWinners(prev => [...prev, data[0]]);
-       fetchWinners(); // Atualiza aba global tbm
-    }
+    const sorteio = sorteios.find((s) => s.id === managingParticipants);
+    const res = await run("insertWinner", {
+      giveawayId: managingParticipants,
+      twitchUsername: drawnWinner.twitch_username,
+      prize: sorteio ? sorteio.title : "Prêmio Sorteado",
+    });
+
+    const updatedWinners = res?.data ? [...localWinners, res.data] : localWinners;
+    setLocalWinners(updatedWinners);
+    fetchWinners();
 
     if (drawAgain) {
-       startRoulette();
+      startRoulette(updatedWinners.map((w) => w.twitch_username));
     } else {
-       setIsDrawing(false);
-       setShowWinner(false);
+      setIsDrawing(false);
+      setShowWinner(false);
     }
+  };
+
+  const handleDrawDailyWinner = (list: any[] = liveDailyParticipants) => {
+    const tickets: any[] = [];
+    list.forEach((p: any) => {
+      if (p.status === "approved" || p.status === "pending") {
+        const chances = Math.max(1, p.coins_used || 1);
+        for (let i = 0; i < chances; i++) tickets.push(p);
+      }
+    });
+    if (tickets.length === 0) return alert("Nenhum participante válido na fila!");
+
+    setIsRolling(true);
+    setWinnerResult(null);
+    let counter = 0;
+    const interval = setInterval(() => {
+      setCurrentRollName(tickets[Math.floor(Math.random() * tickets.length)].twitch_username);
+      counter++;
+      if (counter >= 30) {
+        clearInterval(interval);
+        const finalWinner = tickets[Math.floor(Math.random() * tickets.length)];
+        setCurrentRollName(finalWinner.twitch_username);
+        setWinnerResult(finalWinner);
+        setIsRolling(false);
+        // O tempo para responder fica guardado em prize_value nos sorteios diários
+        setTimerCount(parseInt(activeDailyGiveaway?.prize_value) || 60);
+      }
+    }, 100);
+  };
+
+  const closeDailyResult = () => {
+    setWinnerResult(null);
+    setTimerCount(null);
+    setCurrentRollName("");
+  };
+
+  const confirmWinner = async () => {
+    if (!winnerResult || !activeDailyGiveaway) return;
+    const res = await run("insertWinner", {
+      giveawayId: activeDailyGiveaway.id,
+      twitchUsername: winnerResult.twitch_username,
+      prize: activeDailyGiveaway.title,
+    });
+    if (res) {
+      closeDailyResult();
+      fetchWinners();
+    }
+  };
+
+  const rejectWinner = async () => {
+    if (!winnerResult || !activeDailyGiveaway) return;
+    await run("updateParticipant", { id: winnerResult.id, fields: { status: "rejected" } });
+    closeDailyResult();
+    const res = await run("listParticipants", { giveawayId: activeDailyGiveaway.id });
+    if (res) {
+      setLiveDailyParticipants(res.data);
+      handleDrawDailyWinner(res.data);
+    }
+  };
+
+  const handleStopDaily = async (id: string) => {
+    if (confirm("Tem certeza que deseja encerrar o Sorteio Diário?")) {
+      await run("completeGiveaway", { id });
+      fetchSorteios();
+    }
+  };
+
+  const handleCreateDailyGiveaway = async () => {
+    if (!twitchGiveawayTitle.trim()) return alert("Digite o título do prêmio!");
+    setIsCreatingTwitchGiveaway(true);
+    try {
+      const imageUrl = twitchGiveawayImage ? await compressImage(twitchGiveawayImage) : null;
+      const ok = await run("saveGiveaway", {
+        fields: {
+          title: twitchGiveawayTitle.trim(),
+          image_url: imageUrl,
+          status: "active",
+          is_daily_highlight: true,
+          type: "daily",
+          coins_cost: 0,
+          prize_value: String(twitchTimer),
+        },
+      });
+      if (ok) {
+        setTwitchGiveawayTitle("");
+        setTwitchGiveawayImage(null);
+        fetchSorteios();
+      }
+    } catch (err: any) {
+      alert("Erro: " + err.message);
+    }
+    setIsCreatingTwitchGiveaway(false);
   };
 
   const handleDeleteGiveaway = async (id: string) => {
     if (confirm("Tem certeza que deseja excluir este sorteio?")) {
-      const { error } = await supabase.from('giveaways').delete().eq('id', id);
-      if (!error) fetchSorteios();
-      else alert("Erro: " + error.message);
+      if (await run("deleteGiveaway", { id })) fetchSorteios();
+    }
+  };
+
+  const handleCompleteGiveaway = async (id: string) => {
+    if (confirm("Deseja encerrar este sorteio (fechar captação)?")) {
+      if (await run("completeGiveaway", { id })) fetchSorteios();
     }
   };
 
   const handleSetFeatured = async (id: string, currentType: string) => {
-    // Primeiro limpa todos os outros de featured para monthly
-    await supabase.from('giveaways').update({ type: 'monthly' }).eq('type', 'featured');
-    
-    if (currentType !== 'featured') {
-      // Agora seta esse para featured
-      const { error } = await supabase.from('giveaways').update({ type: 'featured' }).eq('id', id);
-      if (error) alert("Erro ao destacar: " + error.message);
-    }
-    
+    await run("setFeatured", { id, on: currentType !== "featured" });
     fetchSorteios();
   };
 
   const handleEditGiveaway = async (giveaway: any) => {
-    // Fetch heavy image data dynamically
-    const { data: imgData } = await supabase.from('giveaways').select('image_url, detail_image_url').eq('id', giveaway.id).single();
-    
+    // As imagens são pesadas, então só são buscadas ao editar
+    const { data: imgData } = await supabase.from("giveaways").select("image_url, detail_image_url").eq("id", giveaway.id).single();
+
     setNewTitle(giveaway.title);
     setNewDesc(giveaway.description || "");
     setNewHighlight(giveaway.highlight_text || "");
@@ -362,7 +455,7 @@ export default function AdminDashboard() {
     setNewPrizeLabel(giveaway.prize_label || "");
     setNewShippingText(giveaway.shipping_text || "");
     setNewPrizeValue(giveaway.prize_value || "");
-    setNewDrawDate(giveaway.draw_date ? new Date(giveaway.draw_date).toISOString().slice(0, 16) : "");
+    setNewDrawDate(giveaway.draw_date ? toLocalInputValue(giveaway.draw_date) : "");
     setNewLoginText(giveaway.login_text || "");
     setNewImage(null);
     setNewDetailImage(null);
@@ -387,50 +480,19 @@ export default function AdminDashboard() {
     setNewImage(null);
     setNewDetailImage(null);
     setPreviewImage(null);
+    setPreviewDetailImage(null);
     setEditingGiveaway(null);
     setIsCreateModalOpen(true);
   };
 
-  const readImageAsBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          let width = img.width;
-          let height = img.height;
-          const max = 600; // Reduzido para caber 2 imagens no limite de 1MB do Supabase
-          if (width > height) {
-            if (width > max) { height *= max / width; width = max; }
-          } else {
-            if (height > max) { width *= max / height; height = max; }
-          }
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx?.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/webp', 0.6)); // Usando webp para compressão otimizada
-        };
-        img.src = e.target?.result as string;
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-
   const handleCreateSorteio = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTitle) return alert("Título é obrigatório!");
+    if (!newTitle.trim()) return alert("Título é obrigatório!");
+    setIsSaving(true);
 
-    let imageUrl = null;
-    if (newImage) imageUrl = await readImageAsBase64(newImage);
-    
-    let detailImageUrl = null;
-    if (newDetailImage) detailImageUrl = await readImageAsBase64(newDetailImage);
-
-    if (editingGiveaway) {
-      const updateData: any = {
-        title: newTitle,
+    try {
+      const fields: Record<string, unknown> = {
+        title: newTitle.trim(),
         description: newDesc,
         highlight_text: newHighlight,
         highlight_color: selectedColor,
@@ -442,54 +504,34 @@ export default function AdminDashboard() {
         draw_date: newDrawDate ? new Date(newDrawDate).toISOString() : null,
         login_text: newLoginText,
       };
-      if (imageUrl) updateData.image_url = imageUrl;
-      if (detailImageUrl) updateData.detail_image_url = detailImageUrl;
+      if (newImage) fields.image_url = await compressImage(newImage);
+      if (newDetailImage) fields.detail_image_url = await compressImage(newDetailImage);
+      if (!editingGiveaway) {
+        fields.type = "monthly";
+        fields.status = "active";
+      }
 
-      const { error } = await supabase.from('giveaways').update(updateData).eq('id', editingGiveaway);
-      
-      if (!error) {
+      if (await run("saveGiveaway", { id: editingGiveaway, fields })) {
         setIsCreateModalOpen(false);
         setEditingGiveaway(null);
         fetchSorteios();
-      } else alert("Erro ao editar: " + error.message);
-    } else {
-      const { error } = await supabase.from('giveaways').insert([{
-        title: newTitle,
-        description: newDesc,
-        highlight_text: newHighlight,
-        highlight_color: selectedColor,
-        coins_cost: Number(newCoins) || 0,
-        subtitle: newSubtitle,
-        prize_label: newPrizeLabel,
-        shipping_text: newShippingText,
-        prize_value: newPrizeValue,
-        draw_date: newDrawDate ? new Date(newDrawDate).toISOString() : null,
-        login_text: newLoginText,
-        image_url: imageUrl,
-        detail_image_url: detailImageUrl,
-        type: 'monthly',
-        status: 'active'
-      }]);
-
-      if (!error) {
-        setIsCreateModalOpen(false);
-        fetchSorteios(); // Atualiza a lista
-      } else {
-        alert("Erro ao criar sorteio: " + error.message);
       }
+    } catch (err: any) {
+      alert("Erro: " + err.message);
     }
+    setIsSaving(false);
   };
 
   if (status === "loading") {
     return <div className="min-h-screen bg-[#050505] flex items-center justify-center text-purple-500 font-bold animate-pulse">Carregando painel...</div>;
   }
 
-  // Se não estiver autorizado, não renderiza o painel (o useEffect vai redirecionar)
-  const allowedAdmins = ["barr4k", "luizpragi"];
-  const currentUsername = (session?.user as any)?.username?.toLowerCase() || session?.user?.name?.toLowerCase();
-  if (!currentUsername || !allowedAdmins.includes(currentUsername)) {
+  // Se não estiver autorizado, não renderiza o painel (o useEffect redireciona)
+  if (!allowed) {
     return <div className="min-h-screen bg-[#050505] flex items-center justify-center text-red-500 font-bold">Acesso Negado</div>;
   }
+
+  const managedGiveaway = sorteios.find((s) => s.id === managingParticipants);
 
   return (
     <div className="min-h-screen bg-[#050505] flex flex-col md:flex-row font-sans">
@@ -535,13 +577,13 @@ export default function AdminDashboard() {
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <div>
                     <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-                      Participantes do Sorteio #{managingParticipants}
+                      Participantes: {managedGiveaway?.title || "Sorteio"}
                     </h1>
                     <p className="text-gray-400 mt-1">Apenas participantes <span className="text-green-400 font-bold">Aprovados</span> irão para a roleta.</p>
                   </div>
                   <div className="flex gap-2">
                     <button
-                      onClick={handleDrawWinner}
+                      onClick={() => startRoulette()}
                       className="bg-purple-600 hover:bg-purple-500 text-white px-6 py-3 rounded-lg font-bold flex items-center gap-2 transition-colors shadow-[0_0_15px_rgba(168,85,247,0.5)]"
                     >
                       <Trophy className="w-5 h-5" /> Sorteie Agora
@@ -590,11 +632,12 @@ export default function AdminDashboard() {
                                     className="bg-black border border-gray-700 rounded px-2 py-1 text-white w-20 outline-none focus:border-purple-500" 
                                   />
                                 </td>
+                                <td className="px-6 py-4 font-bold text-gray-400">{p.instagram || "N/A"}</td>
                                 <td className="px-6 py-4">
                                   {p.proof_url ? (
-                                    <a href={p.proof_url} target="_blank" rel="noreferrer" className="text-blue-400 hover:text-blue-300 underline font-medium truncate max-w-[100px] inline-block">
+                                    <button type="button" onClick={() => setProofPreview(p.proof_url)} className="text-blue-400 hover:text-blue-300 underline font-medium">
                                       Ver Imagem
-                                    </a>
+                                    </button>
                                   ) : (
                                     <span>Nenhum</span>
                                   )}
@@ -624,16 +667,20 @@ export default function AdminDashboard() {
                                 <td className="px-6 py-4 font-bold text-yellow-500">{p.coins_used}</td>
                                 <td className="px-6 py-4 font-bold text-gray-400">{p.instagram || "N/A"}</td>
                                 <td className="px-6 py-4">
-                                  <a href={p.proof_url} target="_blank" rel="noreferrer" className="text-blue-400 hover:text-blue-300 underline font-medium">
-                                    Ver Imagem
-                                  </a>
+                                  {p.proof_url ? (
+                                    <button type="button" onClick={() => setProofPreview(p.proof_url)} className="text-blue-400 hover:text-blue-300 underline font-medium">
+                                      Ver Imagem
+                                    </button>
+                                  ) : (
+                                    <span className="text-gray-600">Nenhum</span>
+                                  )}
                                 </td>
                                 <td className="px-6 py-4">
                                   <span className={`px-2 py-1 rounded text-xs font-bold 
                                     ${p.status === "approved" ? "bg-green-500/20 text-green-400 border border-green-500/30" :
                                       p.status === "rejected" ? "bg-red-500/20 text-red-400 border border-red-500/30" :
                                         "bg-yellow-500/20 text-yellow-500 border border-yellow-500/30"}`}>
-                                    {p.status}
+                                    {p.status === "approved" ? "Aprovado" : p.status === "rejected" ? "Rejeitado" : "Pendente"}
                                   </span>
                                 </td>
                                 <td className="px-6 py-4 text-right">
@@ -667,6 +714,11 @@ export default function AdminDashboard() {
                             )}
                           </tr>
                         ))}
+                        {participants.length === 0 && (
+                          <tr>
+                            <td colSpan={6} className="px-6 py-10 text-center text-gray-500">Nenhum participante ainda.</td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -746,10 +798,12 @@ export default function AdminDashboard() {
                           <tr key={sorteio.id} className="border-b border-gray-800 hover:bg-white/5 transition-colors">
                             <td className="px-6 py-4 font-bold text-white text-xs truncate max-w-[100px]" title={sorteio.id}>{sorteio.id}</td>
                             <td className="px-6 py-4 text-white font-medium">{sorteio.title}</td>
-                            <td className="px-6 py-4">{sorteio.type}</td>
+                            <td className="px-6 py-4">
+                              {sorteio.type === "featured" ? "Destaque" : sorteio.type === "daily" ? "Diário (Live)" : "Mensal"}
+                            </td>
                             <td className="px-6 py-4">
                               <span className={`px-2 py-1 rounded text-xs font-bold ${sorteio.status === "active" ? "bg-green-500/20 text-green-400 border border-green-500/30" : "bg-gray-800 text-gray-400"}`}>
-                                {sorteio.status}
+                                {sorteio.status === "active" ? "Ativo" : "Encerrado"}
                               </span>
                             </td>
                             <td className="px-6 py-4 font-bold">{participantCounts[sorteio.id] || 0}</td>
@@ -774,13 +828,8 @@ export default function AdminDashboard() {
                                   title="Destacar Sorteio Diário (Live)">
                                   <Calendar className="w-4 h-4" />
                                 </button>
-                                <button 
-                                  onClick={async () => {
-                                    if(confirm("Deseja encerrar este sorteio (fechar captação)?")) {
-                                      await supabase.from('giveaways').update({ status: 'completed' }).eq('id', sorteio.id);
-                                      fetchSorteios();
-                                    }
-                                  }}
+                                <button
+                                  onClick={() => handleCompleteGiveaway(sorteio.id)}
                                   className="p-2 bg-pink-500/10 hover:bg-pink-500/20 text-pink-400 rounded transition-colors" title="Encerrar Sorteio (X)">
                                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -816,7 +865,125 @@ export default function AdminDashboard() {
               <p className="text-gray-400">Configure os parâmetros da sua live para captar usuários do chat da Twitch.</p>
             </div>
 
-            <div className="glass-panel rounded-xl border border-purple-500/30 p-8 relative overflow-hidden animated-border-card">
+            
+            {activeDailyGiveaway ? (
+              <>
+                {/* ROULETTE & POPUP OVERLAY */}
+                {(isRolling || winnerResult) && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm animate-fade-in">
+                    <div className="glass-panel max-w-2xl w-full mx-4 border border-purple-500/50 p-6 md:p-12 text-center rounded-3xl relative overflow-hidden">
+                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-purple-500/20 rounded-full blur-[100px] pointer-events-none" />
+                      <h2 className="text-3xl font-bold text-white mb-8">
+                        {isRolling ? "Sorteando..." : "TEMOS UM VENCEDOR!"}
+                      </h2>
+                      <div className="text-4xl md:text-7xl font-black italic tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500 animate-pulse mb-8 break-all">
+                        @{currentRollName || "?"}
+                      </div>
+                      {winnerResult && (
+                        <div className="space-y-8 animate-fade-in">
+                          <div className="inline-block bg-black/50 border border-gray-800 rounded-2xl p-6">
+                            <p className="text-gray-400 text-sm font-bold uppercase tracking-widest mb-2">Tempo para responder:</p>
+                            <div className={`text-6xl font-black ${timerCount !== null && timerCount <= 10 ? 'text-red-500 animate-bounce' : 'text-white'}`}>
+                              {timerCount}s
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <button onClick={confirmWinner} className="bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500/50 font-bold py-4 rounded-xl transition-all">
+                              Ganhou! (Salvar)
+                            </button>
+                            <button onClick={rejectWinner} className="bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/50 font-bold py-4 rounded-xl transition-all">
+                              Não Respondeu (Sortear Novamente)
+                            </button>
+                          </div>
+                          <button onClick={closeDailyResult} className="text-gray-500 hover:text-white text-xs underline">
+                            Fechar sem salvar
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div className="space-y-6">
+                    <div className="glass-panel rounded-xl border border-purple-500/30 p-8 flex flex-col items-center justify-center text-center relative overflow-hidden animated-border-card">
+                      <h2 className="text-xl font-bold text-white mb-4">Sorteio em Andamento</h2>
+                      {dailyImage && <img src={dailyImage} alt="Prêmio" className="w-32 h-32 object-contain mb-4" />}
+                      <h3 className="text-2xl font-bold text-purple-400">{activeDailyGiveaway.title}</h3>
+                      <div className="w-full mt-8 grid grid-cols-4 gap-2 text-left">
+                        <div className="col-span-4 sm:col-span-1 space-y-1">
+                          <label className="text-[10px] font-bold text-gray-400 uppercase">Comando</label>
+                          <input
+                            type="text"
+                            value={botCommand}
+                            onChange={(e) => setBotCommand(e.target.value)}
+                            disabled={botStatus !== "disconnected"}
+                            className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:border-purple-500 outline-none disabled:opacity-50"
+                          />
+                        </div>
+                        {([
+                          ["T1", subMultiplierT1, setSubMultiplierT1],
+                          ["T2", subMultiplierT2, setSubMultiplierT2],
+                          ["T3", subMultiplierT3, setSubMultiplierT3],
+                        ] as const).map(([label, value, setter]) => (
+                          <div key={label} className="space-y-1">
+                            <label className="text-[10px] font-bold text-purple-400 uppercase">Chances {label}</label>
+                            <input
+                              type="number"
+                              min={1}
+                              value={value}
+                              onChange={(e) => setter(parseInt(e.target.value) || 1)}
+                              className="w-full bg-[#0a0a0b] border border-purple-500/30 rounded-lg px-3 py-2 text-white text-sm outline-none"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      <div className="w-full mt-4 space-y-4">
+                        <button 
+                          onClick={toggleTwitchBot}
+                          className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${
+                            botStatus === 'connected' ? 'bg-purple-900/50 border border-purple-500 text-purple-400 animate-pulse' : botStatus === 'connecting' ? 'bg-yellow-900/50 border border-yellow-500 text-yellow-500 cursor-wait' : 'bg-black border border-gray-800 text-gray-400 hover:text-white hover:border-gray-600'
+                          }`}
+                        >
+                          <Bot className="w-6 h-6" />
+                          {botStatus === 'connected' ? `Bot Ligado (#${(session?.user as any)?.username || 'chat'})` : botStatus === 'connecting' ? 'Conectando...' : 'Ligar Bot'}
+                        </button>
+                        <button onClick={() => handleDrawDailyWinner()} className="w-full btn-neon font-bold italic tracking-widest uppercase py-4 rounded-xl text-lg flex items-center justify-center gap-2">
+                          <Trophy className="w-6 h-6" /> Sortear Agora
+                        </button>
+                        <button onClick={() => handleStopDaily(activeDailyGiveaway.id)} className="w-full bg-red-900/20 border border-red-500/30 text-red-500 hover:bg-red-900/40 font-bold py-4 rounded-xl text-sm">
+                          Encerrar Sorteio Diário
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="glass-panel rounded-xl border border-gray-800 p-6 flex flex-col max-h-[600px]">
+                    <h2 className="text-lg font-bold text-white mb-4 flex justify-between items-center">
+                      Participantes
+                      <span className="bg-purple-500/20 text-purple-400 px-3 py-1 rounded-full text-xs">{liveDailyParticipants.length} Total</span>
+                    </h2>
+                    <div className="flex-1 overflow-y-auto pr-2 space-y-2">
+                      {liveDailyParticipants.length === 0 ? (
+                        <div className="text-gray-500 text-center py-8">Nenhum participante ainda...</div>
+                      ) : (
+                        liveDailyParticipants.map((p, idx) => (
+                          <div key={idx} className="bg-black/50 border border-gray-800 p-3 rounded-lg flex justify-between items-center">
+                            <span className="font-bold text-white flex items-center gap-2">
+                              {p.status === 'rejected' ? <span className="w-4 h-4 text-red-500 font-bold">X</span> : <CheckCircle2 className="w-4 h-4 text-green-500" />}
+                              @{p.twitch_username}
+                              {p.coins_used > 1 && <span className="ml-2 text-[10px] bg-yellow-500/20 text-yellow-500 px-1 py-0.5 rounded uppercase">Sub</span>}
+                            </span>
+                            <span className="text-xs font-bold text-purple-500 bg-purple-500/10 px-2 py-1 rounded">{p.coins_used} CHANCES</span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="glass-panel rounded-xl border border-purple-500/30 p-8 relative overflow-hidden animated-border-card">
+
               <div className="flex justify-between items-start mb-6">
                 <h2 className="text-xl font-bold text-white flex items-center gap-2">
                   <Gift className="w-5 h-5 text-purple-500" /> Criar Sorteio Instantâneo (Chat)
@@ -846,7 +1013,17 @@ export default function AdminDashboard() {
                     placeholder="Ex: Faca Butterfly" />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-gray-400">Tempo para Responder (Segundos)</label>
+                    <input 
+                      type="number" 
+                      value={twitchTimer}
+                      min={5}
+                      onChange={(e) => setTwitchTimer(parseInt(e.target.value) || 60)}
+                      className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none" 
+                    />
+                  </div>
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-gray-400">Palavra-chave (Comando Chat)</label>
                     <input 
@@ -862,11 +1039,8 @@ export default function AdminDashboard() {
                     <label className="text-sm font-bold text-purple-500">Imagem do Prêmio</label>
                     <input 
                       type="file" 
-                      onChange={(e) => {
-                        if (e.target.files && e.target.files[0]) {
-                          setTwitchGiveawayImage(e.target.files[0]);
-                        }
-                      }}
+                      accept="image/*"
+                      onChange={(e) => setTwitchGiveawayImage(e.target.files?.[0] ?? null)}
                       className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-2 text-gray-400 focus:border-purple-500 outline-none" 
                     />
                   </div>
@@ -908,37 +1082,7 @@ export default function AdminDashboard() {
 
                 <button
                   type="button"
-                  onClick={async () => {
-                    if (!twitchGiveawayTitle) {
-                      alert("Digite o título do prêmio!");
-                      return;
-                    }
-                    setIsCreatingTwitchGiveaway(true);
-                    
-                    let uploadedUrl = "";
-                    if (twitchGiveawayImage) {
-                       uploadedUrl = await readImageAsBase64(twitchGiveawayImage);
-                    }
-
-                    const { error } = await supabase.from('giveaways').insert({
-                      title: twitchGiveawayTitle,
-                      image_url: uploadedUrl,
-                      status: 'active',
-                      is_daily_highlight: true,
-                      type: 'normal',
-                      coins_cost: 0
-                    });
-
-                    if (error) {
-                      alert("Erro ao criar sorteio diário: " + error.message);
-                    } else {
-                      alert("Sorteio diário criado com sucesso!");
-                      setTwitchGiveawayTitle("");
-                      setTwitchGiveawayImage(null);
-                    }
-                    
-                    setIsCreatingTwitchGiveaway(false);
-                  }}
+                  onClick={handleCreateDailyGiveaway}
                   disabled={isCreatingTwitchGiveaway}
                   className="w-full btn-neon font-bold italic tracking-widest uppercase py-4 rounded-lg mt-6 text-sm text-center block disabled:opacity-50"
                 >
@@ -946,6 +1090,7 @@ export default function AdminDashboard() {
                 </button>
               </form>
             </div>
+            )}
           </div>
         )}
 
@@ -1011,15 +1156,25 @@ export default function AdminDashboard() {
                   <div className="flex items-center justify-between p-4 bg-purple-900/10 border border-purple-500/20 rounded-lg">
                     <div>
                       <h3 className="font-bold text-white">Bot Leitor de Chat</h3>
-                      <p className="text-sm text-gray-400">Status: <span className="text-red-400 font-bold">Desconectado</span></p>
+                      <p className="text-sm text-gray-400">
+                        Status:{" "}
+                        {botStatus === "connected" ? (
+                          <span className="text-green-400 font-bold">Conectado</span>
+                        ) : botStatus === "connecting" ? (
+                          <span className="text-yellow-400 font-bold">Conectando...</span>
+                        ) : (
+                          <span className="text-red-400 font-bold">Desconectado</span>
+                        )}
+                      </p>
                     </div>
-                    <button className="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-lg font-bold text-sm transition-colors">
-                      Conectar Bot
+                    <button onClick={() => setActiveTab("twitch")} className="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-lg font-bold text-sm transition-colors">
+                      Abrir Sorteio da Live
                     </button>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-bold text-gray-400">Canal Monitorado (ID)</label>
-                    <input type="text" className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none" placeholder="Ex: barr4k" defaultValue="barr4k" />
+                    <label className="text-sm font-bold text-gray-400">Canal Monitorado</label>
+                    <input type="text" readOnly value={currentUsername} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-gray-400 outline-none" />
+                    <p className="text-xs text-gray-500">O bot lê o chat do canal da conta logada e só funciona enquanto este painel estiver aberto.</p>
                   </div>
                 </div>
               </div>
@@ -1045,17 +1200,17 @@ export default function AdminDashboard() {
               
               {/* A esteira de avatares */}
               <div 
-                className={`flex gap-4 transition-transform ease-[cubic-bezier(0.15,0.85,0.15,1)]`}
+                className={`flex gap-4 w-full transition-transform ease-[cubic-bezier(0.15,0.85,0.15,1)]`}
                 style={{ 
-                  paddingLeft: 'calc(50vw - 72px)', /* 72px is half of item width 144px */
-                  paddingRight: '50vw',
+                  /* centraliza o 1º card no traço: metade da faixa menos metade do card (144px) */
+                  paddingLeft: 'calc(50% - 72px)',
                   transform: `translateX(-${rouletteOffset}px)`,
                   transitionDuration: rouletteOffset > 0 ? '10s' : '0s'
                 }}
               >
                 {rouletteItems.map((item, index) => (
                   <div key={index} className="w-[144px] h-[144px] flex-shrink-0 bg-black border border-gray-800 rounded-xl flex flex-col items-center justify-center relative overflow-hidden opacity-80">
-                    <img src={`https://ui-avatars.com/api/?name=${item.twitch_username}&background=random&color=fff&size=128`} className="w-16 h-16 rounded-full mb-3 shadow-[0_0_10px_rgba(0,0,0,0.5)]" />
+                    <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(item.twitch_username)}&background=random&color=fff&size=128`} alt="" className="w-16 h-16 rounded-full mb-3 shadow-[0_0_10px_rgba(0,0,0,0.5)]" />
                     <span className="text-white font-bold text-xs uppercase tracking-widest truncate w-full text-center px-2">@{item.twitch_username}</span>
                   </div>
                 ))}
@@ -1063,6 +1218,15 @@ export default function AdminDashboard() {
             </div>
 
             {/* Quando terminar, mostrar vencedor e botões */}
+            {!showWinner && (
+              <button
+                onClick={() => { rouletteTimers.current.forEach(clearTimeout); setIsDrawing(false); }}
+                className="mt-10 text-gray-500 hover:text-white text-xs underline"
+              >
+                Cancelar sorteio
+              </button>
+            )}
+
             {showWinner && (
               <div className="mt-12 bg-[#121214] border border-purple-500/50 rounded-2xl w-full max-w-md shadow-[0_0_50px_rgba(168,85,247,0.3)] p-8 text-center animate-fade-in relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-purple-600 to-pink-600"></div>
@@ -1070,7 +1234,7 @@ export default function AdminDashboard() {
                 <Trophy className="w-16 h-16 text-yellow-500 mx-auto mb-4 drop-shadow-[0_0_15px_rgba(234,179,8,0.5)]" />
                 
                 <h3 className="text-3xl font-black text-white uppercase italic tracking-wider mb-2 truncate">@{drawnWinner?.twitch_username}</h3>
-                <p className="text-gray-400 mb-6 font-medium text-xs">VENCEDOR DO SORTEIO (ID: {drawnWinner?.id})</p>
+                <p className="text-gray-400 mb-6 font-medium text-xs uppercase tracking-widest">Vencedor do sorteio</p>
                 
                 <div className="flex gap-3">
                   <button 
@@ -1093,6 +1257,16 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {/* Visualizar comprovante (data URLs não abrem em nova aba) */}
+      {proofPreview && (
+        <div onClick={() => setProofPreview(null)} className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-fade-in cursor-zoom-out">
+          <button onClick={() => setProofPreview(null)} className="absolute top-4 right-4 text-gray-300 hover:text-white bg-black/60 rounded-full p-2">
+            <X className="w-6 h-6" />
+          </button>
+          <img src={proofPreview} alt="Comprovante" className="max-w-full max-h-[90vh] rounded-lg border border-gray-800" />
+        </div>
+      )}
+
       {/* Pop-up de Criação de Sorteio */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-start justify-center p-0 md:p-4 bg-black/80 backdrop-blur-sm animate-fade-in overflow-y-auto">
@@ -1105,7 +1279,7 @@ export default function AdminDashboard() {
             </button>
 
             <div className="p-6 md:p-8 md:w-[55%] space-y-6 max-h-none md:max-h-[85vh] overflow-y-visible md:overflow-y-auto custom-scrollbar pt-16 md:pt-8">
-              <h2 className="text-2xl font-black text-white uppercase italic tracking-wider">Criar Sorteio</h2>
+              <h2 className="text-2xl font-black text-white uppercase italic tracking-wider">{editingGiveaway ? "Editar Sorteio" : "Criar Sorteio"}</h2>
 
               <form onSubmit={handleCreateSorteio} className="space-y-5">
                 {/* Campos Globais (Sempre Visíveis) */}
@@ -1136,13 +1310,7 @@ export default function AdminDashboard() {
 
                 {/* Campos Condicionais baseados na Aba Selecionada */}
                 <div className="pt-4 border-t border-white/5 space-y-5 animate-fade-in relative min-h-[300px]">
-                  <h3 className="text-[10px] font-bold text-purple-500 tracking-widest uppercase mb-4 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse"></span>
-                    Preenchendo aba: {previewMode}
-                  </h3>
-
-                  {(previewMode === "home" || previewMode === "destaque") && (
-                    <>
+                  <>
                       <div className="space-y-2 animate-fade-in">
                         <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
                           Destaque (Opcional)
@@ -1162,7 +1330,7 @@ export default function AdminDashboard() {
                         <div className="space-y-2">
                           <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
                             Texto da Entrada
-                              <TooltipIcon text="O texto que aparece em 'ENTRADA' no card inferior esquerdo. Ex: Gratuito ou R$ 12,00" />
+                              <TooltipIcon text="O texto que aparece em 'ENTRADA' no card da Home. Ex: Gratuito ou R$ 12,00" />
                           </label>
                           <input type="text" value={newPrizeLabel} onChange={(e) => setNewPrizeLabel(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: Gratuito" />
                         </div>
@@ -1188,10 +1356,8 @@ export default function AdminDashboard() {
                           </span>
                         </label>
                       </div>
-                    </>
-                  )}
+                  </>
 
-                  {(previewMode === "destaque" || previewMode === "sorteio") && (
                     <div className="space-y-2 animate-fade-in">
                       <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
                         Descrição
@@ -1199,10 +1365,16 @@ export default function AdminDashboard() {
                       </label>
                       <textarea rows={3} value={newDesc} onChange={(e) => setNewDesc(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors resize-none" placeholder="Ex: Respostas aceitas de 20/01 até 28/02. Regras, cupom, etc." />
                     </div>
-                  )}
 
-                  {(previewMode === "sorteio" || previewMode === "destaque") && (
                     <>
+                      <div className="space-y-2 animate-fade-in">
+                        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
+                          Texto de Envio
+                          <TooltipIcon text="Linha abaixo do valor na página do sorteio. Ex: 100% grátis · Enviado direto via Steam Trade" />
+                        </label>
+                        <input type="text" value={newShippingText} onChange={(e) => setNewShippingText(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: 100% grátis · Enviado direto via Steam Trade" />
+                      </div>
+
                       <div className="space-y-2 animate-fade-in">
                         <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
                           Texto de Login
@@ -1232,16 +1404,16 @@ export default function AdminDashboard() {
                         </label>
                       </div>
                     </>
-                  )}
                 </div>
 
 
 
                 <button
                   type="submit"
-                  className="w-full btn-neon font-bold italic tracking-widest uppercase py-4 rounded-lg mt-6 text-sm text-center block"
+                  disabled={isSaving}
+                  className="w-full btn-neon font-bold italic tracking-widest uppercase py-4 rounded-lg mt-6 text-sm text-center block disabled:opacity-50"
                 >
-                  Salvar Sorteio
+                  {isSaving ? "Salvando..." : "Salvar Sorteio"}
                 </button>
               </form>
             </div>
@@ -1318,7 +1490,7 @@ export default function AdminDashboard() {
                     </div>
                     <div className="text-right">
                       <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest mb-1">Valor</p>
-                      <p className="text-purple-400 font-bold text-sm">R$ {newPrizeValue || "1.364,35"}</p>
+                      <p className="text-purple-400 font-bold text-sm">{newPrizeValue ? `R$ ${newPrizeValue}` : "—"}</p>
                     </div>
                   </div>
 
@@ -1414,13 +1586,13 @@ export default function AdminDashboard() {
                       <div className="absolute bottom-4 left-4 right-4 z-20 text-left">
                         <div className="flex items-center gap-1.5 mb-1.5 text-purple-500">
                           <Trophy className="w-3 h-3" />
-                          <span className="text-[9px] font-bold tracking-widest uppercase">{newPrizeLabel || "PRÊMIO"}</span>
+                          <span className="text-[9px] font-bold tracking-widest uppercase">PRÊMIO</span>
                         </div>
                         <h3 className="text-xl font-bold text-white leading-tight">
                           <span className="text-white">★</span> {newTitle || "TÍTULO DO SORTEIO"}
                         </h3>
                         <p className="text-purple-400 font-bold text-sm mt-0.5">
-                          {newPrizeValue ? `R$ ${newPrizeValue}` : (Number(newCoins) === 0 ? "R$ 0,00" : "R$ 1.364,35")}
+                          {newPrizeValue ? `R$ ${newPrizeValue}` : ""}
                         </p>
                         <p className="text-[#808080] text-[9px] mt-1 font-bold uppercase tracking-wide">{newShippingText || "100% grátis · Enviado direto via Steam Trade"}</p>
                       </div>

@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, CheckCircle2, Gift, Sparkles, Trophy, Upload, Clock } from "lucide-react";
-import Link from "next/link";
+import { ArrowLeft, CheckCircle2, Gift, Sparkles, Trophy, Upload } from "lucide-react";
 import { FaTwitch } from "react-icons/fa";
 import { supabase } from "@/lib/supabase";
+import { compressImage } from "@/lib/image";
 import { useSession, signIn } from "next-auth/react";
 
 const useCountdown = (targetDateString: string | null) => {
@@ -15,7 +15,7 @@ const useCountdown = (targetDateString: string | null) => {
 
   useEffect(() => {
     if (!targetDateString) return;
-    
+
     const targetDate = new Date(targetDateString).getTime();
 
     const updateTimer = () => {
@@ -49,37 +49,34 @@ export default function SorteioPage() {
   const router = useRouter();
   const { data: session } = useSession();
   const isLoggedIn = !!session;
+  const twitchId = (session?.user as any)?.username || session?.user?.name || "";
 
   const [giveaway, setGiveaway] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [isSuccess, setIsSuccess] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [twitchId, setTwitchId] = useState("");
-  const [instagram, setInstagram] = useState("");
+  const [casaId, setCasaId] = useState("");
   const [coinsSpent, setCoinsSpent] = useState("");
   const [isParticipating, setIsParticipating] = useState(false);
-  
-  useEffect(() => {
-    if (session?.user?.name) {
-      setTwitchId(session.user.name);
-    }
-  }, [session]);
+  const [isExpired, setIsExpired] = useState(false);
 
   const timeLeft = useCountdown(giveaway?.draw_date || null);
 
   useEffect(() => {
     async function fetchGiveaway() {
       if (!params.id) return;
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('giveaways')
         .select('*')
         .eq('id', params.id)
         .single();
-        
+
       if (data) {
         setGiveaway(data);
+        setIsExpired(!!data.draw_date && new Date(data.draw_date).getTime() < Date.now());
       }
       setLoading(false);
     }
@@ -87,14 +84,7 @@ export default function SorteioPage() {
   }, [params.id]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const file = e.target.files[0];
-      const extension = file.name.split('.').pop();
-      let safeName = file.name.substring(0, file.name.lastIndexOf('.'));
-      safeName = safeName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]/g, "_"); 
-      const sanitizedFile = new File([file], `${safeName}.${extension}`, { type: file.type });
-      setSelectedFile(sanitizedFile);
-    }
+    setSelectedFile(e.target.files?.[0] ?? null);
   };
 
   const handleConfirm = async (e: React.FormEvent) => {
@@ -103,41 +93,32 @@ export default function SorteioPage() {
       signIn('twitch');
       return;
     }
-    
     if (!selectedFile) {
-      alert("Você deve enviar um comprovante!");
+      setError("Você deve enviar um comprovante!");
       return;
     }
-    
-    let proofUrl = null;
-    if (selectedFile) {
-      proofUrl = await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
-        reader.readAsDataURL(selectedFile);
+
+    setError("");
+    setIsSubmitting(true);
+    try {
+      const proof = await compressImage(selectedFile, 1280, 0.75);
+      const res = await fetch("/api/participar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ giveawayId: giveaway.id, coins: coinsSpent, casaId, proof }),
       });
-    }
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "Erro ao participar.");
 
-    const { error } = await supabase.from('participants').insert([{
-      giveaway_id: giveaway.id,
-      twitch_username: twitchId,
-      coins_used: coinsSpent ? parseInt(coinsSpent) : 0,
-      instagram: instagram,
-      proof_url: proofUrl, 
-      status: 'pending'
-    }]);
-
-    if (!error) {
       setIsSuccess(true);
-      setTimeout(() => {
-        setIsSuccess(false);
-        setIsParticipating(false);
-        router.push("/meus-tickets"); 
-      }, 2500);
-    } else {
-      alert("Erro ao participar: " + error.message);
+      setTimeout(() => router.push("/meus-tickets"), 2500);
+    } catch (err: any) {
+      setError(err.message);
     }
+    setIsSubmitting(false);
   };
+
+  const isClosed = !!giveaway && (giveaway.status !== "active" || isExpired);
 
   if (loading) {
     return <div className="min-h-screen bg-[#0a0a0c] flex items-center justify-center text-white font-bold">Carregando...</div>;
@@ -149,7 +130,7 @@ export default function SorteioPage() {
 
   return (
     <div className="min-h-screen bg-[#050505] pb-20 pt-24 px-4 sm:px-6">
-      
+
       {/* Header com botão Voltar */}
       <div className="w-full max-w-2xl mx-auto flex items-center justify-between mb-2">
         <button onClick={() => router.back()} className="flex items-center gap-3 text-[#a0a0a0] hover:text-white transition-colors text-[10px] font-bold tracking-[0.2em] uppercase">
@@ -159,11 +140,11 @@ export default function SorteioPage() {
 
       <div className="w-full max-w-2xl mx-auto animate-scale-up pb-10">
         <div className="border border-purple-500 rounded-[24px] bg-[#101010] overflow-hidden">
-        
+
         {/* Bloco 1: Host & Título */}
         <div className="p-6 sm:p-12 flex flex-col items-center text-center">
           <div className="w-14 h-14 rounded-full overflow-hidden bg-black mb-6 border border-white/10">
-            <img src="https://ui-avatars.com/api/?name=BARR4K&background=a855f7&color=fff&size=128" alt="" className="w-full h-full object-cover" />
+            <img src="/avatar.png" alt="BARR4K" className="w-full h-full object-cover" />
           </div>
 
           <div className="flex items-center justify-center gap-4 mb-4 w-full max-w-[280px]">
@@ -181,9 +162,7 @@ export default function SorteioPage() {
           </h1>
 
           <p className="text-[#a0a0a0] mt-6 max-w-md text-sm leading-relaxed font-medium">
-            {giveaway.description || (
-              <>Estou sorteando essa baioneta de forma <strong className="text-purple-500">totalmente gratuita</strong>. Siga no Instagram, inscreva-se nos três canais e garanta até <strong className="text-white">4 entradas</strong>.</>
-            )}
+            {giveaway.description}
           </p>
         </div>
 
@@ -196,23 +175,23 @@ export default function SorteioPage() {
               <div className="w-full h-full flex items-center justify-center text-gray-700"><Gift className="w-20 h-20" /></div>
             )}
             <div className="absolute inset-0 bg-gradient-to-t from-[#101010] via-black/20 to-transparent z-10" />
-            
+
             {/* Title Overlay in Image */}
             <div className="absolute bottom-6 left-6 right-6 z-20">
               <div className="flex items-center gap-1.5 mb-2 text-purple-500">
                 <Trophy className="w-3 h-3" />
-                <span className="text-[10px] font-bold tracking-widest uppercase">{giveaway.prize_label || "PRÊMIO"}</span>
+                <span className="text-[10px] font-bold tracking-widest uppercase">PRÊMIO</span>
               </div>
               <h3 className="text-2xl md:text-3xl font-bold text-white leading-tight">
                 <span className="text-white">★</span> {giveaway.title}
               </h3>
-              <p className="text-purple-400 font-bold text-lg mt-1">
-                {giveaway.prize_value ? `R$ ${giveaway.prize_value}` : (giveaway.coins_cost === 0 ? "R$ 860,54" : "R$ 1.364,35")}
-              </p>
+              {giveaway.prize_value && (
+                <p className="text-purple-400 font-bold text-lg mt-1">R$ {giveaway.prize_value}</p>
+              )}
               <p className="text-[#808080] text-[11px] mt-2 font-bold uppercase tracking-wide">{giveaway.shipping_text || "100% grátis · Enviado direto via Steam Trade"}</p>
             </div>
           </div>
-          
+
           {/* Cronômetro */}
           <div className="flex border-t border-white/5 p-4 md:p-6 divide-x divide-white/5 justify-center">
             <div className="flex-1 text-center">
@@ -232,14 +211,16 @@ export default function SorteioPage() {
               <div className="text-[9px] text-[#505050] uppercase tracking-[0.2em] font-bold mt-1 md:mt-2">SEG</div>
             </div>
           </div>
-          
-          <div className="text-center pb-6 text-[#505050] text-[10px] font-bold uppercase tracking-wider">
-            Sorteio encerra em <span className="text-white">
-              {giveaway.draw_date ? new Date(giveaway.draw_date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : "30/09/2026"}
-            </span> às <span className="text-white">
-              {giveaway.draw_date ? new Date(giveaway.draw_date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : "23:59"}
-            </span>
-          </div>
+
+          {giveaway.draw_date && (
+            <div className="text-center pb-6 text-[#505050] text-[10px] font-bold uppercase tracking-wider">
+              Sorteio encerra em <span className="text-white">
+                {new Date(giveaway.draw_date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+              </span> às <span className="text-white">
+                {new Date(giveaway.draw_date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Bloco 3: Formulário de Participação */}
@@ -250,6 +231,12 @@ export default function SorteioPage() {
               <h3 className="text-2xl font-black text-white uppercase italic tracking-wider mb-2">Entrada Confirmada!</h3>
               <p className="text-[#a0a0a0]">Sua participação foi registrada. Redirecionando...</p>
             </div>
+          ) : isClosed ? (
+            <div className="flex flex-col items-center text-center py-4">
+              <Trophy className="w-12 h-12 text-gray-600 mb-4" />
+              <h3 className="text-2xl font-black text-white uppercase italic tracking-wider mb-2">Sorteio Encerrado</h3>
+              <p className="text-[#a0a0a0] text-sm">As inscrições para este sorteio já foram fechadas.</p>
+            </div>
           ) : !isParticipating ? (
             <>
               <Sparkles className="w-8 h-8 text-purple-500 mb-6" />
@@ -259,7 +246,7 @@ export default function SorteioPage() {
               <p className="text-[#a0a0a0] text-sm max-w-xs mx-auto mb-8 leading-relaxed font-medium">
                 Entre com sua conta da Twitch para garantir sua vaga no sorteio. Uma participação por usuário.
               </p>
-              <button 
+              <button
                 onClick={() => {
                   if (!isLoggedIn) {
                     signIn('twitch');
@@ -282,21 +269,20 @@ export default function SorteioPage() {
 
               <div>
                 <label className="block text-[#a0a0a0] text-xs font-bold uppercase tracking-wider mb-2">Seu @ na Twitch</label>
-                <input 
-                  type="text" 
-                  required
+                <input
+                  type="text"
+                  readOnly
                   value={twitchId}
-                  onChange={(e) => setTwitchId(e.target.value)}
-                  className="w-full bg-[#050505] border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500 transition-colors"
-                  placeholder="Ex: gaules"
+                  className="w-full bg-[#050505] border border-white/10 rounded-lg px-4 py-3 text-gray-400 focus:outline-none cursor-not-allowed"
                 />
               </div>
 
               <div>
                 <label className="block text-[#a0a0a0] text-xs font-bold uppercase tracking-wider mb-2">Valor em Coins</label>
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   required
+                  min={0}
                   value={coinsSpent}
                   onChange={(e) => setCoinsSpent(e.target.value)}
                   className="w-full bg-[#050505] border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500 transition-colors"
@@ -306,10 +292,10 @@ export default function SorteioPage() {
 
               <div>
                 <label className="block text-[#a0a0a0] text-xs font-bold uppercase tracking-wider mb-2">SEU ID NA CASA</label>
-                <input 
-                  type="text" 
-                  value={instagram}
-                  onChange={(e) => setInstagram(e.target.value)}
+                <input
+                  type="text"
+                  value={casaId}
+                  onChange={(e) => setCasaId(e.target.value)}
                   className="w-full bg-[#050505] border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500 transition-colors"
                   placeholder="Ex: 12345678"
                 />
@@ -318,11 +304,11 @@ export default function SorteioPage() {
               <div>
                 <label className="block text-[#a0a0a0] text-xs font-bold uppercase tracking-wider mb-2">Comprovante (Obrigatório)</label>
                 <div className="w-full border-2 border-dashed border-white/10 rounded-lg p-6 flex flex-col items-center justify-center bg-[#050505] hover:bg-white/5 transition-colors cursor-pointer relative group">
-                  <input 
-                    type="file" 
+                  <input
+                    type="file"
                     onChange={handleFileChange}
                     accept="image/*"
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                   />
                   <Upload className="w-6 h-6 text-[#505050] mb-2 group-hover:text-purple-500 transition-colors" />
                   <p className="text-[#a0a0a0] text-sm font-medium">
@@ -331,19 +317,24 @@ export default function SorteioPage() {
                 </div>
               </div>
 
+              {error && (
+                <p className="text-red-400 text-sm font-bold text-center bg-red-500/10 border border-red-500/30 rounded-lg p-3">{error}</p>
+              )}
+
               <div className="flex gap-4 pt-4">
-                <button 
+                <button
                   type="button"
                   onClick={() => setIsParticipating(false)}
                   className="flex-1 bg-white/5 hover:bg-white/10 text-white font-bold uppercase tracking-wider py-4 rounded-xl transition-colors text-sm"
                 >
                   Cancelar
                 </button>
-                <button 
+                <button
                   type="submit"
-                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-black italic uppercase tracking-wider py-4 rounded-xl transition-all shadow-lg text-sm"
+                  disabled={isSubmitting}
+                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-black italic uppercase tracking-wider py-4 rounded-xl transition-all shadow-lg text-sm disabled:opacity-50"
                 >
-                  Confirmar
+                  {isSubmitting ? "Enviando..." : "Confirmar"}
                 </button>
               </div>
             </form>
