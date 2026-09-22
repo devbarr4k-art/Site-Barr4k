@@ -9,10 +9,10 @@ import { supabase } from "@/lib/supabase";
 
 const TooltipIcon = ({ text }: { text: string }) => (
   <div className="relative flex items-center justify-center group/tooltip">
-    <span className="cursor-help text-purple-500">
+    <span className="cursor-help text-purple-500 hover:text-purple-400 transition-colors">
       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
     </span>
-    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-[220px] bg-[#0c0d10] text-gray-300 text-[10px] font-normal leading-relaxed rounded-md p-2 shadow-2xl border border-white/10 z-50 pointer-events-none opacity-0 group-hover/tooltip:opacity-100 transition-opacity">
+    <div className="absolute bottom-full right-0 mb-2 w-[220px] bg-[#0c0d10] text-gray-300 text-[10px] font-normal leading-relaxed rounded-md p-2.5 shadow-2xl border border-white/10 z-[100] pointer-events-none opacity-0 group-hover/tooltip:opacity-100 transition-opacity">
       {text}
     </div>
   </div>
