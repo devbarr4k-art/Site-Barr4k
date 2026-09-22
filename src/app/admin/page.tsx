@@ -791,27 +791,7 @@ export default function AdminDashboard() {
                   )}
                 </div>
 
-                <div className="space-y-2 pt-2">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
-                    Cor Principal do Card (Borda / Botão)
-                  </label>
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    {colorOptions.map((color) => (
-                      <button
-                        key={color.name}
-                        type="button"
-                        onClick={() => setSelectedColor(color.name)}
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${selectedColor === color.name
-                            ? "bg-gray-800 text-white border border-gray-600"
-                            : "bg-[#0a0a0b] text-gray-400 border border-gray-800 hover:bg-gray-900"
-                          }`}
-                      >
-                        <span className={`w-2.5 h-2.5 rounded-full ${color.hex}`}></span>
-                        {color.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+
 
                 <button
                   type="submit"
