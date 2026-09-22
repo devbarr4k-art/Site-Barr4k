@@ -12,7 +12,7 @@ const TooltipIcon = ({ text }: { text: string }) => (
     <span className="cursor-help text-purple-500 hover:text-purple-400 transition-colors">
       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
     </span>
-    <div className="absolute bottom-full right-0 mb-2 w-[220px] bg-[#0c0d10] text-gray-300 text-[10px] font-normal leading-relaxed rounded-md p-2.5 shadow-2xl border border-white/10 z-[100] pointer-events-none opacity-0 group-hover/tooltip:opacity-100 transition-opacity">
+    <div className="absolute top-full right-0 mt-2 w-[220px] bg-[#0c0d10] text-gray-300 text-[10px] font-normal leading-relaxed rounded-md p-2.5 shadow-2xl border border-white/10 z-[100] pointer-events-none opacity-0 group-hover/tooltip:opacity-100 transition-opacity">
       {text}
     </div>
   </div>
@@ -269,32 +269,32 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-black pt-24 pb-20 flex flex-col md:flex-row">
 
       {/* Sidebar Admin */}
-      <aside className="w-full md:w-64 glass-panel border-r border-t-0 border-l-0 border-b-0 border-gray-800 p-6 flex flex-col gap-2">
-        <h2 className="font-playfair text-2xl font-bold text-white mb-6">Painel <span className="text-purple-500">Admin</span></h2>
+      <aside className="w-full md:w-64 glass-panel md:border-r border-b md:border-b-0 border-gray-800 p-4 md:p-6 flex md:flex-col gap-2 overflow-x-auto hide-scrollbar z-10 sticky top-0 md:static bg-black/80 md:bg-transparent backdrop-blur-md">
+        <h2 className="font-playfair text-xl md:text-2xl font-bold text-white mb-0 md:mb-6 flex-shrink-0 flex items-center md:block mr-4 md:mr-0">Painel <span className="text-purple-500 ml-1 md:ml-0">Admin</span></h2>
 
         <button
           onClick={() => setActiveTab("sorteios")}
-          className={`flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${activeTab === "sorteios" ? "bg-purple-600/20 text-purple-300 border border-purple-500/50" : "text-gray-400 hover:bg-gray-900 hover:text-white"}`}
+          className={`flex items-center gap-2 md:gap-3 px-4 py-2 md:py-3 rounded-lg font-medium transition-all flex-shrink-0 ${activeTab === "sorteios" ? "bg-purple-600/20 text-purple-300 border border-purple-500/50" : "text-gray-400 hover:bg-gray-900 hover:text-white"}`}
         >
-          <Gift className="w-5 h-5" /> Sorteios Mensais
+          <Gift className="w-4 h-4 md:w-5 md:h-5" /> Sorteios Mensais
         </button>
         <button
           onClick={() => setActiveTab("twitch")}
-          className={`flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${activeTab === "twitch" ? "bg-purple-600/20 text-purple-300 border border-purple-500/50" : "text-gray-400 hover:bg-gray-900 hover:text-white"}`}
+          className={`flex items-center gap-2 md:gap-3 px-4 py-2 md:py-3 rounded-lg font-medium transition-all flex-shrink-0 ${activeTab === "twitch" ? "bg-purple-600/20 text-purple-300 border border-purple-500/50" : "text-gray-400 hover:bg-gray-900 hover:text-white"}`}
         >
-          <Gift className="w-5 h-5" /> Sorteios Twitch (Live)
+          <Gift className="w-4 h-4 md:w-5 md:h-5" /> Sorteios Twitch (Live)
         </button>
         <button
           onClick={() => setActiveTab("users")}
-          className={`flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${activeTab === "users" ? "bg-purple-600/20 text-purple-300 border border-purple-500/50" : "text-gray-400 hover:bg-gray-900 hover:text-white"}`}
+          className={`flex items-center gap-2 md:gap-3 px-4 py-2 md:py-3 rounded-lg font-medium transition-all flex-shrink-0 ${activeTab === "users" ? "bg-purple-600/20 text-purple-300 border border-purple-500/50" : "text-gray-400 hover:bg-gray-900 hover:text-white"}`}
         >
-          <Users className="w-5 h-5" /> Usuários / Vencedores
+          <Users className="w-4 h-4 md:w-5 md:h-5" /> Usuários / Vencedores
         </button>
         <button
           onClick={() => setActiveTab("settings")}
-          className={`flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${activeTab === "settings" ? "bg-purple-600/20 text-purple-300 border border-purple-500/50" : "text-gray-400 hover:bg-gray-900 hover:text-white"}`}
+          className={`flex items-center gap-2 md:gap-3 px-4 py-2 md:py-3 rounded-lg font-medium transition-all flex-shrink-0 ${activeTab === "settings" ? "bg-purple-600/20 text-purple-300 border border-purple-500/50" : "text-gray-400 hover:bg-gray-900 hover:text-white"}`}
         >
-          <Settings className="w-5 h-5" /> Configurações
+          <Settings className="w-4 h-4 md:w-5 md:h-5" /> Configurações
         </button>
       </aside>
 
@@ -323,7 +323,7 @@ export default function AdminDashboard() {
 
                 <div className="glass-panel rounded-xl overflow-hidden border border-gray-800">
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm text-gray-400">
+                    <table className="w-full min-w-[800px] text-left text-sm text-gray-400">
                       <thead className="bg-purple-900/20 text-xs uppercase text-gray-300 border-b border-purple-900/50">
                         <tr>
                           <th className="px-6 py-4">Usuário</th>
@@ -456,7 +456,7 @@ export default function AdminDashboard() {
                 {/* Tabela de Gerenciamento */}
                 <div className="glass-panel rounded-xl overflow-hidden border border-gray-800">
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm text-gray-400">
+                    <table className="w-full min-w-[800px] text-left text-sm text-gray-400">
                       <thead className="bg-purple-900/20 text-xs uppercase text-gray-300 border-b border-purple-900/50">
                         <tr>
                           <th className="px-6 py-4">ID</th>
@@ -585,7 +585,7 @@ export default function AdminDashboard() {
 
             <div className="glass-panel rounded-xl overflow-hidden border border-gray-800">
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm text-gray-400">
+                <table className="w-full min-w-[800px] text-left text-sm text-gray-400">
                   <thead className="bg-purple-900/20 text-xs uppercase text-gray-300 border-b border-purple-900/50">
                     <tr>
                       <th className="px-6 py-4">Usuário</th>
@@ -658,16 +658,16 @@ export default function AdminDashboard() {
 
       {/* Pop-up de Criação de Sorteio */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in overflow-y-auto">
-          <div className="bg-[#121214] border border-gray-800 rounded-2xl w-full max-w-5xl shadow-2xl relative my-12 overflow-hidden flex flex-col md:flex-row">
+        <div className="fixed inset-0 z-[100] flex items-start justify-center p-0 md:p-4 bg-black/80 backdrop-blur-sm animate-fade-in overflow-y-auto">
+          <div className="bg-[#121214] border-0 md:border border-gray-800 rounded-none md:rounded-2xl w-full max-w-5xl shadow-2xl relative my-0 md:my-12 overflow-hidden flex flex-col md:flex-row min-h-screen md:min-h-0">
             <button
               onClick={() => setIsCreateModalOpen(false)}
-              className="absolute top-6 right-6 text-gray-400 hover:text-white transition-colors z-20"
+              className="absolute top-4 right-4 md:top-6 md:right-6 text-gray-400 hover:text-white transition-colors z-20 bg-black/50 md:bg-transparent rounded-full p-2 md:p-0"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </button>
 
-            <div className="p-8 md:w-[55%] space-y-6 max-h-[85vh] overflow-y-auto custom-scrollbar">
+            <div className="p-6 md:p-8 md:w-[55%] space-y-6 max-h-none md:max-h-[85vh] overflow-y-visible md:overflow-y-auto custom-scrollbar pt-16 md:pt-8">
               <h2 className="text-2xl font-black text-white uppercase italic tracking-wider">Criar Sorteio</h2>
 
               <form onSubmit={handleCreateSorteio} className="space-y-5">

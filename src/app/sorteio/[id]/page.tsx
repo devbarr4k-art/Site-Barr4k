@@ -148,7 +148,7 @@ export default function SorteioPage() {
         <div className="border border-purple-500 rounded-[24px] bg-[#101010] overflow-hidden">
         
         {/* Bloco 1: Host & Título */}
-        <div className="p-8 sm:p-12 flex flex-col items-center text-center">
+        <div className="p-6 sm:p-12 flex flex-col items-center text-center">
           <div className="w-14 h-14 rounded-full overflow-hidden bg-black mb-6 border border-white/10">
             <img src="https://ui-avatars.com/api/?name=BARR4K&background=a855f7&color=fff&size=128" alt="" className="w-full h-full object-cover" />
           </div>
@@ -160,7 +160,7 @@ export default function SorteioPage() {
           </div>
 
           <h2 className="text-[#a0a0a0] font-bold text-sm tracking-[0.4em] mb-2 uppercase">SORTEIO</h2>
-          <h1 className="text-5xl md:text-[4rem] font-black text-white uppercase tracking-tighter leading-[0.9]" style={{ fontFamily: 'Impact, sans-serif' }}>
+          <h1 className="text-4xl sm:text-5xl md:text-[4rem] font-black text-white uppercase tracking-tighter leading-[0.9]" style={{ fontFamily: 'Impact, sans-serif' }}>
             {giveaway.title.split('|')[0] || giveaway.title} <br/>
             {giveaway.title.includes('|') && (
               <span className="text-purple-500 block mt-1">{giveaway.title.split('|')[1]}</span>
@@ -230,7 +230,7 @@ export default function SorteioPage() {
         </div>
 
         {/* Bloco 3: Formulário de Participação */}
-        <div className="p-8 sm:p-12 text-center flex flex-col items-center">
+        <div className="p-6 sm:p-12 text-center flex flex-col items-center">
           {isSuccess ? (
             <div className="flex flex-col items-center text-center py-4">
               <CheckCircle2 className="w-16 h-16 text-green-500 mb-6 animate-pulse" />

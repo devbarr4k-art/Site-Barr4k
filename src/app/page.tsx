@@ -149,13 +149,13 @@ export default function Home() {
             <span>Inscritos têm até 5x mais chances de ganhar!</span>
           </div>
 
-          <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-6 text-white drop-shadow-md">
+          <h1 className="text-4xl sm:text-5xl md:text-7xl font-extrabold tracking-tight mb-6 text-white drop-shadow-md leading-[1.1]">
             Sorteios Exclusivos para a <br className="hidden md:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-500 to-blue-500 animate-pulse-glow">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-500 to-blue-500 animate-pulse-glow italic">
               Família BARR4K
             </span>
           </h1>
-          <p className="max-w-2xl mx-auto text-lg md:text-xl text-gray-400 mb-10 font-light">
+          <p className="max-w-2xl mx-auto text-sm sm:text-base md:text-xl text-gray-400 mb-10 font-light px-4">
             Participe dos melhores sorteios da Twitch. Apoie o canal, interaja no chat e multiplique suas chances de ganhar prêmios incríveis todos os meses.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
