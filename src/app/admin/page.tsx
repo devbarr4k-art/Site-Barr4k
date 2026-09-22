@@ -775,6 +775,18 @@ export default function AdminDashboard() {
                                   <Calendar className="w-4 h-4" />
                                 </button>
                                 <button 
+                                  onClick={async () => {
+                                    if(confirm("Deseja encerrar este sorteio (fechar captação)?")) {
+                                      await supabase.from('giveaways').update({ status: 'completed' }).eq('id', sorteio.id);
+                                      fetchSorteios();
+                                    }
+                                  }}
+                                  className="p-2 bg-pink-500/10 hover:bg-pink-500/20 text-pink-400 rounded transition-colors" title="Encerrar Sorteio (X)">
+                                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                </button>
+                                <button 
                                   onClick={() => handleEditGiveaway(sorteio)}
                                   className="p-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded transition-colors" title="Editar Sorteio">
                                   <Edit className="w-4 h-4" />
