@@ -185,7 +185,7 @@ export default function AdminDashboard() {
           const canvas = document.createElement('canvas');
           let width = img.width;
           let height = img.height;
-          const max = 800;
+          const max = 600; // Reduzido para caber 2 imagens no limite de 1MB do Supabase
           if (width > height) {
             if (width > max) { height *= max / width; width = max; }
           } else {
@@ -195,7 +195,7 @@ export default function AdminDashboard() {
           canvas.height = height;
           const ctx = canvas.getContext('2d');
           ctx?.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', 0.8));
+          resolve(canvas.toDataURL('image/webp', 0.6)); // Usando webp para compressão otimizada
         };
         img.src = e.target?.result as string;
       };
