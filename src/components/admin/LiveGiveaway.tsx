@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import tmi from "tmi.js";
 import {
   Bot, Clock, Gift, Pause, Play, Radio, Search, Star, Trophy, Upload, User, Users, Volume2, VolumeX, X, CheckCircle2, RotateCcw,
@@ -312,7 +313,7 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
     setIsSpinning(true);
 
     // Espera a roleta renderizar para medir e animar
-    requestAnimationFrame(() => requestAnimationFrame(() => spin(winner)));
+    setTimeout(() => spin(winner), 60);
   };
 
   const spin = (winner: Participant) => {
@@ -326,9 +327,13 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
     const target = WIN_INDEX * STEP + CARD_W / 2 - width / 2 + jitter;
     const start = performance.now();
     let lastIndex = -1;
+    let finished = false;
 
     reelEl.style.transform = "translateX(0px)";
+    // Só visual: se a aba ficar em segundo plano o navegador pausa os frames,
+    // mas o resultado sai pelo setTimeout abaixo mesmo assim.
     const frame = (now: number) => {
+      if (finished) return;
       const t = Math.min(1, (now - start) / SPIN_MS);
       const eased = 1 - Math.pow(1 - t, 5); // desacelera bem devagar no final
       const x = target * eased;
@@ -339,20 +344,21 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
         lastIndex = index;
         sounds.tick(t);
       }
-
-      if (t < 1) {
-        requestAnimationFrame(frame);
-      } else {
-        sounds.win();
-        setTimeout(() => {
-          setIsSpinning(false);
-          awaitingRef.current = winner.twitch_username;
-          setTimeLeft(daily.response_seconds);
-          setShowPopup(true);
-        }, 900);
-      }
+      if (t < 1) requestAnimationFrame(frame);
     };
     requestAnimationFrame(frame);
+
+    setTimeout(() => {
+      finished = true;
+      reelEl.style.transform = `translateX(${-target}px)`;
+      sounds.win();
+      setTimeout(() => {
+        setIsSpinning(false);
+        awaitingRef.current = winner.twitch_username;
+        setTimeLeft(daily.response_seconds);
+        setShowPopup(true);
+      }, 900);
+    }, SPIN_MS);
   };
 
   const handleNoAnswer = async () => {
@@ -557,6 +563,7 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-gray-400 uppercase">Tempo (s)</label>
                 <input type="number" min={5} defaultValue={daily.response_seconds} key={`rs-${daily.id}`}
+                  onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
                   onBlur={(e) => { const v = Math.max(5, parseInt(e.target.value) || 60); if (v !== daily.response_seconds) updateDaily({ response_seconds: v }); }}
                   className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-2 py-2 text-white text-sm outline-none focus:border-purple-500" />
               </div>
@@ -564,7 +571,8 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
                 <div key={field} className="space-y-1">
                   <label className="text-[10px] font-bold text-purple-400 uppercase">Sub T{i + 1}</label>
                   <input type="number" min={1} defaultValue={daily[field]} key={`${field}-${daily.id}`}
-                    onBlur={(e) => { const v = Math.max(1, parseInt(e.target.value) || 1); if (v !== daily[field]) updateDaily({ [field]: v }); }}
+                    onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                  onBlur={(e) => { const v = Math.max(1, parseInt(e.target.value) || 1); if (v !== daily[field]) updateDaily({ [field]: v }); }}
                     className="w-full bg-[#0a0a0b] border border-purple-500/30 rounded-lg px-2 py-2 text-white text-sm outline-none focus:border-purple-500" />
                 </div>
               ))}
@@ -621,6 +629,8 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
         </div>
       </div>
 
+      {/* Overlays vão direto no body para ficar acima do menu fixo do site */}
+      {typeof document !== "undefined" && createPortal(<>
       {/* Roleta */}
       {isSpinning && (
         <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-black/95 backdrop-blur-md px-4 animate-fade-in">
@@ -660,7 +670,7 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
             <h3 className="relative mt-4 text-4xl md:text-5xl font-black italic text-white break-all">@{drawn.twitch_username}</h3>
             <div className="relative mt-3 flex justify-center gap-2">
               <SubBadge tier={drawn.sub_tier} />
-              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 border border-gray-700 rounded-md px-1.5 py-0.5">{chancesFor(drawn.sub_tier, daily)} chances</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 border border-gray-700 rounded-md px-1.5 py-0.5">{chancesFor(drawn.sub_tier, daily)} {chancesFor(drawn.sub_tier, daily) === 1 ? "chance" : "chances"}</span>
             </div>
 
             <div className="relative mt-6">
@@ -721,6 +731,7 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
           </div>
         </div>
       )}
+      </>, document.body)}
     </div>
   );
 }
