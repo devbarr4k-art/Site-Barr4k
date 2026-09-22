@@ -75,6 +75,8 @@ export default function Home() {
     const { data } = await supabase
       .from('giveaways')
       .select('*')
+      .eq('status', 'active')
+      .order('created_at', { ascending: false });
     if (data) {
       const featured = data.find(g => g.type === 'featured');
       if (featured) {

@@ -76,7 +76,7 @@ export default function AdminDashboard() {
 
   const fetchSorteios = async () => {
     setIsLoading(true);
-    const { data, error } = await supabase.from('giveaways').select('*').order('created_at', { ascending: false });
+    const { data, error } = await supabase.from('giveaways').select('id, title, description, highlight_text, highlight_color, coins_cost, subtitle, prize_label, shipping_text, prize_value, draw_date, login_text, type, status, created_at').order('created_at', { ascending: false });
     if (data) {
       setSorteios(data);
       // Fetch participant counts
@@ -151,7 +151,10 @@ export default function AdminDashboard() {
     fetchSorteios();
   };
 
-  const handleEditGiveaway = (giveaway: any) => {
+  const handleEditGiveaway = async (giveaway: any) => {
+    // Fetch heavy image data dynamically
+    const { data: imgData } = await supabase.from('giveaways').select('image_url, detail_image_url').eq('id', giveaway.id).single();
+    
     setNewTitle(giveaway.title);
     setNewDesc(giveaway.description || "");
     setNewHighlight(giveaway.highlight_text || "");
@@ -165,7 +168,8 @@ export default function AdminDashboard() {
     setNewLoginText(giveaway.login_text || "");
     setNewImage(null);
     setNewDetailImage(null);
-    setPreviewImage(giveaway.image_url || null);
+    setPreviewImage(imgData?.image_url || null);
+    setPreviewDetailImage(imgData?.detail_image_url || null);
     setEditingGiveaway(giveaway.id);
     setIsCreateModalOpen(true);
   };
