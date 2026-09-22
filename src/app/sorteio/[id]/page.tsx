@@ -98,22 +98,20 @@ export default function SorteioPage() {
   return (
     <div className="min-h-screen bg-[#050505] pb-20 pt-24 px-4 sm:px-6">
       
-      {/* Header com botão Voltar e Share */}
+      {/* Header com botão Voltar */}
       <div className="w-full max-w-2xl mx-auto flex items-center justify-between mb-2">
         <button onClick={() => router.back()} className="flex items-center gap-3 text-[#a0a0a0] hover:text-white transition-colors text-[10px] font-bold tracking-[0.2em] uppercase">
           <ArrowLeft className="w-4 h-4" /> VOLTAR
         </button>
-        <button className="text-[#a0a0a0] hover:text-white transition-colors">
-          <Upload className="w-5 h-5" />
-        </button>
       </div>
 
-      <div className="w-full max-w-2xl mx-auto space-y-6 animate-scale-up pb-10">
+      <div className="w-full max-w-2xl mx-auto animate-scale-up pb-10">
+        <div className="border border-purple-500 rounded-[24px] bg-[#101010] overflow-hidden">
         
         {/* Bloco 1: Host & Título */}
-        <div className="bg-[#101010] border border-white/5 rounded-[24px] p-8 sm:p-12 flex flex-col items-center text-center">
+        <div className="p-8 sm:p-12 flex flex-col items-center text-center">
           <div className="w-14 h-14 rounded-full overflow-hidden bg-black mb-6 border border-white/10">
-            <img src="/barr4k-logo.png" alt="Host" className="w-full h-full object-cover" />
+            <img src="https://ui-avatars.com/api/?name=BARR4K&background=a855f7&color=fff&size=128" alt="" className="w-full h-full object-cover" />
           </div>
 
           <div className="flex items-center justify-center gap-4 mb-4 w-full max-w-[280px]">
@@ -138,10 +136,10 @@ export default function SorteioPage() {
         </div>
 
         {/* Bloco 2: Imagem do Prêmio */}
-        <div className="bg-[#101010] border border-white/5 rounded-[24px] overflow-hidden">
-          <div className="relative h-[320px] md:h-[450px] w-full bg-black group">
+        <div className="overflow-hidden border-t border-b border-white/5">
+          <div className="relative h-[320px] md:h-[450px] w-full bg-black">
             {giveaway.image_url ? (
-              <img src={giveaway.image_url} alt={giveaway.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+              <img src={giveaway.image_url} alt={giveaway.title} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-gray-700"><Gift className="w-20 h-20" /></div>
             )}
@@ -187,7 +185,7 @@ export default function SorteioPage() {
         </div>
 
         {/* Bloco 3: Formulário de Participação */}
-        <div className="bg-[#101010] border border-white/5 rounded-[24px] p-8 sm:p-12 text-center flex flex-col items-center">
+        <div className="p-8 sm:p-12 text-center flex flex-col items-center">
           {isSuccess ? (
             <div className="flex flex-col items-center text-center py-4">
               <CheckCircle2 className="w-16 h-16 text-green-500 mb-6 animate-pulse" />
@@ -286,6 +284,7 @@ export default function SorteioPage() {
               </div>
             </form>
           )}
+        </div>
         </div>
       </div>
     </div>
