@@ -91,8 +91,8 @@ export default function AdminDashboard() {
       return;
     }
 
-    // LISTA DE ADMINS PERMITIDOS (Adicione seu username aqui!)
-    const allowedAdmins = ["barr4k", "lpmra", "teste"];
+    // LISTA DE ADMINS PERMITIDOS
+    const allowedAdmins = ["barr4k", "luizpragi"];
     // O NextAuth costuma colocar o nome de usuário no name ou username (que a gente injetou)
     const username = (session.user as any)?.username?.toLowerCase() || session.user?.name?.toLowerCase();
 
@@ -462,7 +462,7 @@ export default function AdminDashboard() {
   }
 
   // Se não estiver autorizado, não renderiza o painel (o useEffect vai redirecionar)
-  const allowedAdmins = ["barr4k", "lpmra", "teste"];
+  const allowedAdmins = ["barr4k", "luizpragi"];
   const currentUsername = (session?.user as any)?.username?.toLowerCase() || session?.user?.name?.toLowerCase();
   if (!currentUsername || !allowedAdmins.includes(currentUsername)) {
     return <div className="min-h-screen bg-[#050505] flex items-center justify-center text-red-500 font-bold">Acesso Negado</div>;
