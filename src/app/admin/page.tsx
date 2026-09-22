@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Edit, Trash2, Settings, Users, Gift, Save, AlertTriangle } from "lucide-react";
+import { Plus, Edit, Trash2, Settings, Users, Gift, Save, AlertTriangle, Star } from "lucide-react";
 import { FaTwitch } from "react-icons/fa";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -78,6 +78,16 @@ export default function AdminDashboard() {
       if (!error) fetchSorteios();
       else alert("Erro: " + error.message);
     }
+  };
+
+  const handleSetFeatured = async (id: string) => {
+    // Primeiro limpa todos os outros de featured para monthly
+    await supabase.from('giveaways').update({ type: 'monthly' }).eq('type', 'featured');
+    // Agora seta esse para featured
+    const { error } = await supabase.from('giveaways').update({ type: 'featured' }).eq('id', id);
+    
+    if (!error) fetchSorteios();
+    else alert("Erro ao destacar: " + error.message);
   };
 
   const handleEditGiveaway = (giveaway: any) => {
@@ -362,6 +372,12 @@ export default function AdminDashboard() {
                                   title="Ver Participantes"
                                 >
                                   <Users className="w-4 h-4" />
+                                </button>
+                                <button 
+                                  onClick={() => handleSetFeatured(sorteio.id)}
+                                  className={`p-2 rounded transition-colors ${sorteio.type === 'featured' ? 'bg-yellow-500/20 text-yellow-500' : 'bg-gray-800 text-gray-500 hover:text-yellow-500'}`} 
+                                  title="Destacar Sorteio Principal">
+                                  <Star className="w-4 h-4" />
                                 </button>
                                 <button 
                                   onClick={() => handleEditGiveaway(sorteio)}
