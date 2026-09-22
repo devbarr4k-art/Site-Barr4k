@@ -282,7 +282,7 @@ export default function Home() {
           
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
             <div>
-              <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter" style={{ fontFamily: 'Impact, sans-serif' }}>
+              <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter" style={{ fontFamily: 'var(--font-kanit)' }}>
                 SORTEIOS <span className="text-purple-500">ATIVOS</span>
               </h2>
               <p className="text-gray-400 text-xs tracking-widest uppercase font-bold mt-3">
@@ -299,18 +299,18 @@ export default function Home() {
               <div 
                 key={giveaway.id} 
                 onClick={() => handleOpenModal(giveaway)}
-                className={`bg-[#121214] rounded-2xl overflow-hidden border cursor-pointer transition-all hover:scale-[1.02] flex flex-col group ${index === 0 ? 'border-purple-500' : 'border-white/5 hover:border-white/20'}`}
+                className={`bg-[#0c0d10] rounded-xl overflow-hidden border cursor-pointer transition-all hover:scale-[1.02] flex flex-col group ${index === 0 ? 'border-orange-500/50' : 'border-white/5 hover:border-white/20'}`}
               >
                 {/* Imagem e Badges */}
-                <div className="relative h-64 bg-[#121214] p-4 flex flex-col">
+                <div className="relative h-64 bg-[#0c0d10] p-4 flex flex-col">
                   <div className="flex gap-2 relative z-10">
-                    <span className="px-2 py-1 bg-black/50 border border-white/5 text-gray-400 rounded text-[10px] font-bold uppercase tracking-wider">
+                    <span className="px-3 py-1 bg-transparent border border-white/10 text-gray-400 rounded-md text-[10px] font-bold uppercase tracking-wider">
                       {giveaway.highlight_text || "FIELD-TESTED"}
                     </span>
                   </div>
                   <div className="absolute inset-0 flex items-center justify-center p-8 z-0">
                     {giveaway.image_url ? (
-                      <img src={giveaway.image_url} alt={giveaway.title} className="w-full h-full object-contain filter drop-shadow-2xl transition-transform duration-500 group-hover:scale-110" />
+                      <img src={giveaway.image_url} alt={giveaway.title} className="w-full h-full object-contain filter drop-shadow-[0_0_15px_rgba(0,0,0,0.5)] transition-transform duration-500 group-hover:scale-110" />
                     ) : (
                       <Gift className="w-20 h-20 text-gray-700" />
                     )}
@@ -318,15 +318,23 @@ export default function Home() {
                 </div>
                 
                 {/* Informações */}
-                <div className="p-6 flex flex-col flex-1 border-t border-white/5">
-                  <h3 className="text-xl font-black text-white mb-6 uppercase tracking-tight line-clamp-1" style={{ fontFamily: 'Impact, sans-serif' }}>
-                    <span className="text-purple-500 mr-2">★</span>{giveaway.title}
+                <div className="p-6 flex flex-col flex-1 bg-[#0c0d10]">
+                  <h3 className="text-xl font-black text-white mb-6 uppercase tracking-tight line-clamp-1" style={{ fontFamily: 'var(--font-kanit)' }}>
+                    <span className="text-orange-500 mr-2">★</span>{giveaway.title}
                   </h3>
                   
+                  <div className="w-full h-[1px] bg-white/5 mb-6" />
+
                   <div className="flex justify-between items-center mb-6">
-                    <div className="text-right ml-auto">
+                    <div className="text-left">
+                      <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest mb-1">Entrada</p>
+                      <p className="text-white font-bold text-sm">
+                        {giveaway.coins_cost === 0 ? "Gratuito" : `${giveaway.coins_cost} Coins`}
+                      </p>
+                    </div>
+                    <div className="text-right">
                       <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest mb-1">Valor</p>
-                      <p className="text-purple-400 font-bold text-sm">
+                      <p className="text-orange-500 font-bold text-sm">
                         {giveaway.prize_value ? `R$ ${giveaway.prize_value}` : (giveaway.coins_cost === 0 ? "R$ 860,54" : "R$ 1.364,35")}
                       </p>
                     </div>
