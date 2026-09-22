@@ -307,10 +307,15 @@ export default function Home() {
                     <span className="px-3 py-1 bg-black/60 backdrop-blur-sm border border-white/10 text-gray-300 rounded-md text-[10px] font-bold uppercase tracking-wider shadow-sm truncate max-w-full">
                       {giveaway.highlight_text || "FIELD-TESTED"}
                     </span>
+                    {giveaway.subtitle && (
+                      <span className="px-3 py-1 bg-black/60 backdrop-blur-sm border border-white/10 text-gray-400 rounded-md text-[10px] font-bold uppercase tracking-wider shadow-sm truncate max-w-full">
+                        {giveaway.subtitle}
+                      </span>
+                    )}
                   </div>
-                  <div className="absolute inset-0 flex items-center justify-center p-2 sm:p-4 z-0">
+                  <div className="absolute inset-0 flex items-center justify-center z-0">
                     {giveaway.image_url ? (
-                      <img src={giveaway.image_url} alt={giveaway.title} className="max-w-full max-h-full object-contain filter drop-shadow-[0_0_15px_rgba(0,0,0,0.5)] transition-transform duration-500 group-hover:scale-110" />
+                      <img src={giveaway.image_url} alt={giveaway.title} className="w-full h-full object-cover filter transition-transform duration-500 group-hover:scale-110 opacity-90 group-hover:opacity-100" />
                     ) : (
                       <Gift className="w-20 h-20 text-gray-700" />
                     )}

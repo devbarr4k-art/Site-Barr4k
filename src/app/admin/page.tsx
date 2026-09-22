@@ -843,42 +843,34 @@ export default function AdminDashboard() {
               
               {previewMode === "home" ? (
                 /* O Card Simulado da Home */
-                <div className="w-full max-w-[320px] rounded-xl p-6 bg-[#0c0d10] relative group transition-colors animated-border-card border border-white/5 mx-auto">
-                {/* Destaques */}
-                <div className="flex gap-2 flex-wrap mb-4 z-20 relative">
-                  {newHighlight && (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest bg-[#1a1b23] text-purple-400 border border-purple-500/30">
-                      <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
-                      {newHighlight}
-                    </span>
-                  )}
-                  {newSubtitle && (
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest bg-[#1a1b23] text-gray-400 border border-gray-800">
-                      {newSubtitle}
-                    </span>
-                  )}
-                </div>
-
-                {/* Imagem */}
-                <div className="relative h-48 w-full mb-6 z-10 flex items-center justify-center">
-                  {previewImage ? (
-                    <img src={previewImage} alt="Preview" className="max-w-full max-h-full object-contain" />
-                  ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center text-gray-700 bg-black/50 rounded-xl">
-                      <Gift className="w-12 h-12 mb-2" />
-                      <span className="text-xs font-bold uppercase tracking-widest">Sem Imagem</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Info */}
-                <div className="z-20 relative">
-                  <h3 className="text-xl font-bold text-white mb-6 line-clamp-2">
-                    <span className="text-[#FF6B1C] mr-2">★</span>
-                    {newTitle.split('|')[0] || "BAIONETA"}
-                    {newTitle.includes('|') && (
-                      <span className="text-gray-400 font-normal"> | {newTitle.split('|')[1]}</span>
+                <div className="w-full max-w-[320px] rounded-xl overflow-hidden bg-[#0c0d10] border border-white/5 mx-auto group">
+                {/* Imagem e Badges */}
+                <div className="relative h-64 bg-[#0c0d10] p-4 flex flex-col">
+                  <div className="flex gap-2 relative z-10">
+                    {newHighlight && (
+                      <span className="px-3 py-1 bg-black/60 backdrop-blur-sm border border-white/10 text-gray-300 rounded-md text-[10px] font-bold uppercase tracking-wider shadow-sm truncate max-w-full">
+                        {newHighlight}
+                      </span>
                     )}
+                    {newSubtitle && (
+                      <span className="px-3 py-1 bg-black/60 backdrop-blur-sm border border-white/10 text-gray-400 rounded-md text-[10px] font-bold uppercase tracking-wider shadow-sm truncate max-w-full">
+                        {newSubtitle}
+                      </span>
+                    )}
+                  </div>
+                  <div className="absolute inset-0 flex items-center justify-center z-0">
+                    {previewImage ? (
+                      <img src={previewImage} alt="Preview" className="w-full h-full object-cover filter transition-transform duration-500 opacity-90" />
+                    ) : (
+                      <Gift className="w-16 h-16 text-gray-700" />
+                    )}
+                  </div>
+                </div>
+
+                {/* Informações */}
+                <div className="p-5 flex flex-col bg-[#0c0d10]">
+                  <h3 className="text-xl font-black text-white mb-5 uppercase tracking-tight line-clamp-1" style={{ fontFamily: 'var(--font-kanit)' }}>
+                    <span className="text-purple-500 mr-2">★</span>{newTitle || "BAIONETA PHASE 2"}
                   </h3>
 
                   <div className="h-[1px] w-full bg-white/5 mb-4" />
