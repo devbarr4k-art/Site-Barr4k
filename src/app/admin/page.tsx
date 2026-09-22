@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Plus, Edit, Trash2, Settings, Users, Gift, Save, AlertTriangle, Star, ArrowRight, Trophy, Sparkles } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Plus, Edit, Trash2, Settings, Users, Gift, Save, AlertTriangle, Star, ArrowRight, Trophy, Sparkles, Bot } from "lucide-react";
+import tmi from "tmi.js";
 import { FaTwitch } from "react-icons/fa";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -44,6 +45,10 @@ export default function AdminDashboard() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedColor, setSelectedColor] = useState("Amarelo");
   const [previewMode, setPreviewMode] = useState<"home" | "destaque" | "sorteio">("home");
+
+  // Bot da Twitch
+  const [botStatus, setBotStatus] = useState<"disconnected" | "connecting" | "connected">("disconnected");
+  const tmiClient = useRef<any>(null);
 
   // Formulário Criar Sorteio
   const [newTitle, setNewTitle] = useState("");
@@ -181,6 +186,65 @@ export default function AdminDashboard() {
 
   const handleDrawWinner = () => {
     startRoulette();
+  };
+
+  const handleChatEntry = async (username: string) => {
+    // Busca todos os sorteios ativos
+    const { data: activeGiveaways } = await supabase.from('giveaways').select('id').eq('status', 'active');
+    if (!activeGiveaways || activeGiveaways.length === 0) return;
+    
+    // Insere o usuário em todos os sorteios ativos
+    for (const g of activeGiveaways) {
+       const { data: existing } = await supabase.from('participants')
+         .select('id')
+         .eq('giveaway_id', g.id)
+         .eq('twitch_username', username)
+         .maybeSingle();
+         
+       if (!existing) {
+          await supabase.from('participants').insert({
+             giveaway_id: g.id,
+             twitch_username: username,
+             coins_used: 0,
+             status: 'approved' // Sorteio de chat é aprovação automática
+          });
+       }
+    }
+  };
+
+  const toggleTwitchBot = () => {
+    if (botStatus === "connected" || botStatus === "connecting") {
+       tmiClient.current?.disconnect();
+       setBotStatus("disconnected");
+       return;
+    }
+    
+    setBotStatus("connecting");
+    const client = new tmi.Client({
+      channels: ['barr4k'] // Nome do canal da Twitch
+    });
+    
+    client.connect().then(() => {
+       setBotStatus("connected");
+    }).catch(err => {
+       console.error("Erro ao conectar bot:", err);
+       setBotStatus("disconnected");
+    });
+    
+    client.on('message', async (channel, tags, message, self) => {
+       if (self) return;
+       
+       if (message.toLowerCase().trim() === '!sorteio') {
+          const username = tags.username;
+          if (username) {
+             await handleChatEntry(username);
+             // Se quisermos ver em tempo real, podemos forçar um fetch caso estejamos na tela de participantes, mas o Supabase real-time seria melhor.
+             // Como workaround, se o admin estiver com a aba aberta, ele pode atualizar.
+          }
+       }
+    });
+    
+    tmiClient.current = client;
   };
 
   const saveWinner = async (drawAgain: boolean) => {
@@ -584,13 +648,28 @@ export default function AdminDashboard() {
                     <h1 className="text-3xl font-bold text-white">Sorteios Ativos</h1>
                     <p className="text-gray-400">Crie, edite ou encerre os sorteios da plataforma.</p>
                   </div>
-                  <button
-                    onClick={openCreateModal}
-                    className="btn-neon px-6 py-3 rounded-lg font-bold flex items-center gap-2"
-                  >
-                    <Plus className="w-5 h-5" />
-                    Criar Novo Sorteio
-                  </button>
+                  <div className="flex gap-4">
+                    <button 
+                      onClick={toggleTwitchBot}
+                      className={`flex items-center gap-2 font-bold px-6 py-3 rounded-lg shadow-[0_0_20px_rgba(0,0,0,0.5)] border transition-all ${
+                        botStatus === 'connected' 
+                          ? 'bg-purple-900/50 border-purple-500 text-purple-400' 
+                          : botStatus === 'connecting'
+                          ? 'bg-yellow-900/50 border-yellow-500 text-yellow-500 cursor-wait'
+                          : 'bg-black border-gray-800 text-gray-400 hover:text-white hover:border-gray-600'
+                      }`}
+                    >
+                      <Bot className={`w-5 h-5 ${botStatus === 'connected' ? 'animate-pulse' : ''}`} />
+                      {botStatus === 'connected' ? 'Bot Rodando' : botStatus === 'connecting' ? 'Conectando...' : 'Ligar Bot'}
+                    </button>
+                    <button
+                      onClick={openCreateModal}
+                      className="btn-neon px-6 py-3 rounded-lg font-bold flex items-center gap-2"
+                    >
+                      <Plus className="w-5 h-5" />
+                      Criar Novo Sorteio
+                    </button>
+                  </div>
                 </div>
 
                 {/* Tabela de Gerenciamento */}
