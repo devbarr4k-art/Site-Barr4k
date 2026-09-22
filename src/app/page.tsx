@@ -229,14 +229,14 @@ export default function Home() {
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
             <div>
               <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter" style={{ fontFamily: 'Impact, sans-serif' }}>
-                SORTEIOS <span className="text-gray-600">ATIVOS</span>
+                SORTEIOS <span className="text-purple-500">ATIVOS</span>
               </h2>
               <p className="text-gray-400 text-xs tracking-widest uppercase font-bold mt-3">
-                Sorteios feitos automaticamente para quem utiliza o cupom no <span className="text-white">BARR4K</span>
+                Sorteios feitos automaticamente para quem acompanha a live na twitch!
               </p>
             </div>
             <Link href="#hall-da-fama" className="text-gray-500 hover:text-white text-xs font-bold uppercase tracking-widest transition-colors mb-1">
-              VER HISTÓRICO
+              VER HALL DA FAMA
             </Link>
           </div>
 
