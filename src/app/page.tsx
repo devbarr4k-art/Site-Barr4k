@@ -25,6 +25,7 @@ export default function Home() {
   const [detailsGiveaway, setDetailsGiveaway] = useState<any>(null);
   
   const [featuredGiveaway, setFeaturedGiveaway] = useState<any>(null);
+  const [showFeaturedPopup, setShowFeaturedPopup] = useState(false);
   const [activeGiveaways, setActiveGiveaways] = useState<any[]>([]);
   const [winners, setWinners] = useState<any[]>([]);
 
@@ -37,14 +38,16 @@ export default function Home() {
     const { data } = await supabase
       .from('giveaways')
       .select('*')
-      .eq('status', 'active')
-      .order('created_at', { ascending: false });
-    
     if (data) {
       const featured = data.find(g => g.type === 'featured');
-      const others = data.filter(g => g.type !== 'featured');
-      if (featured) setFeaturedGiveaway(featured);
-      setActiveGiveaways(others);
+      if (featured) {
+        setFeaturedGiveaway(featured);
+        // Só exibe se ainda não fechou nesta sessão
+        if (!sessionStorage.getItem('featured_closed')) {
+          setShowFeaturedPopup(true);
+        }
+      }
+      setActiveGiveaways(data); // Todos continuam na grade normal
     }
   };
 
@@ -130,99 +133,74 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Destaque Section (CS:GO Style) */}
-      {featuredGiveaway && (
-        <section id="destaque" className="py-20 bg-[#0a0a0c] relative border-t border-white/5 flex justify-center scroll-mt-20">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-orange-900/10 via-[#0a0a0c] to-[#0a0a0c] pointer-events-none" />
-          
-          <div className="w-full max-w-4xl px-4 sm:px-6 relative z-10">
-            {/* Header / Subtitle */}
-            <div className="flex flex-col items-center justify-center text-center mb-8">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <div className="w-12 h-[1px] bg-gradient-to-r from-transparent to-orange-500/50" />
-                <span className="text-orange-500 font-black text-sm tracking-[0.2em] uppercase">Sorteio Especial</span>
-                <div className="w-12 h-[1px] bg-gradient-to-l from-transparent to-orange-500/50" />
-              </div>
+      {/* Featured Giveaway Popup Modal */}
+      {featuredGiveaway && showFeaturedPopup && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-lg rounded-2xl overflow-hidden bg-[#0a0a0c] border border-orange-500/30 shadow-[0_0_50px_rgba(249,115,22,0.15)] flex flex-col relative animate-scale-up">
+            
+            <button 
+              onClick={() => {
+                setShowFeaturedPopup(false);
+                sessionStorage.setItem('featured_closed', 'true');
+              }} 
+              className="absolute top-4 right-4 z-50 bg-black/50 hover:bg-orange-500 hover:text-white text-gray-300 rounded-full p-2 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Image Hero Area */}
+            <div className="relative h-64 w-full bg-black overflow-hidden group">
+              {featuredGiveaway.image_url ? (
+                <img src={featuredGiveaway.image_url} alt={featuredGiveaway.title} className="w-full h-full object-cover opacity-90 transition-transform duration-700 group-hover:scale-105" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-gray-700"><Gift className="w-20 h-20" /></div>
+              )}
               
-              <h2 className="text-5xl md:text-7xl font-black text-white uppercase tracking-tighter" style={{ fontFamily: 'Impact, sans-serif' }}>
-                <span className="text-white drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)]">SORTEIO</span><br />
-                <span className="text-orange-500 drop-shadow-[0_0_15px_rgba(249,115,22,0.4)]">{featuredGiveaway.title}</span>
-              </h2>
-              <p className="text-gray-400 mt-6 max-w-2xl font-medium">
-                Estou sorteando esse item de forma <span className="text-orange-500 font-bold">totalmente gratuita</span>. Apoie o canal, interaja e garanta suas entradas exclusivas.
+              {/* Gradient fade to bottom */}
+              <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-[#0a0a0c]" />
+
+              {/* Top Badges */}
+              <div className="absolute top-4 left-4 z-10">
+                <div className="px-3 py-1.5 bg-orange-500 text-white rounded font-bold text-xs uppercase tracking-wider flex items-center gap-1 shadow-lg">
+                  <Gift className="w-3 h-3" /> 100% GRÁTIS
+                </div>
+              </div>
+
+              {/* Title Overlay */}
+              <div className="absolute bottom-4 left-6 right-6 z-10">
+                <div className="flex items-center gap-2 mb-1">
+                  <Trophy className="w-3 h-3 text-orange-500" />
+                  <span className="text-orange-500 text-[10px] font-bold tracking-[0.2em] uppercase">Sorteio Acontecendo Agora</span>
+                </div>
+                <h3 className="text-2xl md:text-3xl font-black text-white uppercase leading-none" style={{ fontFamily: 'Impact, sans-serif' }}>
+                  SORTEIO <br/><span className="text-orange-500">{featuredGiveaway.title}</span>
+                </h3>
+              </div>
+            </div>
+
+            {/* Content & Action Area */}
+            <div className="bg-[#0a0a0c] p-6 border-t border-white/5 flex flex-col">
+              <p className="text-gray-400 text-sm mb-6 leading-relaxed">
+                <strong className="text-white">{featuredGiveaway.title}</strong> — grátis para quem segue o Instagram e é inscrito nos canais.
+              </p>
+
+              <button 
+                onClick={() => {
+                  setShowFeaturedPopup(false);
+                  sessionStorage.setItem('featured_closed', 'true');
+                  handleOpenModal(String(featuredGiveaway.id), featuredGiveaway.title);
+                }}
+                className="w-full bg-orange-500 hover:bg-orange-600 text-white font-black italic tracking-widest uppercase py-4 rounded transition-colors flex items-center justify-center gap-2 text-sm shadow-[0_0_20px_rgba(249,115,22,0.3)]"
+              >
+                QUERO PARTICIPAR <ArrowDown className="w-5 h-5 -rotate-90" />
+              </button>
+              
+              <p className="text-center text-[10px] text-gray-500 mt-4 tracking-widest uppercase font-bold">
+                CUSTO: {featuredGiveaway.coins_cost} COINS
               </p>
             </div>
-
-            {/* Main Featured Card */}
-            <div className="rounded-2xl overflow-hidden bg-[#111111] border border-white/5 shadow-2xl flex flex-col">
-              {/* Image Hero Area */}
-              <div className="relative h-80 md:h-[450px] w-full bg-black overflow-hidden group">
-                {featuredGiveaway.image_url ? (
-                  <img src={featuredGiveaway.image_url} alt={featuredGiveaway.title} className="w-full h-full object-cover opacity-90 transition-transform duration-700 group-hover:scale-105" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-700"><Gift className="w-20 h-20" /></div>
-                )}
-                
-                {/* Gradient fade to bottom */}
-                <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-[#111111]" />
-
-                {/* Top Badges */}
-                <div className="absolute top-4 left-4 z-10 flex gap-2">
-                  <div className="px-3 py-1.5 bg-orange-500 text-white rounded font-bold text-xs uppercase tracking-wider flex items-center gap-1 shadow-lg">
-                    <Gift className="w-3 h-3" /> 100% GRÁTIS
-                  </div>
-                </div>
-
-                <div className="absolute top-4 right-4 z-10">
-                  <div className="px-3 py-1.5 bg-black/80 backdrop-blur-md text-orange-500 border border-orange-500/30 rounded font-bold text-xs shadow-lg">
-                    {featuredGiveaway.coins_cost} COINS
-                  </div>
-                </div>
-
-                {/* Title Overlay */}
-                <div className="absolute bottom-6 left-6 right-6 z-10">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Trophy className="w-4 h-4 text-orange-500" />
-                    <span className="text-orange-500 text-xs font-bold tracking-widest uppercase">Prêmio Principal</span>
-                  </div>
-                  <h3 className="text-3xl md:text-4xl font-black text-white">{featuredGiveaway.title}</h3>
-                  <p className="text-gray-400 text-sm mt-1">100% grátis · Sorteio Oficial BARR4K</p>
-                </div>
-              </div>
-
-              {/* Timer & Button Area */}
-              <div className="bg-[#111111] p-6 border-t border-white/5 flex flex-col">
-                <div className="grid grid-cols-4 gap-2 divide-x divide-white/5 text-center mb-6">
-                  <div>
-                    <div className="text-3xl font-black text-white">09</div>
-                    <div className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mt-1">Dias</div>
-                  </div>
-                  <div>
-                    <div className="text-3xl font-black text-white">01</div>
-                    <div className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mt-1">Horas</div>
-                  </div>
-                  <div>
-                    <div className="text-3xl font-black text-white">54</div>
-                    <div className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mt-1">Min</div>
-                  </div>
-                  <div>
-                    <div className="text-3xl font-black text-white">45</div>
-                    <div className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mt-1">Seg</div>
-                  </div>
-                </div>
-                
-                <p className="text-center text-xs text-gray-500 mb-6">Sorteio encerra em <span className="font-bold text-gray-400">30/09/2026 às 23:59</span></p>
-
-                <button 
-                  onClick={() => handleOpenModal(String(featuredGiveaway.id), featuredGiveaway.title)}
-                  className="w-full bg-orange-500 hover:bg-orange-600 text-white font-black italic tracking-widest uppercase py-4 rounded transition-colors flex items-center justify-center gap-2 text-lg shadow-[0_0_20px_rgba(249,115,22,0.3)]"
-                >
-                  Participar Agora <ArrowDown className="w-5 h-5 -rotate-90" />
-                </button>
-              </div>
-            </div>
           </div>
-        </section>
+        </div>
       )}
 
       {/* Sorteios Ativos (Grid Dinâmico) */}
