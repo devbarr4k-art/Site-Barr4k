@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { FaTwitch, FaTicketAlt } from "react-icons/fa";
 import { Zap, AlertCircle, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { useSession } from "next-auth/react";
+import { useSession, signIn } from "next-auth/react";
 
 export default function MeusTicketsPage() {
   const { data: session, status } = useSession();
@@ -56,7 +56,7 @@ export default function MeusTicketsPage() {
           </p>
         </div>
 
-        {!isAuthenticated ? (
+        {status !== 'authenticated' ? (
           /* Unauthenticated State */
           <div className="glass-panel border border-purple-500/30 rounded-2xl p-12 md:p-20 text-center relative overflow-hidden animated-border-card shadow-[0_0_40px_rgba(126,34,206,0.15)]">
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-10 animate-[pulse_4s_ease-in-out_infinite]" />
@@ -73,7 +73,7 @@ export default function MeusTicketsPage() {
                 </p>
               </div>
               <button 
-                onClick={() => setIsAuthenticated(true)}
+                onClick={() => signIn('twitch')}
                 className="mt-6 flex items-center gap-3 bg-white hover:bg-gray-100 text-black px-8 py-4 rounded-xl font-bold text-lg transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:shadow-[0_0_30px_rgba(255,255,255,0.4)] hover:-translate-y-1"
               >
                 <FaTwitch className="w-5 h-5 text-purple-500" />
