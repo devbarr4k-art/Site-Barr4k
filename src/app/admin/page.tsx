@@ -25,6 +25,7 @@ export default function AdminDashboard() {
   // Real States for Supabase Data
   const [sorteios, setSorteios] = useState<any[]>([]);
   const [participants, setParticipants] = useState<any[]>([]);
+  const [participantCounts, setParticipantCounts] = useState<Record<string, number>>({});
   const [winners, setWinners] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -76,7 +77,18 @@ export default function AdminDashboard() {
   const fetchSorteios = async () => {
     setIsLoading(true);
     const { data, error } = await supabase.from('giveaways').select('*').order('created_at', { ascending: false });
-    if (data) setSorteios(data);
+    if (data) {
+      setSorteios(data);
+      // Fetch participant counts
+      const { data: countData } = await supabase.from('participants').select('giveaway_id');
+      if (countData) {
+        const counts = countData.reduce((acc: Record<string, number>, p: any) => {
+          acc[p.giveaway_id] = (acc[p.giveaway_id] || 0) + 1;
+          return acc;
+        }, {});
+        setParticipantCounts(counts);
+      }
+    }
     setIsLoading(false);
   };
 
@@ -479,7 +491,7 @@ export default function AdminDashboard() {
                                 {sorteio.status}
                               </span>
                             </td>
-                            <td className="px-6 py-4">?</td> {/* TODO: Add participant count aggregation */}
+                            <td className="px-6 py-4 font-bold">{participantCounts[sorteio.id] || 0}</td>
                             <td className="px-6 py-4 text-right">
                               <div className="flex items-center justify-end gap-2">
                                 <button
