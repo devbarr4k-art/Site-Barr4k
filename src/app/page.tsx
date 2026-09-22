@@ -250,9 +250,6 @@ export default function Home() {
                 {/* Imagem e Badges */}
                 <div className="relative h-64 bg-[#121214] p-4 flex flex-col">
                   <div className="flex gap-2 relative z-10">
-                    <span className="px-2 py-1 bg-black/50 border border-white/5 text-gray-400 rounded text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
-                      <span className="text-blue-500 text-xs leading-none">⟡</span> BARR4K
-                    </span>
                     <span className="px-2 py-1 bg-black/50 border border-white/5 text-gray-400 rounded text-[10px] font-bold uppercase tracking-wider">
                       {giveaway.highlight_text || "FIELD-TESTED"}
                     </span>
@@ -272,14 +269,8 @@ export default function Home() {
                     <span className="text-purple-500 mr-2">★</span>{giveaway.title}
                   </h3>
                   
-                  <div className="grid grid-cols-2 gap-4 mb-6">
-                    <div>
-                      <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest mb-1">Entrada</p>
-                      <p className="text-white font-bold text-sm">
-                        {giveaway.coins_cost === 0 ? "Gratuito" : `${giveaway.coins_cost} Coins`}
-                      </p>
-                    </div>
-                    <div className="text-right">
+                  <div className="flex justify-between items-center mb-6">
+                    <div className="text-right ml-auto">
                       <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest mb-1">Valor</p>
                       <p className="text-purple-400 font-bold text-sm">R$ {giveaway.coins_cost === 0 ? "860,54" : "1.364,35"}</p>
                     </div>
