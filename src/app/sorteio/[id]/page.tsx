@@ -1,40 +1,50 @@
 "use client";
 
-import { X, Gift, Upload, CheckCircle2, Trophy, ArrowRight, Sparkles } from "lucide-react";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, CheckCircle2, Gift, Sparkles, Trophy, Upload } from "lucide-react";
 import { FaTwitch } from "react-icons/fa";
+import { supabase } from "@/lib/supabase";
 
-interface ParticiparModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  giveaway: any;
-  isLoggedIn: boolean; // Simulating auth state
-}
-
-export default function ParticiparModal({ isOpen, onClose, giveaway, isLoggedIn }: ParticiparModalProps) {
+export default function SorteioPage() {
+  const params = useParams();
   const router = useRouter();
+  const [giveaway, setGiveaway] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  
   const [isSuccess, setIsSuccess] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-
   const [twitchId, setTwitchId] = useState("");
   const [instagram, setInstagram] = useState("");
-  const [isParticipating, setIsParticipating] = useState(false); // To show the form
+  const [isParticipating, setIsParticipating] = useState(false);
+  
+  // Simulating Auth for now
+  const isLoggedIn = true;
 
-  if (!isOpen || !giveaway) return null;
+  useEffect(() => {
+    async function fetchGiveaway() {
+      if (!params.id) return;
+      const { data, error } = await supabase
+        .from('giveaways')
+        .select('*')
+        .eq('id', params.id)
+        .single();
+        
+      if (data) {
+        setGiveaway(data);
+      }
+      setIsLoading(false);
+    }
+    fetchGiveaway();
+  }, [params.id]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
-      
       const extension = file.name.split('.').pop();
       let safeName = file.name.substring(0, file.name.lastIndexOf('.'));
-      safeName = safeName.normalize("NFD").replace(/[\u0300-\u036f]/g, ""); 
-      safeName = safeName.replace(/[^a-zA-Z0-9]/g, "_"); 
-      
-      const newSafeName = `${safeName}.${extension}`;
-      const sanitizedFile = new File([file], newSafeName, { type: file.type });
+      safeName = safeName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]/g, "_"); 
+      const sanitizedFile = new File([file], `${safeName}.${extension}`, { type: file.type });
       setSelectedFile(sanitizedFile);
     }
   };
@@ -68,7 +78,6 @@ export default function ParticiparModal({ isOpen, onClose, giveaway, isLoggedIn 
       setIsSuccess(true);
       setTimeout(() => {
         setIsSuccess(false);
-        onClose();
         setIsParticipating(false);
         router.push("/meus-tickets"); 
       }, 2500);
@@ -77,13 +86,21 @@ export default function ParticiparModal({ isOpen, onClose, giveaway, isLoggedIn 
     }
   };
 
+  if (isLoading) {
+    return <div className="min-h-screen bg-[#0a0a0c] flex items-center justify-center text-white font-bold">Carregando...</div>;
+  }
+
+  if (!giveaway) {
+    return <div className="min-h-screen bg-[#0a0a0c] flex items-center justify-center text-white font-bold">Sorteio não encontrado.</div>;
+  }
+
   return (
-    <div className="fixed inset-0 z-[150] overflow-y-auto bg-black/90 backdrop-blur-sm animate-fade-in py-10 px-4 sm:px-6">
+    <div className="min-h-screen bg-[#050505] pb-20 pt-24 px-4 sm:px-6">
       
       {/* Header com botão Voltar e Share */}
-      <div className="w-full max-w-2xl mx-auto flex items-center justify-between mb-2 mt-4 md:mt-0">
-        <button onClick={() => { setIsParticipating(false); onClose(); }} className="flex items-center gap-3 text-[#a0a0a0] hover:text-white transition-colors text-[10px] font-bold tracking-[0.2em] uppercase">
-          <ArrowRight className="w-4 h-4 rotate-180" /> VOLTAR
+      <div className="w-full max-w-2xl mx-auto flex items-center justify-between mb-2">
+        <button onClick={() => router.back()} className="flex items-center gap-3 text-[#a0a0a0] hover:text-white transition-colors text-[10px] font-bold tracking-[0.2em] uppercase">
+          <ArrowLeft className="w-4 h-4" /> VOLTAR
         </button>
         <button className="text-[#a0a0a0] hover:text-white transition-colors">
           <Upload className="w-5 h-5" />
@@ -94,7 +111,7 @@ export default function ParticiparModal({ isOpen, onClose, giveaway, isLoggedIn 
         
         {/* Bloco 1: Host & Título */}
         <div className="bg-[#101010] border border-white/5 rounded-[24px] p-8 sm:p-12 flex flex-col items-center text-center">
-          <div className="w-14 h-14 rounded-full overflow-hidden bg-black mb-6">
+          <div className="w-14 h-14 rounded-full overflow-hidden bg-black mb-6 border border-white/10">
             <img src="/barr4k-logo.png" alt="Host" className="w-full h-full object-cover" />
           </div>
 
@@ -106,8 +123,10 @@ export default function ParticiparModal({ isOpen, onClose, giveaway, isLoggedIn 
 
           <h2 className="text-[#a0a0a0] font-bold text-sm tracking-[0.4em] mb-2 uppercase">SORTEIO</h2>
           <h1 className="text-5xl md:text-[4rem] font-black text-white uppercase tracking-tighter leading-[0.9]" style={{ fontFamily: 'Impact, sans-serif' }}>
-            {giveaway.title.split('|')[0] || "BAIONETA"} <br/>
-            <span className="text-[#FF6B1C] block mt-1">{giveaway.title.split('|')[1] || "FOREST DDPAT"}</span>
+            {giveaway.title.split('|')[0] || giveaway.title} <br/>
+            {giveaway.title.includes('|') && (
+              <span className="text-[#FF6B1C] block mt-1">{giveaway.title.split('|')[1]}</span>
+            )}
           </h1>
 
           <p className="text-[#a0a0a0] mt-6 max-w-md text-sm leading-relaxed font-medium">
@@ -166,7 +185,6 @@ export default function ParticiparModal({ isOpen, onClose, giveaway, isLoggedIn 
 
         {/* Bloco 3: Formulário de Participação */}
         <div className="bg-[#101010] border border-white/5 rounded-[24px] p-8 sm:p-12 text-center flex flex-col items-center">
-          
           {isSuccess ? (
             <div className="flex flex-col items-center text-center py-4">
               <CheckCircle2 className="w-16 h-16 text-green-500 mb-6 animate-pulse" />
@@ -195,43 +213,43 @@ export default function ParticiparModal({ isOpen, onClose, giveaway, isLoggedIn 
                 <h3 className="text-2xl font-black text-white italic tracking-wider uppercase mb-2">
                   Preencher Requisitos
                 </h3>
-                <p className="text-orange-500 text-sm font-bold">Custo: {giveaway.coins_cost} Coins</p>
+                <p className="text-[#FF6B1C] text-sm font-bold">Custo: {giveaway.coins_cost} Coins</p>
               </div>
 
               <div>
-                <label className="block text-gray-400 text-xs font-bold uppercase tracking-wider mb-2">Seu @ na Twitch</label>
+                <label className="block text-[#a0a0a0] text-xs font-bold uppercase tracking-wider mb-2">Seu @ na Twitch</label>
                 <input 
                   type="text" 
                   required
                   value={twitchId}
                   onChange={(e) => setTwitchId(e.target.value)}
-                  className="w-full bg-black/50 border border-gray-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-orange-500 transition-colors"
+                  className="w-full bg-[#050505] border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#FF6B1C] transition-colors"
                   placeholder="Ex: gaules"
                 />
               </div>
 
               <div>
-                <label className="block text-gray-400 text-xs font-bold uppercase tracking-wider mb-2">Seu @ no Instagram (Opcional)</label>
+                <label className="block text-[#a0a0a0] text-xs font-bold uppercase tracking-wider mb-2">Seu @ no Instagram (Opcional)</label>
                 <input 
                   type="text" 
                   value={instagram}
                   onChange={(e) => setInstagram(e.target.value)}
-                  className="w-full bg-black/50 border border-gray-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-orange-500 transition-colors"
+                  className="w-full bg-[#050505] border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#FF6B1C] transition-colors"
                   placeholder="Ex: @barr4k"
                 />
               </div>
 
               <div>
-                <label className="block text-gray-400 text-xs font-bold uppercase tracking-wider mb-2">Comprovante de Inscrição (Opcional)</label>
-                <div className="w-full border-2 border-dashed border-gray-800 rounded-lg p-6 flex flex-col items-center justify-center bg-black/30 hover:bg-black/50 transition-colors cursor-pointer relative group">
+                <label className="block text-[#a0a0a0] text-xs font-bold uppercase tracking-wider mb-2">Comprovante (Opcional)</label>
+                <div className="w-full border-2 border-dashed border-white/10 rounded-lg p-6 flex flex-col items-center justify-center bg-[#050505] hover:bg-white/5 transition-colors cursor-pointer relative group">
                   <input 
                     type="file" 
                     onChange={handleFileChange}
                     accept="image/*"
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
                   />
-                  <Upload className="w-6 h-6 text-gray-500 mb-2 group-hover:text-orange-500 transition-colors" />
-                  <p className="text-gray-400 text-sm font-medium">
+                  <Upload className="w-6 h-6 text-[#505050] mb-2 group-hover:text-[#FF6B1C] transition-colors" />
+                  <p className="text-[#a0a0a0] text-sm font-medium">
                     {selectedFile ? selectedFile.name : "Clique ou arraste a imagem aqui"}
                   </p>
                 </div>
@@ -247,14 +265,13 @@ export default function ParticiparModal({ isOpen, onClose, giveaway, isLoggedIn 
                 </button>
                 <button 
                   type="submit"
-                  className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-black italic uppercase tracking-wider py-4 rounded-xl transition-all hover:scale-105 shadow-[0_0_20px_rgba(249,115,22,0.3)] text-sm"
+                  className="flex-1 bg-[#FF6B1C] hover:bg-[#ff7a33] text-white font-black italic uppercase tracking-wider py-4 rounded-xl transition-all shadow-lg text-sm"
                 >
-                  Confirmar Entrada
+                  Confirmar
                 </button>
               </div>
             </form>
           )}
-
         </div>
       </div>
     </div>

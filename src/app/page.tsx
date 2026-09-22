@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Trophy, Gift, Users, ArrowDown, Zap, X, Info } from "lucide-react";
-import ParticiparModal from "@/components/ui/ParticiparModal";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 const getColorClass = (color: string) => {
@@ -20,8 +20,7 @@ const getColorClass = (color: string) => {
 };
 
 export default function Home() {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedGiveaway, setSelectedGiveaway] = useState<{id: string, title: string} | null>(null);
+  const router = useRouter();
   const [detailsGiveaway, setDetailsGiveaway] = useState<any>(null);
   
   const [featuredGiveaway, setFeaturedGiveaway] = useState<any>(null);
@@ -61,9 +60,8 @@ export default function Home() {
     if (data) setWinners(data);
   };
 
-  const handleOpenModal = (id: string, title: string) => {
-    setSelectedGiveaway({ id, title });
-    setIsModalOpen(true);
+  const handleOpenModal = (giveaway: any) => {
+    router.push(`/sorteio/${giveaway.id}`);
   };
 
   useEffect(() => {
@@ -135,68 +133,87 @@ export default function Home() {
 
       {/* Featured Giveaway Popup Modal */}
       {featuredGiveaway && showFeaturedPopup && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-md animate-fade-in">
-          <div className="w-full max-w-lg rounded-2xl overflow-hidden bg-[#0a0a0c] border border-orange-500/30 shadow-[0_0_50px_rgba(249,115,22,0.15)] flex flex-col relative animate-scale-up">
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6 bg-black/90 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-[420px] rounded-2xl overflow-hidden bg-[#101010] flex flex-col relative animate-scale-up border border-white/5">
             
-            <button 
-              onClick={() => {
-                setShowFeaturedPopup(false);
-                sessionStorage.setItem('featured_closed', 'true');
-              }} 
-              className="absolute top-4 right-4 z-50 bg-black/50 hover:bg-orange-500 hover:text-white text-gray-300 rounded-full p-2 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
             {/* Image Hero Area */}
-            <div className="relative h-64 w-full bg-black overflow-hidden group">
+            <div className="relative h-[320px] w-full bg-[#101010] overflow-hidden group">
               {featuredGiveaway.image_url ? (
-                <img src={featuredGiveaway.image_url} alt={featuredGiveaway.title} className="w-full h-full object-cover opacity-90 transition-transform duration-700 group-hover:scale-105" />
+                <img src={featuredGiveaway.image_url} alt={featuredGiveaway.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-gray-700"><Gift className="w-20 h-20" /></div>
               )}
               
               {/* Gradient fade to bottom */}
-              <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-[#0a0a0c]" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#101010] via-black/20 to-transparent" />
 
               {/* Top Badges */}
               <div className="absolute top-4 left-4 z-10">
-                <div className="px-3 py-1.5 bg-orange-500 text-white rounded font-bold text-xs uppercase tracking-wider flex items-center gap-1 shadow-lg">
+                <div className="px-3 py-1.5 bg-[#FF6B1C] text-white rounded-full font-bold text-[10px] uppercase tracking-wider flex items-center gap-1.5 shadow-lg">
                   <Gift className="w-3 h-3" /> 100% GRÁTIS
                 </div>
               </div>
 
-              {/* Title Overlay */}
-              <div className="absolute bottom-4 left-6 right-6 z-10">
-                <div className="flex items-center gap-2 mb-1">
-                  <Trophy className="w-3 h-3 text-orange-500" />
-                  <span className="text-orange-500 text-[10px] font-bold tracking-[0.2em] uppercase">Sorteio Acontecendo Agora</span>
+              {/* Top Right Value & Close */}
+              <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+                <div className="px-3 py-1.5 bg-black/60 backdrop-blur-md text-[#FF6B1C] rounded-full font-bold text-[10px] tracking-wider">
+                  R$ {featuredGiveaway.coins_cost === 0 ? "860,54" : "1.364,35"}
                 </div>
-                <h3 className="text-2xl md:text-3xl font-black text-white uppercase leading-none" style={{ fontFamily: 'Impact, sans-serif' }}>
-                  SORTEIO <br/><span className="text-orange-500">{featuredGiveaway.title}</span>
+                <button 
+                  onClick={() => {
+                    setShowFeaturedPopup(false);
+                    sessionStorage.setItem('featured_closed', 'true');
+                  }} 
+                  className="bg-black/60 backdrop-blur-md hover:bg-white/10 text-gray-300 rounded-full p-1.5 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Title Overlay in Image */}
+              <div className="absolute bottom-4 left-6 right-6 z-10">
+                <div className="flex items-center gap-1.5 mb-1 text-orange-500">
+                  <Trophy className="w-3 h-3" />
+                  <span className="text-[10px] font-bold tracking-widest uppercase">PRÊMIO</span>
+                </div>
+                <h3 className="text-xl font-bold text-white leading-tight">
+                  <span className="text-white">★</span> {featuredGiveaway.title}
                 </h3>
+                <p className="text-[#FF6B1C] font-bold text-sm mt-0.5">R$ {featuredGiveaway.coins_cost === 0 ? "860,54" : "1.364,35"}</p>
               </div>
             </div>
 
             {/* Content & Action Area */}
-            <div className="bg-[#0a0a0c] p-6 border-t border-white/5 flex flex-col">
-              <p className="text-gray-400 text-sm mb-6 leading-relaxed">
-                <strong className="text-white">{featuredGiveaway.title}</strong> — grátis para quem segue o Instagram e é inscrito nos canais.
+            <div className="bg-[#101010] p-6 flex flex-col pt-4">
+              <div className="flex items-center gap-1.5 mb-3">
+                <span className="text-[#FF6B1C] text-sm">🔥</span>
+                <span className="text-[#FF6B1C] text-[10px] font-bold tracking-[0.2em] uppercase">SORTEIO ACONTECENDO AGORA</span>
+              </div>
+              
+              <h2 className="text-4xl font-black text-white uppercase tracking-tighter leading-none mb-1" style={{ fontFamily: 'Impact, sans-serif' }}>
+                SORTEIO {featuredGiveaway.title.split('|')[0] || "BAIONETA"}
+              </h2>
+              <h2 className="text-2xl font-black text-[#FF6B1C] uppercase tracking-tighter mb-4" style={{ fontFamily: 'Impact, sans-serif' }}>
+                {featuredGiveaway.title.split('|')[1] || "FOREST DDPAT"}
+              </h2>
+
+              <p className="text-[#a0a0a0] text-sm mb-6 leading-relaxed font-medium">
+                <span className="text-white">★ {featuredGiveaway.title}</span> — grátis para quem segue o Instagram e é inscrito nos três canais.
               </p>
 
               <button 
                 onClick={() => {
                   setShowFeaturedPopup(false);
                   sessionStorage.setItem('featured_closed', 'true');
-                  handleOpenModal(String(featuredGiveaway.id), featuredGiveaway.title);
+                  handleOpenModal(featuredGiveaway);
                 }}
-                className="w-full bg-orange-500 hover:bg-orange-600 text-white font-black italic tracking-widest uppercase py-4 rounded transition-colors flex items-center justify-center gap-2 text-sm shadow-[0_0_20px_rgba(249,115,22,0.3)]"
+                className="w-full bg-[#FF6B1C] hover:bg-[#ff7a33] text-white font-bold uppercase tracking-widest py-4 rounded-xl transition-colors flex items-center justify-center gap-2 text-sm"
               >
-                QUERO PARTICIPAR <ArrowDown className="w-5 h-5 -rotate-90" />
+                QUERO PARTICIPAR <ArrowRight className="w-4 h-4" />
               </button>
               
-              <p className="text-center text-[10px] text-gray-500 mt-4 tracking-widest uppercase font-bold">
-                CUSTO: {featuredGiveaway.coins_cost} COINS
+              <p className="text-center text-[10px] text-[#808080] mt-4 tracking-widest uppercase font-bold">
+                ATÉ 4 ENTRADAS · LOGIN COM GOOGLE
               </p>
             </div>
           </div>
@@ -204,60 +221,71 @@ export default function Home() {
       )}
 
       {/* Sorteios Ativos (Grid Dinâmico) */}
-      <section id="active-giveaways" className="py-16 bg-[#050505] relative border-t border-white/5 scroll-mt-20">
+      <section id="active-giveaways" className="py-16 bg-[#0c0d10] relative scroll-mt-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 flex items-center justify-center gap-3">
-              <Gift className="w-8 h-8 text-purple-500" /> Sorteios Ativos
-            </h2>
-            <p className="text-gray-400">Escolha o sorteio abaixo, cumpra os requisitos e cruze os dedos!</p>
+          
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
+            <div>
+              <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter" style={{ fontFamily: 'Impact, sans-serif' }}>
+                SORTEIOS <span className="text-gray-600">ATIVOS</span>
+              </h2>
+              <p className="text-gray-400 text-xs tracking-widest uppercase font-bold mt-3">
+                Sorteios feitos automaticamente para quem utiliza o cupom no <span className="text-white">BARR4K</span>
+              </p>
+            </div>
+            <Link href="#hall-da-fama" className="text-gray-500 hover:text-white text-xs font-bold uppercase tracking-widest transition-colors mb-1">
+              VER HISTÓRICO
+            </Link>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {activeGiveaways.map((giveaway) => (
-              <div key={giveaway.id} className="glass-panel rounded-2xl overflow-hidden animated-border-card group flex flex-col">
-                <div className="h-48 relative border-b border-gray-800 bg-[#121214] flex items-center justify-center overflow-hidden">
-                  
-                  {giveaway.highlight_text && (
-                    <div className={`absolute top-3 left-3 px-3 py-1 rounded text-xs font-bold z-20 shadow-lg ${getColorClass(giveaway.highlight_color)}`}>
-                      {giveaway.highlight_text}
-                    </div>
-                  )}
-
-                  <div className="absolute inset-0 bg-gradient-to-b from-purple-900/30 to-transparent opacity-50 z-0" />
-                  {giveaway.image_url ? (
-                    <img src={giveaway.image_url} alt={giveaway.title} className="w-full h-full object-cover relative z-10 transition-transform duration-500 group-hover:scale-105" />
-                  ) : (
-                    <span className="text-gray-600 font-bold z-10">Imagem do Prêmio</span>
-                  )}
-                </div>
-                <div className="p-6 flex flex-col flex-1">
-                  <h3 className="text-xl font-bold text-white mb-2 group-hover:text-purple-400 transition-colors line-clamp-1">
-                    {giveaway.title}
-                  </h3>
-                  <p className="text-gray-400 text-sm mb-6 line-clamp-2 flex-1">
-                    {giveaway.description}
-                  </p>
-                  
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-yellow-500 font-bold text-sm bg-yellow-500/10 px-2 py-1 rounded border border-yellow-500/20">
-                      {giveaway.coins_cost} Coins
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {activeGiveaways.map((giveaway, index) => (
+              <div 
+                key={giveaway.id} 
+                onClick={() => handleOpenModal(giveaway)}
+                className={`bg-[#121214] rounded-2xl overflow-hidden border cursor-pointer transition-all hover:scale-[1.02] flex flex-col group ${index === 0 ? 'border-orange-500' : 'border-white/5 hover:border-white/20'}`}
+              >
+                {/* Imagem e Badges */}
+                <div className="relative h-64 bg-[#121214] p-4 flex flex-col">
+                  <div className="flex gap-2 relative z-10">
+                    <span className="px-2 py-1 bg-black/50 border border-white/5 text-gray-400 rounded text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                      <span className="text-blue-500 text-xs leading-none">⟡</span> BARR4K
+                    </span>
+                    <span className="px-2 py-1 bg-black/50 border border-white/5 text-gray-400 rounded text-[10px] font-bold uppercase tracking-wider">
+                      {giveaway.highlight_text || "FIELD-TESTED"}
                     </span>
                   </div>
+                  <div className="absolute inset-0 flex items-center justify-center p-8 z-0">
+                    {giveaway.image_url ? (
+                      <img src={giveaway.image_url} alt={giveaway.title} className="w-full h-full object-contain filter drop-shadow-2xl transition-transform duration-500 group-hover:scale-110" />
+                    ) : (
+                      <Gift className="w-20 h-20 text-gray-700" />
+                    )}
+                  </div>
+                </div>
+                
+                {/* Informações */}
+                <div className="p-6 flex flex-col flex-1 border-t border-white/5">
+                  <h3 className="text-xl font-black text-white mb-6 uppercase tracking-tight line-clamp-1" style={{ fontFamily: 'Impact, sans-serif' }}>
+                    <span className="text-orange-500 mr-2">★</span>{giveaway.title}
+                  </h3>
+                  
+                  <div className="grid grid-cols-2 gap-4 mb-6">
+                    <div>
+                      <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest mb-1">Entrada</p>
+                      <p className="text-white font-bold text-sm">
+                        {giveaway.coins_cost === 0 ? "Gratuito" : `${giveaway.coins_cost} Coins`}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest mb-1">Valor</p>
+                      <p className="text-orange-500 font-bold text-sm">R$ {giveaway.coins_cost === 0 ? "860,54" : "1.364,35"}</p>
+                    </div>
+                  </div>
 
-                  <div className="flex gap-2 mt-auto">
-                    <button 
-                      onClick={() => setDetailsGiveaway(giveaway)}
-                      className="flex-1 bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 rounded-lg text-sm transition-colors flex items-center justify-center gap-2"
-                    >
-                      <Info className="w-4 h-4" /> Detalhes
-                    </button>
-                    <button 
-                      onClick={() => handleOpenModal(String(giveaway.id), giveaway.title)}
-                      className="flex-1 btn-neon font-bold py-3 rounded-lg text-sm uppercase tracking-wider"
-                    >
-                      Participar
-                    </button>
+                  <div className="flex items-center justify-between mt-auto text-gray-500 group-hover:text-gray-300 transition-colors">
+                    <span className="text-[11px] font-bold uppercase tracking-widest">Participar</span>
+                    <span className="text-sm font-bold">↗</span>
                   </div>
                 </div>
               </div>
@@ -376,7 +404,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Details Modal */}
       {detailsGiveaway && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-sm animate-fade-in">
           <div className="bg-[#121214] border border-gray-800 rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden relative flex flex-col md:flex-row">
@@ -419,7 +446,7 @@ export default function Home() {
               <button 
                 onClick={() => {
                   setDetailsGiveaway(null);
-                  handleOpenModal(String(detailsGiveaway.id), detailsGiveaway.title);
+                  handleOpenModal(detailsGiveaway);
                 }}
                 className="w-full btn-neon font-bold italic tracking-widest uppercase py-4 rounded-lg mt-auto text-sm"
               >
@@ -429,15 +456,6 @@ export default function Home() {
           </div>
         </div>
       )}
-
-      {/* Modal Render */}
-      <ParticiparModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        sorteioId={selectedGiveaway?.id || ""}
-        sorteioTitle={selectedGiveaway?.title || ""} 
-        isLoggedIn={true} // Hardcoded for preview, normally comes from Context/Redux
-      />
     </div>
   );
 }
