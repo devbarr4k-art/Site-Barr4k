@@ -254,8 +254,12 @@ export default function AdminDashboard() {
     }
     
     setBotStatus("connecting");
+    
+    // Conecta automaticamente no canal da Twitch do admin logado
+    const streamerChannel = (session?.user as any)?.username || session?.user?.name || 'barr4k';
+
     const client = new tmi.Client({
-      channels: ['barr4k'] // Nome do canal da Twitch
+      channels: [streamerChannel]
     });
     
     client.connect().then(() => {
@@ -790,7 +794,7 @@ export default function AdminDashboard() {
                   }`}
                 >
                   <Bot className={`w-5 h-5 ${botStatus === 'connected' ? 'animate-pulse' : ''}`} />
-                  {botStatus === 'connected' ? 'Bot Rodando' : botStatus === 'connecting' ? 'Conectando...' : 'Ligar Bot'}
+                  {botStatus === 'connected' ? `Bot em #${(session?.user as any)?.username || session?.user?.name || 'chat'}` : botStatus === 'connecting' ? 'Conectando...' : 'Ligar Bot'}
                 </button>
               </div>
               <form className="space-y-4">
