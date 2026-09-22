@@ -615,8 +615,8 @@ export default function AdminDashboard() {
 
       {/* Pop-up de Criação de Sorteio */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in overflow-y-auto">
-          <div className="bg-[#121214] border border-gray-800 rounded-2xl w-full max-w-lg shadow-2xl relative my-8">
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in overflow-y-auto">
+          <div className="bg-[#121214] border border-gray-800 rounded-2xl w-full max-w-lg shadow-2xl relative my-12">
             <button
               onClick={() => setIsCreateModalOpen(false)}
               className="absolute top-6 right-6 text-gray-400 hover:text-white transition-colors"
