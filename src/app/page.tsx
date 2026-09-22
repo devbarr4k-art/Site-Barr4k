@@ -62,6 +62,7 @@ export default function Home() {
   const [featuredGiveaway, setFeaturedGiveaway] = useState<any>(null);
   const [showFeaturedPopup, setShowFeaturedPopup] = useState(false);
   const [activeGiveaways, setActiveGiveaways] = useState<any[]>([]);
+  const [isLoadingGiveaways, setIsLoadingGiveaways] = useState(true);
   const [winners, setWinners] = useState<any[]>([]);
 
   const timeLeft = useCountdown(featuredGiveaway?.draw_date || null);
@@ -72,6 +73,7 @@ export default function Home() {
   }, []);
 
   const fetchActiveGiveaways = async () => {
+    setIsLoadingGiveaways(true);
     const { data } = await supabase
       .from('giveaways')
       .select('*')
@@ -81,13 +83,13 @@ export default function Home() {
       const featured = data.find(g => g.type === 'featured');
       if (featured) {
         setFeaturedGiveaway(featured);
-        // Só exibe se ainda não fechou nesta sessão
         if (!sessionStorage.getItem('featured_closed')) {
           setShowFeaturedPopup(true);
         }
       }
-      setActiveGiveaways(data); // Todos continuam na grade normal
+      setActiveGiveaways(data);
     }
+    setIsLoadingGiveaways(false);
   };
 
   const fetchHallOfFame = async () => {
@@ -296,8 +298,14 @@ export default function Home() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {activeGiveaways.map((giveaway, index) => (
+          {isLoadingGiveaways ? (
+            <div className="flex flex-col items-center justify-center py-20 gap-4">
+              <div className="uiverse-loader"></div>
+              <p className="text-purple-500 font-bold tracking-widest uppercase text-xs animate-pulse">Carregando Sorteios...</p>
+            </div>
+          ) : activeGiveaways.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {activeGiveaways.map((giveaway, index) => (
               <div 
                 key={giveaway.id} 
                 onClick={() => handleOpenModal(giveaway)}
@@ -355,6 +363,9 @@ export default function Home() {
               </div>
             ))}
           </div>
+          ) : (
+            <div className="text-center py-20 text-gray-500 font-bold uppercase tracking-widest text-sm">Nenhum sorteio ativo no momento.</div>
+          )}
         </div>
       </section>
 
