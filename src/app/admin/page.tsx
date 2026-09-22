@@ -20,6 +20,8 @@ export default function AdminDashboard() {
   // New States for Giveaways UI
   const [managingParticipants, setManagingParticipants] = useState<string | null>(null);
   const [editingParticipant, setEditingParticipant] = useState<string | null>(null);
+  const [editTwitchUsername, setEditTwitchUsername] = useState("");
+  const [editCoinsUsed, setEditCoinsUsed] = useState(0);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedColor, setSelectedColor] = useState("Amarelo");
 
@@ -63,6 +65,29 @@ export default function AdminDashboard() {
   const fetchParticipants = async (giveawayId: string) => {
     const { data } = await supabase.from('participants').select('*').eq('giveaway_id', giveawayId);
     if (data) setParticipants(data);
+  };
+
+  const handleUpdateParticipantStatus = async (id: string, status: string) => {
+    const { error } = await supabase.from('participants').update({ status }).eq('id', id);
+    if (!error && managingParticipants) {
+      fetchParticipants(managingParticipants);
+    } else if (error) {
+      alert("Erro ao atualizar status: " + error.message);
+    }
+  };
+
+  const handleSaveParticipantEdit = async (id: string) => {
+    const { error } = await supabase.from('participants').update({
+      twitch_username: editTwitchUsername,
+      coins_used: editCoinsUsed
+    }).eq('id', id);
+
+    if (!error && managingParticipants) {
+      setEditingParticipant(null);
+      fetchParticipants(managingParticipants);
+    } else if (error) {
+      alert("Erro ao salvar: " + error.message);
+    }
   };
 
   const fetchWinners = async () => {
@@ -272,23 +297,45 @@ export default function AdminDashboard() {
                             {editingParticipant === p.id ? (
                               <>
                                 <td className="px-6 py-4">
-                                  <input type="text" defaultValue={p.twitch_username} className="bg-black border border-gray-700 rounded px-2 py-1 text-white w-full outline-none focus:border-purple-500" />
+                                  <input 
+                                    type="text" 
+                                    value={editTwitchUsername} 
+                                    onChange={(e) => setEditTwitchUsername(e.target.value)}
+                                    className="bg-black border border-gray-700 rounded px-2 py-1 text-white w-full outline-none focus:border-purple-500" 
+                                  />
                                 </td>
                                 <td className="px-6 py-4">
-                                  <input type="number" defaultValue={p.coins_used} className="bg-black border border-gray-700 rounded px-2 py-1 text-white w-20 outline-none focus:border-purple-500" />
+                                  <input 
+                                    type="number" 
+                                    value={editCoinsUsed} 
+                                    onChange={(e) => setEditCoinsUsed(Number(e.target.value))}
+                                    className="bg-black border border-gray-700 rounded px-2 py-1 text-white w-20 outline-none focus:border-purple-500" 
+                                  />
                                 </td>
                                 <td className="px-6 py-4">
-                                  <span className="text-blue-400 underline cursor-pointer">{p.proof_url || 'Nenhum'}</span>
+                                  {p.proof_url ? (
+                                    <a href={p.proof_url} target="_blank" rel="noreferrer" className="text-blue-400 hover:text-blue-300 underline font-medium truncate max-w-[100px] inline-block">
+                                      Ver Imagem
+                                    </a>
+                                  ) : (
+                                    <span>Nenhum</span>
+                                  )}
                                 </td>
                                 <td className="px-6 py-4">
                                   {p.status}
                                 </td>
                                 <td className="px-6 py-4 text-right">
                                   <button
-                                    onClick={() => setEditingParticipant(null)}
+                                    onClick={() => handleSaveParticipantEdit(p.id)}
                                     className="bg-green-600 hover:bg-green-500 text-white px-3 py-1 rounded text-xs font-bold transition-colors"
                                   >
                                     Salvar
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingParticipant(null)}
+                                    className="bg-gray-600 hover:bg-gray-500 text-white px-3 py-1 rounded text-xs font-bold transition-colors ml-2"
+                                  >
+                                    Cancelar
                                   </button>
                                 </td>
                               </>
@@ -312,14 +359,24 @@ export default function AdminDashboard() {
                                 </td>
                                 <td className="px-6 py-4 text-right">
                                   <div className="flex items-center justify-end gap-2">
-                                    <button className="px-2 py-1 bg-green-500/10 hover:bg-green-500/20 text-green-400 rounded font-bold text-xs transition-colors">
+                                    <button 
+                                      onClick={() => handleUpdateParticipantStatus(p.id, 'approved')}
+                                      className="px-2 py-1 bg-green-500/10 hover:bg-green-500/20 text-green-400 rounded font-bold text-xs transition-colors"
+                                    >
                                       Aprovar
                                     </button>
-                                    <button className="px-2 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded font-bold text-xs transition-colors">
+                                    <button 
+                                      onClick={() => handleUpdateParticipantStatus(p.id, 'rejected')}
+                                      className="px-2 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded font-bold text-xs transition-colors"
+                                    >
                                       Rejeitar
                                     </button>
                                     <button
-                                      onClick={() => setEditingParticipant(p.id)}
+                                      onClick={() => {
+                                        setEditTwitchUsername(p.twitch_username);
+                                        setEditCoinsUsed(p.coins_used);
+                                        setEditingParticipant(p.id);
+                                      }}
                                       className="p-1 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded transition-colors"
                                       title="Editar Usuário/Coins"
                                     >
