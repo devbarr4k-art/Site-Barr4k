@@ -189,6 +189,18 @@ export default function AdminDashboard() {
     startRoulette();
   };
 
+  const toggleHallOfFame = async (winnerId: string, currentState: boolean) => {
+    const { error } = await supabase.from('winners').update({ in_hall_of_fame: !currentState }).eq('id', winnerId);
+    if (!error) {
+       fetchWinners();
+       if (managingParticipants) {
+          fetchLocalWinners(managingParticipants);
+       }
+    } else {
+       console.error("Erro ao destacar vencedor:", error);
+    }
+  };
+
   const handleChatEntry = async (username: string) => {
     // Busca todos os sorteios ativos
     const { data: activeGiveaways } = await supabase.from('giveaways').select('id').eq('status', 'active');
@@ -831,6 +843,7 @@ export default function AdminDashboard() {
                         <td className="px-6 py-4">{new Date(winner.won_at).toLocaleDateString()}</td>
                         <td className="px-6 py-4 text-center">
                           <button
+                            onClick={() => toggleHallOfFame(winner.id, winner.in_hall_of_fame)}
                             className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${winner.in_hall_of_fame
                                 ? "bg-purple-600/20 text-purple-400 border-purple-500/50 hover:bg-purple-600/40"
                                 : "bg-gray-800/50 text-gray-500 border-gray-700 hover:bg-gray-700"
