@@ -46,11 +46,14 @@ export async function POST(request: Request) {
     giveaway_id: giveawayId,
     twitch_username: username,
     coins_used: coins,
-    instagram: casaId || null, // a coluna "instagram" guarda o ID na casa
+    casa_id: casaId || null,
     proof_url: proof,
     status: "pending",
   });
 
+  if (error?.code === "23505") {
+    return Response.json({ error: "Você já está participando deste sorteio." }, { status: 409 });
+  }
   if (error) return Response.json({ error: error.message }, { status: 500 });
   return Response.json({ ok: true });
 }

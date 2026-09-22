@@ -170,7 +170,7 @@ export default function AdminDashboard() {
   const fetchSorteios = async () => {
     const { data } = await supabase
       .from("giveaways")
-      .select("id, title, description, highlight_text, highlight_color, coins_cost, subtitle, prize_label, shipping_text, prize_value, draw_date, login_text, type, status, is_daily_highlight, created_at")
+      .select("id, title, description, highlight_text, highlight_color, coins_cost, subtitle, prize_label, shipping_text, prize_value, draw_date, login_text, type, status, is_daily_highlight, response_seconds, created_at")
       .order("created_at", { ascending: false });
     if (data) setSorteios(data);
     adminApi<{ data: Record<string, number> }>("participantCounts")
@@ -355,8 +355,7 @@ export default function AdminDashboard() {
         setCurrentRollName(finalWinner.twitch_username);
         setWinnerResult(finalWinner);
         setIsRolling(false);
-        // O tempo para responder fica guardado em prize_value nos sorteios diários
-        setTimerCount(parseInt(activeDailyGiveaway?.prize_value) || 60);
+        setTimerCount(activeDailyGiveaway?.response_seconds || 60);
       }
     }, 100);
   };
@@ -411,7 +410,7 @@ export default function AdminDashboard() {
           is_daily_highlight: true,
           type: "daily",
           coins_cost: 0,
-          prize_value: String(twitchTimer),
+          response_seconds: twitchTimer,
         },
       });
       if (ok) {
@@ -617,22 +616,22 @@ export default function AdminDashboard() {
                             {editingParticipant === p.id ? (
                               <>
                                 <td className="px-6 py-4">
-                                  <input 
-                                    type="text" 
-                                    value={editTwitchUsername} 
+                                  <input
+                                    type="text"
+                                    value={editTwitchUsername}
                                     onChange={(e) => setEditTwitchUsername(e.target.value)}
-                                    className="bg-black border border-gray-700 rounded px-2 py-1 text-white w-full outline-none focus:border-purple-500" 
+                                    className="bg-black border border-gray-700 rounded px-2 py-1 text-white w-full outline-none focus:border-purple-500"
                                   />
                                 </td>
                                 <td className="px-6 py-4">
-                                  <input 
-                                    type="number" 
-                                    value={editCoinsUsed} 
+                                  <input
+                                    type="number"
+                                    value={editCoinsUsed}
                                     onChange={(e) => setEditCoinsUsed(Number(e.target.value))}
-                                    className="bg-black border border-gray-700 rounded px-2 py-1 text-white w-20 outline-none focus:border-purple-500" 
+                                    className="bg-black border border-gray-700 rounded px-2 py-1 text-white w-20 outline-none focus:border-purple-500"
                                   />
                                 </td>
-                                <td className="px-6 py-4 font-bold text-gray-400">{p.instagram || "N/A"}</td>
+                                <td className="px-6 py-4 font-bold text-gray-400">{p.casa_id || "N/A"}</td>
                                 <td className="px-6 py-4">
                                   {p.proof_url ? (
                                     <button type="button" onClick={() => setProofPreview(p.proof_url)} className="text-blue-400 hover:text-blue-300 underline font-medium">
@@ -665,7 +664,7 @@ export default function AdminDashboard() {
                               <>
                                 <td className="px-6 py-4 font-bold text-white">@{p.twitch_username}</td>
                                 <td className="px-6 py-4 font-bold text-yellow-500">{p.coins_used}</td>
-                                <td className="px-6 py-4 font-bold text-gray-400">{p.instagram || "N/A"}</td>
+                                <td className="px-6 py-4 font-bold text-gray-400">{p.casa_id || "N/A"}</td>
                                 <td className="px-6 py-4">
                                   {p.proof_url ? (
                                     <button type="button" onClick={() => setProofPreview(p.proof_url)} className="text-blue-400 hover:text-blue-300 underline font-medium">
@@ -676,7 +675,7 @@ export default function AdminDashboard() {
                                   )}
                                 </td>
                                 <td className="px-6 py-4">
-                                  <span className={`px-2 py-1 rounded text-xs font-bold 
+                                  <span className={`px-2 py-1 rounded text-xs font-bold
                                     ${p.status === "approved" ? "bg-green-500/20 text-green-400 border border-green-500/30" :
                                       p.status === "rejected" ? "bg-red-500/20 text-red-400 border border-red-500/30" :
                                         "bg-yellow-500/20 text-yellow-500 border border-yellow-500/30"}`}>
@@ -685,13 +684,13 @@ export default function AdminDashboard() {
                                 </td>
                                 <td className="px-6 py-4 text-right">
                                   <div className="flex items-center justify-end gap-2">
-                                    <button 
+                                    <button
                                       onClick={() => handleUpdateParticipantStatus(p.id, 'approved')}
                                       className="px-2 py-1 bg-green-500/10 hover:bg-green-500/20 text-green-400 rounded font-bold text-xs transition-colors"
                                     >
                                       Aprovar
                                     </button>
-                                    <button 
+                                    <button
                                       onClick={() => handleUpdateParticipantStatus(p.id, 'rejected')}
                                       className="px-2 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded font-bold text-xs transition-colors"
                                     >
@@ -816,15 +815,15 @@ export default function AdminDashboard() {
                                 >
                                   <Users className="w-4 h-4" />
                                 </button>
-                                <button 
+                                <button
                                   onClick={() => handleSetFeatured(sorteio.id, sorteio.type)}
-                                  className={`p-2 rounded transition-colors ${sorteio.type === 'featured' ? 'bg-yellow-500/20 text-yellow-500' : 'bg-gray-800 text-gray-500 hover:text-yellow-500'}`} 
+                                  className={`p-2 rounded transition-colors ${sorteio.type === 'featured' ? 'bg-yellow-500/20 text-yellow-500' : 'bg-gray-800 text-gray-500 hover:text-yellow-500'}`}
                                   title="Destacar Sorteio Principal">
                                   <Star className={`w-4 h-4 ${sorteio.type === 'featured' ? 'fill-current' : ''}`} />
                                 </button>
-                                <button 
+                                <button
                                   onClick={() => toggleDailyHighlight(sorteio.id, sorteio.is_daily_highlight)}
-                                  className={`p-2 rounded transition-colors ${sorteio.is_daily_highlight ? 'bg-green-500/20 text-green-500 border border-green-500/30' : 'bg-gray-800 text-gray-500 hover:text-green-500'}`} 
+                                  className={`p-2 rounded transition-colors ${sorteio.is_daily_highlight ? 'bg-green-500/20 text-green-500 border border-green-500/30' : 'bg-gray-800 text-gray-500 hover:text-green-500'}`}
                                   title="Destacar Sorteio Diário (Live)">
                                   <Calendar className="w-4 h-4" />
                                 </button>
@@ -835,12 +834,12 @@ export default function AdminDashboard() {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                   </svg>
                                 </button>
-                                <button 
+                                <button
                                   onClick={() => handleEditGiveaway(sorteio)}
                                   className="p-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded transition-colors" title="Editar Sorteio">
                                   <Edit className="w-4 h-4" />
                                 </button>
-                                <button 
+                                <button
                                   onClick={() => handleDeleteGiveaway(sorteio.id)}
                                   className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded transition-colors" title="Excluir">
                                   <Trash2 className="w-4 h-4" />
@@ -865,7 +864,7 @@ export default function AdminDashboard() {
               <p className="text-gray-400">Configure os parâmetros da sua live para captar usuários do chat da Twitch.</p>
             </div>
 
-            
+
             {activeDailyGiveaway ? (
               <>
                 {/* ROULETTE & POPUP OVERLAY */}
@@ -939,7 +938,7 @@ export default function AdminDashboard() {
                         ))}
                       </div>
                       <div className="w-full mt-4 space-y-4">
-                        <button 
+                        <button
                           onClick={toggleTwitchBot}
                           className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${
                             botStatus === 'connected' ? 'bg-purple-900/50 border border-purple-500 text-purple-400 animate-pulse' : botStatus === 'connecting' ? 'bg-yellow-900/50 border border-yellow-500 text-yellow-500 cursor-wait' : 'bg-black border border-gray-800 text-gray-400 hover:text-white hover:border-gray-600'
@@ -988,12 +987,12 @@ export default function AdminDashboard() {
                 <h2 className="text-xl font-bold text-white flex items-center gap-2">
                   <Gift className="w-5 h-5 text-purple-500" /> Criar Sorteio Instantâneo (Chat)
                 </h2>
-                <button 
+                <button
                   onClick={toggleTwitchBot}
                   type="button"
                   className={`flex items-center gap-2 font-bold px-6 py-2 rounded-lg shadow-[0_0_20px_rgba(0,0,0,0.5)] border transition-all ${
-                    botStatus === 'connected' 
-                      ? 'bg-purple-900/50 border-purple-500 text-purple-400' 
+                    botStatus === 'connected'
+                      ? 'bg-purple-900/50 border-purple-500 text-purple-400'
                       : botStatus === 'connecting'
                       ? 'bg-yellow-900/50 border-yellow-500 text-yellow-500 cursor-wait'
                       : 'bg-black border-gray-800 text-gray-400 hover:text-white hover:border-gray-600'
@@ -1006,42 +1005,42 @@ export default function AdminDashboard() {
               <form className="space-y-4">
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-gray-400">Título do Prêmio</label>
-                  <input type="text" 
+                  <input type="text"
                     value={twitchGiveawayTitle}
                     onChange={(e) => setTwitchGiveawayTitle(e.target.value)}
-                    className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none" 
+                    className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none"
                     placeholder="Ex: Faca Butterfly" />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-gray-400">Tempo para Responder (Segundos)</label>
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       value={twitchTimer}
                       min={5}
                       onChange={(e) => setTwitchTimer(parseInt(e.target.value) || 60)}
-                      className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none" 
+                      className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none"
                     />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-gray-400">Palavra-chave (Comando Chat)</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={botCommand}
                       onChange={(e) => setBotCommand(e.target.value)}
                       disabled={botStatus !== 'disconnected'}
-                      className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none disabled:opacity-50" 
-                      placeholder="Ex: !BARR4K" 
+                      className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none disabled:opacity-50"
+                      placeholder="Ex: !BARR4K"
                     />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-purple-500">Imagem do Prêmio</label>
-                    <input 
-                      type="file" 
+                    <input
+                      type="file"
                       accept="image/*"
                       onChange={(e) => setTwitchGiveawayImage(e.target.files?.[0] ?? null)}
-                      className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-2 text-gray-400 focus:border-purple-500 outline-none" 
+                      className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-2 text-gray-400 focus:border-purple-500 outline-none"
                     />
                   </div>
                 </div>
@@ -1052,29 +1051,29 @@ export default function AdminDashboard() {
                   <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-purple-400">CHANCES TIER 1</label>
-                      <input 
-                        type="number" 
+                      <input
+                        type="number"
                         value={subMultiplierT1}
                         onChange={(e) => setSubMultiplierT1(parseInt(e.target.value) || 1)}
-                        className="w-full bg-[#0a0a0b] border border-purple-500/30 rounded-lg px-4 py-2 text-white outline-none" 
+                        className="w-full bg-[#0a0a0b] border border-purple-500/30 rounded-lg px-4 py-2 text-white outline-none"
                       />
                     </div>
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-purple-400">CHANCES TIER 2</label>
-                      <input 
-                        type="number" 
+                      <input
+                        type="number"
                         value={subMultiplierT2}
                         onChange={(e) => setSubMultiplierT2(parseInt(e.target.value) || 1)}
-                        className="w-full bg-[#0a0a0b] border border-purple-500/30 rounded-lg px-4 py-2 text-white outline-none" 
+                        className="w-full bg-[#0a0a0b] border border-purple-500/30 rounded-lg px-4 py-2 text-white outline-none"
                       />
                     </div>
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-purple-400">CHANCES TIER 3</label>
-                      <input 
-                        type="number" 
+                      <input
+                        type="number"
                         value={subMultiplierT3}
                         onChange={(e) => setSubMultiplierT3(parseInt(e.target.value) || 1)}
-                        className="w-full bg-[#0a0a0b] border border-purple-500/30 rounded-lg px-4 py-2 text-white outline-none" 
+                        className="w-full bg-[#0a0a0b] border border-purple-500/30 rounded-lg px-4 py-2 text-white outline-none"
                       />
                     </div>
                   </div>
@@ -1189,19 +1188,19 @@ export default function AdminDashboard() {
       {isDrawing && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md animate-fade-in">
           <div className="w-full max-w-5xl flex flex-col items-center">
-            
+
             <h2 className="text-4xl font-black text-white uppercase italic tracking-wider mb-12 animate-pulse">Sorteando...</h2>
 
             {/* A linha de centro (mirador) */}
             <div className="relative w-full h-48 bg-[#121214] border-y-4 border-purple-500/30 overflow-hidden shadow-[0_0_50px_rgba(168,85,247,0.1)] flex items-center">
-              
+
               {/* O traço vermelho no meio */}
               <div className="absolute left-1/2 top-0 bottom-0 w-1 bg-red-500 z-50 transform -translate-x-1/2 shadow-[0_0_15px_rgba(239,68,68,1)]"></div>
-              
+
               {/* A esteira de avatares */}
-              <div 
+              <div
                 className={`flex gap-4 w-full transition-transform ease-[cubic-bezier(0.15,0.85,0.15,1)]`}
-                style={{ 
+                style={{
                   /* centraliza o 1º card no traço: metade da faixa menos metade do card (144px) */
                   paddingLeft: 'calc(50% - 72px)',
                   transform: `translateX(-${rouletteOffset}px)`,
@@ -1230,20 +1229,20 @@ export default function AdminDashboard() {
             {showWinner && (
               <div className="mt-12 bg-[#121214] border border-purple-500/50 rounded-2xl w-full max-w-md shadow-[0_0_50px_rgba(168,85,247,0.3)] p-8 text-center animate-fade-in relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-purple-600 to-pink-600"></div>
-                
+
                 <Trophy className="w-16 h-16 text-yellow-500 mx-auto mb-4 drop-shadow-[0_0_15px_rgba(234,179,8,0.5)]" />
-                
+
                 <h3 className="text-3xl font-black text-white uppercase italic tracking-wider mb-2 truncate">@{drawnWinner?.twitch_username}</h3>
                 <p className="text-gray-400 mb-6 font-medium text-xs uppercase tracking-widest">Vencedor do sorteio</p>
-                
+
                 <div className="flex gap-3">
-                  <button 
+                  <button
                     onClick={() => saveWinner(false)}
                     className="flex-1 bg-green-600 hover:bg-green-500 text-white py-3 rounded-lg font-bold transition-colors text-xs uppercase tracking-widest"
                   >
                     Salvar & Concluir
                   </button>
-                  <button 
+                  <button
                     onClick={() => saveWinner(true)}
                     className="flex-1 bg-purple-600 hover:bg-purple-500 text-white py-3 rounded-lg font-bold transition-colors text-xs uppercase tracking-widest"
                   >
@@ -1252,7 +1251,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
             )}
-            
+
           </div>
         </div>
       )}
@@ -1425,21 +1424,21 @@ export default function AdminDashboard() {
                   {previewMode === "home" ? "Prévia (Home)" : previewMode === "destaque" ? "Prévia (Destaque)" : "Prévia (Sorteio)"}
                 </h3>
                 <div className="flex bg-[#121214] border border-gray-800 rounded-lg overflow-hidden">
-                  <button 
+                  <button
                     type="button"
                     onClick={() => setPreviewMode("home")}
                     className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-colors ${previewMode === "home" ? "bg-purple-600 text-white" : "text-gray-500 hover:text-gray-300"}`}
                   >
                     Home
                   </button>
-                  <button 
+                  <button
                     type="button"
                     onClick={() => setPreviewMode("destaque")}
                     className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-colors ${previewMode === "destaque" ? "bg-purple-600 text-white" : "text-gray-500 hover:text-gray-300"}`}
                   >
                     Destaque
                   </button>
-                  <button 
+                  <button
                     type="button"
                     onClick={() => setPreviewMode("sorteio")}
                     className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-colors ${previewMode === "sorteio" ? "bg-purple-600 text-white" : "text-gray-500 hover:text-gray-300"}`}
@@ -1448,7 +1447,7 @@ export default function AdminDashboard() {
                   </button>
                 </div>
               </div>
-              
+
               {previewMode === "home" ? (
                 /* O Card Simulado da Home */
                 <div className="w-full max-w-[320px] rounded-xl overflow-hidden bg-[#0c0d10] border border-white/5 mx-auto group">
@@ -1581,7 +1580,7 @@ export default function AdminDashboard() {
                         <div className="w-full h-full flex items-center justify-center text-gray-700"><Gift className="w-12 h-12" /></div>
                       )}
                       <div className="absolute inset-0 bg-gradient-to-t from-[#101010] via-black/20 to-transparent z-10" />
-                      
+
                       {/* Title Overlay in Image */}
                       <div className="absolute bottom-4 left-4 right-4 z-20 text-left">
                         <div className="flex items-center gap-1.5 mb-1.5 text-purple-500">
@@ -1598,7 +1597,7 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                   </div>
-                  
+
                   {/* Bloco 3: Formulário de Participação */}
                   <div className="p-6 text-center flex flex-col items-center">
                     <Sparkles className="w-6 h-6 text-purple-500 mb-4" />
@@ -1612,7 +1611,7 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               )}
-              
+
               <p className="text-gray-600 text-[10px] uppercase font-bold text-center mt-6 max-w-[250px]">
                 A prévia é uma aproximação visual do card.
               </p>

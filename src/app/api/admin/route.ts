@@ -5,7 +5,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 const GIVEAWAY_FIELDS = [
   "title", "description", "highlight_text", "highlight_color", "coins_cost", "subtitle",
   "prize_label", "shipping_text", "prize_value", "draw_date", "login_text", "image_url",
-  "detail_image_url", "type", "status", "is_daily_highlight",
+  "detail_image_url", "type", "status", "is_daily_highlight", "response_seconds",
 ] as const;
 
 const PARTICIPANT_FIELDS = ["status", "twitch_username", "coins_used"] as const;
@@ -156,6 +156,8 @@ export async function POST(request: Request) {
         coins_used: chances,
         status: "approved",
       });
+      // 23505 = violou o unique (giveaway_id, twitch_username): já estava inscrito
+      if (error?.code === "23505") return Response.json({ ok: true, duplicate: true });
       if (error) return fail(error.message, 500);
       return Response.json({ ok: true });
     }
