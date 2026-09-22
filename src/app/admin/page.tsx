@@ -35,7 +35,7 @@ export default function AdminDashboard() {
   const [editCoinsUsed, setEditCoinsUsed] = useState(0);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedColor, setSelectedColor] = useState("Amarelo");
-  const [previewMode, setPreviewMode] = useState<"home" | "inner">("home");
+  const [previewMode, setPreviewMode] = useState<"home" | "destaque" | "sorteio">("home");
 
   // Formulário Criar Sorteio
   const [newTitle, setNewTitle] = useState("");
@@ -820,8 +820,8 @@ export default function AdminDashboard() {
                   </button>
                   <button 
                     type="button"
-                    onClick={() => setPreviewMode("inner")}
-                    className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-colors ${previewMode === "inner" ? "bg-purple-600 text-white" : "text-gray-500 hover:text-gray-300"}`}
+                    onClick={() => setPreviewMode("sorteio")}
+                    className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-colors ${previewMode === "sorteio" ? "bg-purple-600 text-white" : "text-gray-500 hover:text-gray-300"}`}
                   >
                     Sorteio
                   </button>
@@ -886,9 +886,9 @@ export default function AdminDashboard() {
                     <ArrowRight className="w-4 h-4 transform group-hover/btn:translate-x-1 transition-transform" />
                   </button>
                 </div>
-              </div>
-              ) : (
-                /* O Card Simulado da Página de Sorteio (Popup) */
+                </div>
+              ) : previewMode === "destaque" ? (
+                /* O Card Simulado do Anúncio Destaque (Popup Vertical) */
                 <div className="w-full max-w-[320px] rounded-[24px] overflow-hidden bg-[#101010] flex flex-col relative border border-purple-500/50 mx-auto shadow-2xl">
                   <div className="relative h-[220px] w-full bg-black">
                     {previewImage ? (
@@ -925,6 +925,39 @@ export default function AdminDashboard() {
                     </p>
                     <button type="button" className="w-full bg-purple-600 text-white font-black uppercase tracking-widest py-3 rounded-xl text-xs flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(147,51,234,0.3)]">
                       QUERO PARTICIPAR <ArrowRight className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* O Card Simulado da Página de Sorteio (Modal Horizontal) */
+                <div className="w-[500px] origin-top scale-[0.6] bg-[#121214] border border-gray-800 rounded-2xl shadow-2xl overflow-hidden relative flex flex-row mx-auto">
+                  <div className="w-1/2 h-[350px] bg-[#0a0a0c] relative flex items-center justify-center border-r border-gray-800">
+                    {newDetailImage || previewImage ? (
+                      <img src={newDetailImage ? URL.createObjectURL(newDetailImage) : previewImage!} alt="Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <Gift className="w-20 h-20 text-gray-700" />
+                    )}
+                  </div>
+                  <div className="w-1/2 p-8 flex flex-col justify-center">
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className="px-3 py-1 bg-yellow-500/20 text-yellow-500 rounded text-xs font-bold border border-yellow-500/30">
+                        CUSTO: {newCoins || 0} COINS
+                      </span>
+                      {newHighlight && (
+                        <span className={`px-3 py-1 rounded text-xs font-bold bg-purple-500/20 text-purple-500`}>
+                          {newHighlight}
+                        </span>
+                      )}
+                    </div>
+                    <h2 className="text-3xl font-black italic text-white uppercase tracking-wider mb-4 leading-tight">
+                      {newTitle || "TÍTULO DO SORTEIO"}
+                    </h2>
+                    <h4 className="text-gray-500 text-xs font-bold uppercase tracking-widest mb-2">Descrição do Prêmio</h4>
+                    <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap mb-6 line-clamp-4">
+                      {newDesc || "Descrição completa das regras do sorteio. Aparece dentro da página do sorteio..."}
+                    </p>
+                    <button type="button" className="w-full btn-neon font-bold italic tracking-widest uppercase py-4 rounded-lg mt-auto text-sm">
+                      Participar Agora
                     </button>
                   </div>
                 </div>
