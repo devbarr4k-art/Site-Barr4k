@@ -562,6 +562,7 @@ export default function AdminDashboard() {
                         <tr>
                           <th className="px-6 py-4">Usuário</th>
                           <th className="px-6 py-4">Coins Investidas</th>
+                          <th className="px-6 py-4">ID da Casa</th>
                           <th className="px-6 py-4">Comprovante</th>
                           <th className="px-6 py-4">Status</th>
                           <th className="px-6 py-4 text-right">Ações</th>
@@ -621,6 +622,7 @@ export default function AdminDashboard() {
                               <>
                                 <td className="px-6 py-4 font-bold text-white">@{p.twitch_username}</td>
                                 <td className="px-6 py-4 font-bold text-yellow-500">{p.coins_used}</td>
+                                <td className="px-6 py-4 font-bold text-gray-400">{p.instagram || "N/A"}</td>
                                 <td className="px-6 py-4">
                                   <a href={p.proof_url} target="_blank" rel="noreferrer" className="text-blue-400 hover:text-blue-300 underline font-medium">
                                     Ver Imagem

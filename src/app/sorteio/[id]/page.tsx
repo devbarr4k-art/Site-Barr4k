@@ -104,6 +104,11 @@ export default function SorteioPage() {
       return;
     }
     
+    if (!selectedFile) {
+      alert("Você deve enviar um comprovante!");
+      return;
+    }
+    
     let proofUrl = null;
     if (selectedFile) {
       proofUrl = await new Promise((resolve) => {
@@ -311,7 +316,7 @@ export default function SorteioPage() {
               </div>
 
               <div>
-                <label className="block text-[#a0a0a0] text-xs font-bold uppercase tracking-wider mb-2">Comprovante (Opcional)</label>
+                <label className="block text-[#a0a0a0] text-xs font-bold uppercase tracking-wider mb-2">Comprovante (Obrigatório)</label>
                 <div className="w-full border-2 border-dashed border-white/10 rounded-lg p-6 flex flex-col items-center justify-center bg-[#050505] hover:bg-white/5 transition-colors cursor-pointer relative group">
                   <input 
                     type="file" 
