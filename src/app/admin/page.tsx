@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Plus, Edit, Trash2, Settings, Users, Gift, Save, AlertTriangle, Star, ArrowRight, Trophy, Sparkles, Bot } from "lucide-react";
+import { Plus, Edit, Trash2, Settings, Users, Gift, Save, AlertTriangle, Star, ArrowRight, Trophy, Sparkles, Bot, Calendar } from "lucide-react";
 import tmi from "tmi.js";
 import { FaTwitch } from "react-icons/fa";
 import Link from "next/link";
@@ -53,6 +53,7 @@ export default function AdminDashboard() {
   // Bot da Twitch
   const [botStatus, setBotStatus] = useState<"disconnected" | "connecting" | "connected">("disconnected");
   const [botCommand, setBotCommand] = useState("!sorteio");
+  const [subMultiplier, setSubMultiplier] = useState(2);
   const tmiClient = useRef<any>(null);
 
   // Formulário Criar Sorteio
@@ -110,7 +111,7 @@ export default function AdminDashboard() {
 
   const fetchSorteios = async () => {
     setIsLoading(true);
-    const { data, error } = await supabase.from('giveaways').select('id, title, description, highlight_text, highlight_color, coins_cost, subtitle, prize_label, shipping_text, prize_value, draw_date, login_text, type, status, created_at').order('created_at', { ascending: false });
+    const { data, error } = await supabase.from('giveaways').select('id, title, description, highlight_text, highlight_color, coins_cost, subtitle, prize_label, shipping_text, prize_value, draw_date, login_text, type, status, is_daily_highlight, created_at').order('created_at', { ascending: false });
     if (data) {
       setSorteios(data);
       // Fetch participant counts
@@ -124,6 +125,14 @@ export default function AdminDashboard() {
       }
     }
     setIsLoading(false);
+  };
+
+  const toggleDailyHighlight = async (id: string, currentState: boolean) => {
+    if (!currentState) {
+      await supabase.from('giveaways').update({ is_daily_highlight: false }).neq('id', id);
+    }
+    await supabase.from('giveaways').update({ is_daily_highlight: !currentState }).eq('id', id);
+    fetchSorteios();
   };
 
   const fetchParticipants = async (giveawayId: string) => {
@@ -222,12 +231,14 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleChatEntry = async (username: string) => {
-    // Busca todos os sorteios ativos
-    const { data: activeGiveaways } = await supabase.from('giveaways').select('id').eq('status', 'active');
+  const handleChatEntry = async (username: string, isSub: boolean) => {
+    // Busca o sorteio diário atual (ou todos os ativos se preferir)
+    const { data: activeGiveaways } = await supabase.from('giveaways').select('id').eq('is_daily_highlight', true);
     if (!activeGiveaways || activeGiveaways.length === 0) return;
     
-    // Insere o usuário em todos os sorteios ativos
+    // Calcula quantas entradas o usuário terá (1 normal, ou 'subMultiplier' se for sub)
+    const chances = isSub ? subMultiplier : 1;
+    
     for (const g of activeGiveaways) {
        const { data: existing } = await supabase.from('participants')
          .select('id')
@@ -236,11 +247,12 @@ export default function AdminDashboard() {
          .maybeSingle();
          
        if (!existing) {
+          // Vamos usar o coins_used para simular as 'chances' extras por conta da badge de Sub
           await supabase.from('participants').insert({
              giveaway_id: g.id,
              twitch_username: username,
-             coins_used: 0,
-             status: 'approved' // Sorteio de chat é aprovação automática
+             coins_used: chances,
+             status: 'approved' 
           });
        }
     }
@@ -274,8 +286,10 @@ export default function AdminDashboard() {
        
        if (message.toLowerCase().trim() === botCommand.toLowerCase().trim()) {
           const username = tags.username;
+          const isSub = !!tags.subscriber || !!tags.mod || (tags.badges && tags.badges.founder);
+          
           if (username) {
-             await handleChatEntry(username);
+             await handleChatEntry(username, isSub);
           }
        }
     });
@@ -748,6 +762,12 @@ export default function AdminDashboard() {
                                   <Star className={`w-4 h-4 ${sorteio.type === 'featured' ? 'fill-current' : ''}`} />
                                 </button>
                                 <button 
+                                  onClick={() => toggleDailyHighlight(sorteio.id, sorteio.is_daily_highlight)}
+                                  className={`p-2 rounded transition-colors ${sorteio.is_daily_highlight ? 'bg-green-500/20 text-green-500 border border-green-500/30' : 'bg-gray-800 text-gray-500 hover:text-green-500'}`} 
+                                  title="Destacar Sorteio Diário (Live)">
+                                  <Calendar className="w-4 h-4" />
+                                </button>
+                                <button 
                                   onClick={() => handleEditGiveaway(sorteio)}
                                   className="p-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded transition-colors" title="Editar Sorteio">
                                   <Edit className="w-4 h-4" />
@@ -823,20 +843,15 @@ export default function AdminDashboard() {
 
                 {/* Twitch Multipliers Config */}
                 <div className="pt-4 border-t border-gray-800 mt-4">
-                  <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-widest">Multiplicadores de Tiers (Subscribers)</h3>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-blue-400">TIER 1 (Chances)</label>
-                      <input type="number" defaultValue="2" className="w-full bg-[#0a0a0b] border border-blue-500/30 rounded-lg px-4 py-2 text-white outline-none" />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-pink-400">TIER 2 (Chances)</label>
-                      <input type="number" defaultValue="3" className="w-full bg-[#0a0a0b] border border-pink-500/30 rounded-lg px-4 py-2 text-white outline-none" />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-purple-400">TIER 3 (Chances)</label>
-                      <input type="number" defaultValue="5" className="w-full bg-[#0a0a0b] border border-purple-500/30 rounded-lg px-4 py-2 text-white outline-none" />
-                    </div>
+                  <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-widest">Multiplicador de Subscribers</h3>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-purple-400">CHANCES PARA SUBS E FOUNDERS</label>
+                    <input 
+                      type="number" 
+                      value={subMultiplier}
+                      onChange={(e) => setSubMultiplier(parseInt(e.target.value) || 1)}
+                      className="w-full bg-[#0a0a0b] border border-purple-500/30 rounded-lg px-4 py-2 text-white outline-none" 
+                    />
                   </div>
                 </div>
 
@@ -845,7 +860,7 @@ export default function AdminDashboard() {
                   onClick={() => setIsConfirmOpen(true)}
                   className="w-full btn-neon font-bold italic tracking-widest uppercase py-4 rounded-lg mt-6 text-sm text-center block"
                 >
-                  Iniciar Captação no Chat (Abrir Painel Live)
+                  Criar Sorteio Diário (Ao Vivo)
                 </button>
               </form>
             </div>

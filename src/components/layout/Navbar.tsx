@@ -16,6 +16,7 @@ export default function Navbar() {
 
   const navLinks = [
     { name: "HOME", href: "/", icon: <FaHome className="w-4 h-4" /> },
+    { name: "SORTEIO DIÁRIO", href: "/diario", icon: <FaGamepad className="w-4 h-4" /> },
     { name: "BIOGRAFIA", href: "/sobre", icon: <FaTwitch className="w-4 h-4" /> },
     { name: "PARCEIROS", href: "/#parceiros", icon: <FaHandshake className="w-4 h-4" /> },
   ];
