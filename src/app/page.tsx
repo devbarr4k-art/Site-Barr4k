@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Trophy, Gift, Users, ArrowDown, Zap, X, Info, ArrowRight } from "lucide-react";
+import { Trophy, Gift, Users, ArrowDown, Zap, X, Info, ArrowRight, Clock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
@@ -19,6 +19,42 @@ const getColorClass = (color: string) => {
   }
 };
 
+const useCountdown = (targetDateString: string | null) => {
+  const [timeLeft, setTimeLeft] = useState({
+    days: "00", hours: "00", minutes: "00", seconds: "00"
+  });
+
+  useEffect(() => {
+    if (!targetDateString) return;
+    
+    const targetDate = new Date(targetDateString).getTime();
+
+    const updateTimer = () => {
+      const now = new Date().getTime();
+      const distance = targetDate - now;
+
+      if (distance < 0) {
+        setTimeLeft({ days: "00", hours: "00", minutes: "00", seconds: "00" });
+        return;
+      }
+
+      const days = Math.floor(distance / (1000 * 60 * 60 * 24)).toString().padStart(2, '0');
+      const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)).toString().padStart(2, '0');
+      const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
+      const seconds = Math.floor((distance % (1000 * 60)) / 1000).toString().padStart(2, '0');
+
+      setTimeLeft({ days, hours, minutes, seconds });
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+
+    return () => clearInterval(interval);
+  }, [targetDateString]);
+
+  return timeLeft;
+};
+
 export default function Home() {
   const router = useRouter();
   const [detailsGiveaway, setDetailsGiveaway] = useState<any>(null);
@@ -27,6 +63,8 @@ export default function Home() {
   const [showFeaturedPopup, setShowFeaturedPopup] = useState(false);
   const [activeGiveaways, setActiveGiveaways] = useState<any[]>([]);
   const [winners, setWinners] = useState<any[]>([]);
+
+  const timeLeft = useCountdown(featuredGiveaway?.draw_date || null);
 
   useEffect(() => {
     fetchActiveGiveaways();
@@ -134,76 +172,90 @@ export default function Home() {
       {/* Featured Giveaway Popup Modal */}
       {featuredGiveaway && showFeaturedPopup && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6 bg-black/90 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-[420px] rounded-2xl overflow-hidden bg-[#101010] flex flex-col relative animate-scale-up border border-white/5">
+          <div className="w-full max-w-[420px] rounded-[24px] overflow-hidden bg-[#101010] flex flex-col relative animate-scale-up border border-purple-500/50 shadow-2xl">
             
-            {/* Image Hero Area */}
-            <div className="relative h-[320px] w-full bg-[#101010] overflow-hidden group">
-              {featuredGiveaway.image_url ? (
-                <img src={featuredGiveaway.image_url} alt={featuredGiveaway.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+            {/* Top Image Area */}
+            <div className="relative h-[380px] w-full bg-black">
+              {featuredGiveaway.detail_image_url || featuredGiveaway.image_url ? (
+                <img src={featuredGiveaway.detail_image_url || featuredGiveaway.image_url} alt={featuredGiveaway.title} className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-gray-700"><Gift className="w-20 h-20" /></div>
               )}
+              {/* Gradient Overlay for bottom text */}
+              <div className="absolute inset-0 bg-gradient-to-t from-[#101010] via-black/20 to-transparent z-10" />
               
-              {/* Gradient fade to bottom */}
-              <div className="absolute inset-0 bg-gradient-to-t from-[#101010] via-black/20 to-transparent" />
-
               {/* Top Badges */}
-              <div className="absolute top-4 left-4 z-10">
-                <div className="px-3 py-1.5 bg-purple-600 text-white rounded-full font-bold text-[10px] uppercase tracking-wider flex items-center gap-1.5 shadow-lg">
-                  <Gift className="w-3 h-3" /> 100% GRÁTIS
+              <div className="absolute top-4 left-4 z-20 flex gap-2 w-[calc(100%-32px)] justify-between items-start">
+                <div className="bg-purple-600 rounded-full px-3 py-1.5 flex items-center gap-1.5 shadow-lg">
+                  <Gift className="w-3.5 h-3.5 text-white" />
+                  <span className="text-[10px] font-bold text-white tracking-widest uppercase">100% GRÁTIS</span>
+                </div>
+                
+                <div className="flex gap-2">
+                  <div className="bg-black/70 backdrop-blur-md rounded-full px-3 py-1.5 border border-white/10 flex items-center shadow-lg">
+                    <span className="text-[10px] font-bold text-purple-400 tracking-widest">
+                      R$ {featuredGiveaway.prize_value || "1.364,35"}
+                    </span>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      setShowFeaturedPopup(false);
+                      sessionStorage.setItem('featured_closed', 'true');
+                    }}
+                    className="w-8 h-8 rounded-full bg-black/70 backdrop-blur-md flex items-center justify-center border border-white/10 hover:bg-white/20 transition-colors shadow-lg"
+                  >
+                    <X className="w-4 h-4 text-white" />
+                  </button>
                 </div>
               </div>
 
-              {/* Top Right Value & Close */}
-              <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
-                <div className="px-3 py-1.5 bg-black/60 backdrop-blur-md text-purple-400 rounded-full font-bold text-[10px] tracking-wider">
-                  R$ {featuredGiveaway.coins_cost === 0 ? "860,54" : "1.364,35"}
-                </div>
-                <button 
-                  onClick={() => {
-                    setShowFeaturedPopup(false);
-                    sessionStorage.setItem('featured_closed', 'true');
-                  }} 
-                  className="bg-black/60 backdrop-blur-md hover:bg-white/10 text-gray-300 rounded-full p-1.5 transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Title Overlay in Image */}
-              <div className="absolute bottom-4 left-6 right-6 z-10">
-                <div className="flex items-center gap-1.5 mb-1 text-purple-500">
+              {/* Bottom Overlay Text on Image */}
+              <div className="absolute bottom-6 left-6 right-6 z-20">
+                <div className="flex items-center gap-1.5 mb-1.5 text-purple-500">
                   <Trophy className="w-3 h-3" />
                   <span className="text-[10px] font-bold tracking-widest uppercase">{featuredGiveaway.prize_label || "PRÊMIO"}</span>
                 </div>
-                <h3 className="text-xl font-bold text-white leading-tight">
-                  <span className="text-white">★</span> {featuredGiveaway.title}
+                <h3 className="text-2xl font-bold text-white leading-tight">
+                  <span className="text-white mr-1.5">★</span> {featuredGiveaway.title.split('|')[0] || featuredGiveaway.title}
                 </h3>
-                <p className="text-purple-400 font-bold text-sm mt-0.5">
-                  {featuredGiveaway.prize_value ? `R$ ${featuredGiveaway.prize_value}` : (featuredGiveaway.coins_cost === 0 ? "R$ 860,54" : "R$ 1.364,35")}
+                <p className="text-purple-400 font-bold text-sm mt-1">
+                  R$ {featuredGiveaway.prize_value || "1.364,35"}
                 </p>
               </div>
             </div>
 
-            {/* Content & Action Area */}
-            <div className="bg-[#101010] p-6 flex flex-col pt-4">
-              <div className="flex items-center gap-1.5 mb-3">
-                <span className="text-purple-500 text-sm">🔥</span>
-                <span className="text-purple-500 text-[10px] font-bold tracking-[0.2em] uppercase">{featuredGiveaway.subtitle || "SORTEIO ACONTECENDO AGORA"}</span>
+            {/* Bottom Area (Content & Actions) */}
+            <div className="p-6 sm:p-8 bg-[#101010] flex flex-col items-start w-full relative z-30">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-orange-500 text-sm">🔥</span>
+                <span className="text-[10px] font-bold text-purple-500 tracking-widest uppercase">
+                  {featuredGiveaway.subtitle || featuredGiveaway.title.split('|')[0]}
+                </span>
               </div>
               
-              <h2 className="text-4xl font-black text-white uppercase tracking-tighter leading-none mb-1" style={{ fontFamily: 'Impact, sans-serif' }}>
-                SORTEIO {featuredGiveaway.title.split('|')[0] || "BAIONETA"}
-              </h2>
-              <h2 className="text-2xl font-black text-purple-500 uppercase tracking-tighter mb-4" style={{ fontFamily: 'Impact, sans-serif' }}>
-                {featuredGiveaway.title.split('|')[1] || "FOREST DDPAT"}
-              </h2>
-
-              <p className="text-[#a0a0a0] text-sm mb-6 leading-relaxed font-medium">
+              <h1 className="text-4xl sm:text-[2.5rem] font-black text-white uppercase tracking-tighter leading-[0.95]" style={{ fontFamily: 'var(--font-kanit)' }}>
+                SORTEIO {featuredGiveaway.title.split('|')[0] || "BAIONETA DOPLER"} <br/>
+                {featuredGiveaway.title.includes('|') && (
+                  <span className="text-purple-500 inline-block mt-1">{featuredGiveaway.title.split('|')[1]}</span>
+                )}
+              </h1>
+              
+              <p className="text-[#a0a0a0] mt-4 mb-6 text-sm leading-relaxed font-medium">
                 {featuredGiveaway.description || (
-                  <><span className="text-white">★ {featuredGiveaway.title}</span> — grátis para quem segue o Instagram e é inscrito nos três canais.</>
+                  `Respostas aceitas até dia ${featuredGiveaway.draw_date ? new Date(featuredGiveaway.draw_date).toLocaleDateString('pt-BR') : '30/09/2026'}!`
                 )}
               </p>
+
+              {/* Cronômetro Compacto */}
+              <div className="w-full flex items-center justify-between bg-black/50 border border-white/5 rounded-xl p-4 mb-6">
+                <div className="flex flex-col">
+                  <span className="text-[9px] text-[#606060] uppercase tracking-widest font-bold mb-1">Encerra em</span>
+                  <div className="flex items-center gap-1.5 text-white font-black text-lg" style={{ fontFamily: 'var(--font-kanit)' }}>
+                    <Clock className="w-4 h-4 text-purple-500 mr-1" />
+                    {timeLeft.days}d : {timeLeft.hours}h : {timeLeft.minutes}m : {timeLeft.seconds}s
+                  </div>
+                </div>
+              </div>
 
               <button 
                 onClick={() => {
@@ -211,13 +263,13 @@ export default function Home() {
                   sessionStorage.setItem('featured_closed', 'true');
                   handleOpenModal(featuredGiveaway);
                 }}
-                className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold uppercase tracking-widest py-4 rounded-xl transition-colors flex items-center justify-center gap-2 text-sm"
+                className="w-full bg-purple-600 hover:bg-purple-500 text-white font-black uppercase tracking-widest py-4 rounded-xl transition-all duration-300 flex items-center justify-center gap-3 text-sm shadow-[0_0_20px_rgba(147,51,234,0.3)] mb-4"
               >
                 QUERO PARTICIPAR <ArrowRight className="w-4 h-4" />
               </button>
               
-              <p className="text-center text-[10px] text-[#808080] mt-4 tracking-widest uppercase font-bold">
-                ATÉ 4 ENTRADAS · LOGIN COM GOOGLE
+              <p className="w-full text-center text-[#606060] text-[10px] font-bold uppercase tracking-widest">
+                {featuredGiveaway.login_text || "Entrada Gratuita . Login com a Twitch"}
               </p>
             </div>
           </div>
