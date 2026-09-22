@@ -905,24 +905,7 @@ export default function AdminDashboard() {
                     
                     let uploadedUrl = "";
                     if (twitchGiveawayImage) {
-                       const fileExt = twitchGiveawayImage.name.split('.').pop();
-                       const fileName = `${Math.random()}.${fileExt}`;
-                       
-                       const { data: uploadData, error: uploadError } = await supabase.storage
-                         .from('giveaway-images')
-                         .upload(fileName, twitchGiveawayImage);
-                         
-                       if (uploadError) {
-                         alert("Erro ao enviar imagem: " + uploadError.message);
-                         setIsCreatingTwitchGiveaway(false);
-                         return;
-                       }
-                       
-                       const { data: { publicUrl } } = supabase.storage
-                         .from('giveaway-images')
-                         .getPublicUrl(fileName);
-                         
-                       uploadedUrl = publicUrl;
+                       uploadedUrl = await readImageAsBase64(twitchGiveawayImage);
                     }
 
                     const { error } = await supabase.from('giveaways').insert({
