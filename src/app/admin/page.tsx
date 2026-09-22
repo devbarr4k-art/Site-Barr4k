@@ -34,7 +34,13 @@ export default function AdminDashboard() {
   const [editingParticipant, setEditingParticipant] = useState<string | null>(null);
   const [editTwitchUsername, setEditTwitchUsername] = useState("");
   const [editCoinsUsed, setEditCoinsUsed] = useState(0);
+  
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [rouletteItems, setRouletteItems] = useState<any[]>([]);
+  const [rouletteOffset, setRouletteOffset] = useState(0);
+  const [showWinner, setShowWinner] = useState(false);
   const [drawnWinner, setDrawnWinner] = useState<any>(null);
+  const [localWinners, setLocalWinners] = useState<any[]>([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedColor, setSelectedColor] = useState("Amarelo");
   const [previewMode, setPreviewMode] = useState<"home" | "destaque" | "sorteio">("home");
@@ -126,23 +132,81 @@ export default function AdminDashboard() {
     if (data) setWinners(data);
   };
 
+  const fetchLocalWinners = async (giveawayId: string) => {
+    const { data } = await supabase.from('winners').select('*').eq('giveaway_id', giveawayId);
+    if (data) setLocalWinners(data);
+  };
+
   const handleOpenParticipants = (id: string) => {
     setManagingParticipants(id);
     fetchParticipants(id);
+    fetchLocalWinners(id);
+  };
+
+  const startRoulette = () => {
+    // Remover aprovados que já ganharam nesta sessão
+    const alreadyWon = localWinners.map(w => w.twitch_username);
+    const approved = participants.filter(p => p.status === 'approved' && !alreadyWon.includes(p.twitch_username));
+    
+    if (approved.length === 0) {
+      alert("Não há mais participantes aprovados e não-sorteados disponíveis.");
+      return;
+    }
+
+    const items = [];
+    for (let i = 0; i < 50; i++) {
+      items.push(approved[Math.floor(Math.random() * approved.length)]);
+    }
+
+    const trueWinnerIndex = 40;
+    const trueWinner = approved[Math.floor(Math.random() * approved.length)];
+    items[trueWinnerIndex] = trueWinner;
+
+    setRouletteItems(items);
+    setDrawnWinner(trueWinner);
+    setRouletteOffset(0);
+    setIsDrawing(true);
+    setShowWinner(false);
+
+    // Inicia o spin após 100ms
+    setTimeout(() => {
+      setRouletteOffset(trueWinnerIndex * 160); // 144px width + 16px gap = 160px
+    }, 100);
+
+    // Revela vencedor após 10s
+    setTimeout(() => {
+      setShowWinner(true);
+    }, 10100);
   };
 
   const handleDrawWinner = () => {
-    const approved = participants.filter(p => p.status === 'approved');
-    if (approved.length === 0) {
-      alert("Nenhum participante aprovado para sortear.");
-      return;
+    startRoulette();
+  };
+
+  const saveWinner = async (drawAgain: boolean) => {
+    const sorteio = sorteios.find(s => s.id === managingParticipants);
+    const prize = sorteio ? sorteio.title : "Prêmio Sorteado";
+    
+    const { data, error } = await supabase.from('winners').insert([{
+      twitch_username: drawnWinner.twitch_username,
+      prize: prize,
+      in_hall_of_fame: false,
+      giveaway_id: managingParticipants
+    }]).select();
+    
+    if (error) {
+       alert("Erro ao salvar: " + error.message);
+    } else {
+       if (data && data[0]) setLocalWinners(prev => [...prev, data[0]]);
+       fetchWinners(); // Atualiza aba global tbm
     }
-    
-    // Sorteia aleatoriamente um dos aprovados
-    const randomIndex = Math.floor(Math.random() * approved.length);
-    const winner = approved[randomIndex];
-    
-    setDrawnWinner(winner);
+
+    if (drawAgain) {
+       startRoulette();
+    } else {
+       setIsDrawing(false);
+       setShowWinner(false);
+    }
   };
 
   const handleDeleteGiveaway = async (id: string) => {
@@ -475,6 +539,42 @@ export default function AdminDashboard() {
                     </table>
                   </div>
                 </div>
+
+                {/* Tabela de Vencedores Locais (Desse Sorteio) */}
+                {localWinners.length > 0 && (
+                  <div className="mt-12 space-y-4">
+                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                      <Trophy className="w-5 h-5 text-yellow-500" /> Vencedores deste Sorteio
+                    </h2>
+                    <div className="glass-panel rounded-xl overflow-hidden border border-yellow-500/30">
+                      <table className="w-full text-left text-sm text-gray-400">
+                        <thead className="bg-yellow-900/20 text-xs uppercase text-gray-300 border-b border-yellow-900/50">
+                          <tr>
+                            <th className="px-6 py-4">Usuário da Twitch</th>
+                            <th className="px-6 py-4">Prêmio Ganho</th>
+                            <th className="px-6 py-4">Data do Sorteio</th>
+                            <th className="px-6 py-4 text-center">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {localWinners.map(winner => (
+                            <tr key={winner.id} className="border-b border-gray-800 hover:bg-white/5 transition-colors">
+                              <td className="px-6 py-4 font-bold text-white">@{winner.twitch_username}</td>
+                              <td className="px-6 py-4 text-yellow-500 font-bold">{winner.prize}</td>
+                              <td className="px-6 py-4">{new Date(winner.won_at).toLocaleDateString()}</td>
+                              <td className="px-6 py-4 text-center">
+                                <span className={winner.in_hall_of_fame ? 'text-purple-400 font-bold' : 'text-gray-500'}>
+                                  {winner.in_hall_of_fame ? 'No Hall da Fama' : 'Comum'}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
               </div>
             ) : (
               /* View Normal de Sorteios Mensais */
@@ -696,49 +796,65 @@ export default function AdminDashboard() {
 
       </main>
 
-      {/* Pop-up do Vencedor Sorteado */}
-      {drawnWinner && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fade-in">
-          <div className="bg-[#121214] border border-purple-500/50 rounded-2xl w-full max-w-md shadow-[0_0_50px_rgba(168,85,247,0.3)] p-8 text-center relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-purple-600 to-pink-600"></div>
+      {/* Pop-up do Sorteio (Roleta) */}
+      {isDrawing && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-5xl flex flex-col items-center">
             
-            <Trophy className="w-20 h-20 text-yellow-500 mx-auto mb-6 drop-shadow-[0_0_15px_rgba(234,179,8,0.5)] animate-pulse" />
-            
-            <h2 className="text-3xl font-black text-white uppercase italic tracking-wider mb-2">Vencedor!</h2>
-            <p className="text-gray-400 mb-6 font-medium">Sorteado pelo ID <span className="text-white font-mono text-xs truncate inline-block max-w-[150px] align-bottom">{drawnWinner.id}</span></p>
-            
-            <div className="bg-purple-900/20 border border-purple-500/30 rounded-xl p-6 mb-8">
-              <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-2">Usuário da Twitch</p>
-              <p className="text-4xl font-black text-purple-400 truncate">@{drawnWinner.twitch_username}</p>
-            </div>
-            
-            <div className="flex gap-3">
-              <button 
-                onClick={() => setDrawnWinner(null)}
-                className="flex-1 bg-gray-800 hover:bg-gray-700 text-white py-3 rounded-lg font-bold transition-colors"
-              >
-                Fechar
-              </button>
-              <button 
-                onClick={async () => {
-                  const sorteio = sorteios.find(s => s.id === managingParticipants);
-                  const prize = sorteio ? sorteio.title : "Prêmio Sorteado";
-                  
-                  await supabase.from('winners').insert([{
-                    twitch_username: drawnWinner.twitch_username,
-                    prize: prize,
-                    in_hall_of_fame: false
-                  }]);
-                  
-                  alert("Vencedor salvo no histórico!");
-                  fetchWinners();
-                  setDrawnWinner(null);
+            <h2 className="text-4xl font-black text-white uppercase italic tracking-wider mb-12 animate-pulse">Sorteando...</h2>
+
+            {/* A linha de centro (mirador) */}
+            <div className="relative w-full h-48 bg-[#121214] border-y-4 border-purple-500/30 overflow-hidden shadow-[0_0_50px_rgba(168,85,247,0.1)] flex items-center">
+              
+              {/* O traço vermelho no meio */}
+              <div className="absolute left-1/2 top-0 bottom-0 w-1 bg-red-500 z-50 transform -translate-x-1/2 shadow-[0_0_15px_rgba(239,68,68,1)]"></div>
+              
+              {/* A esteira de avatares */}
+              <div 
+                className={`flex gap-4 transition-transform ease-[cubic-bezier(0.15,0.85,0.15,1)]`}
+                style={{ 
+                  paddingLeft: 'calc(50vw - 72px)', /* 72px is half of item width 144px */
+                  paddingRight: '50vw',
+                  transform: `translateX(-${rouletteOffset}px)`,
+                  transitionDuration: rouletteOffset > 0 ? '10s' : '0s'
                 }}
-                className="flex-1 bg-green-600 hover:bg-green-500 text-white py-3 rounded-lg font-bold transition-colors"
               >
-                Salvar Vencedor
-              </button>
+                {rouletteItems.map((item, index) => (
+                  <div key={index} className="w-[144px] h-[144px] flex-shrink-0 bg-black border border-gray-800 rounded-xl flex flex-col items-center justify-center relative overflow-hidden opacity-80">
+                    <img src={`https://ui-avatars.com/api/?name=${item.twitch_username}&background=random&color=fff&size=128`} className="w-16 h-16 rounded-full mb-3 shadow-[0_0_10px_rgba(0,0,0,0.5)]" />
+                    <span className="text-white font-bold text-xs uppercase tracking-widest truncate w-full text-center px-2">@{item.twitch_username}</span>
+                  </div>
+                ))}
+              </div>
             </div>
+
+            {/* Quando terminar, mostrar vencedor e botões */}
+            {showWinner && (
+              <div className="mt-12 bg-[#121214] border border-purple-500/50 rounded-2xl w-full max-w-md shadow-[0_0_50px_rgba(168,85,247,0.3)] p-8 text-center animate-fade-in relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-purple-600 to-pink-600"></div>
+                
+                <Trophy className="w-16 h-16 text-yellow-500 mx-auto mb-4 drop-shadow-[0_0_15px_rgba(234,179,8,0.5)]" />
+                
+                <h3 className="text-3xl font-black text-white uppercase italic tracking-wider mb-2 truncate">@{drawnWinner?.twitch_username}</h3>
+                <p className="text-gray-400 mb-6 font-medium text-xs">VENCEDOR DO SORTEIO (ID: {drawnWinner?.id})</p>
+                
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => saveWinner(false)}
+                    className="flex-1 bg-green-600 hover:bg-green-500 text-white py-3 rounded-lg font-bold transition-colors text-xs uppercase tracking-widest"
+                  >
+                    Salvar & Concluir
+                  </button>
+                  <button 
+                    onClick={() => saveWinner(true)}
+                    className="flex-1 bg-purple-600 hover:bg-purple-500 text-white py-3 rounded-lg font-bold transition-colors text-xs uppercase tracking-widest"
+                  >
+                    Salvar & Sortear Novo
+                  </button>
+                </div>
+              </div>
+            )}
+            
           </div>
         </div>
       )}
