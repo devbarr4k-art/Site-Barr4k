@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Edit, Trash2, Settings, Users, Gift, Save, AlertTriangle, Star } from "lucide-react";
+import { Plus, Edit, Trash2, Settings, Users, Gift, Save, AlertTriangle, Star, ArrowRight } from "lucide-react";
 import { FaTwitch } from "react-icons/fa";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -37,6 +37,8 @@ export default function AdminDashboard() {
   const [newDrawDate, setNewDrawDate] = useState("");
   const [newImage, setNewImage] = useState<File | null>(null);
   const [newDetailImage, setNewDetailImage] = useState<File | null>(null);
+  const [newLoginText, setNewLoginText] = useState("");
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   const [editingGiveaway, setEditingGiveaway] = useState<string | null>(null);
 
@@ -111,14 +113,17 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleSetFeatured = async (id: string) => {
+  const handleSetFeatured = async (id: string, currentType: string) => {
     // Primeiro limpa todos os outros de featured para monthly
     await supabase.from('giveaways').update({ type: 'monthly' }).eq('type', 'featured');
-    // Agora seta esse para featured
-    const { error } = await supabase.from('giveaways').update({ type: 'featured' }).eq('id', id);
     
-    if (!error) fetchSorteios();
-    else alert("Erro ao destacar: " + error.message);
+    if (currentType !== 'featured') {
+      // Agora seta esse para featured
+      const { error } = await supabase.from('giveaways').update({ type: 'featured' }).eq('id', id);
+      if (error) alert("Erro ao destacar: " + error.message);
+    }
+    
+    fetchSorteios();
   };
 
   const handleEditGiveaway = (giveaway: any) => {
@@ -132,8 +137,10 @@ export default function AdminDashboard() {
     setNewShippingText(giveaway.shipping_text || "");
     setNewPrizeValue(giveaway.prize_value || "");
     setNewDrawDate(giveaway.draw_date ? new Date(giveaway.draw_date).toISOString().slice(0, 16) : "");
+    setNewLoginText(giveaway.login_text || "");
     setNewImage(null);
     setNewDetailImage(null);
+    setPreviewImage(giveaway.image_url || null);
     setEditingGiveaway(giveaway.id);
     setIsCreateModalOpen(true);
   };
@@ -149,8 +156,10 @@ export default function AdminDashboard() {
     setNewShippingText("");
     setNewPrizeValue("");
     setNewDrawDate("");
+    setNewLoginText("");
     setNewImage(null);
     setNewDetailImage(null);
+    setPreviewImage(null);
     setEditingGiveaway(null);
     setIsCreateModalOpen(true);
   };
@@ -204,6 +213,7 @@ export default function AdminDashboard() {
         shipping_text: newShippingText,
         prize_value: newPrizeValue,
         draw_date: newDrawDate ? new Date(newDrawDate).toISOString() : null,
+        login_text: newLoginText,
       };
       if (imageUrl) updateData.image_url = imageUrl;
       if (detailImageUrl) updateData.detail_image_url = detailImageUrl;
@@ -227,6 +237,7 @@ export default function AdminDashboard() {
         shipping_text: newShippingText,
         prize_value: newPrizeValue,
         draw_date: newDrawDate ? new Date(newDrawDate).toISOString() : null,
+        login_text: newLoginText,
         image_url: imageUrl,
         detail_image_url: detailImageUrl,
         type: 'monthly',
@@ -466,10 +477,10 @@ export default function AdminDashboard() {
                                   <Users className="w-4 h-4" />
                                 </button>
                                 <button 
-                                  onClick={() => handleSetFeatured(sorteio.id)}
+                                  onClick={() => handleSetFeatured(sorteio.id, sorteio.type)}
                                   className={`p-2 rounded transition-colors ${sorteio.type === 'featured' ? 'bg-yellow-500/20 text-yellow-500' : 'bg-gray-800 text-gray-500 hover:text-yellow-500'}`} 
                                   title="Destacar Sorteio Principal">
-                                  <Star className="w-4 h-4" />
+                                  <Star className={`w-4 h-4 ${sorteio.type === 'featured' ? 'fill-current' : ''}`} />
                                 </button>
                                 <button 
                                   onClick={() => handleEditGiveaway(sorteio)}
@@ -636,87 +647,117 @@ export default function AdminDashboard() {
       {/* Pop-up de Criação de Sorteio */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in overflow-y-auto">
-          <div className="bg-[#121214] border border-gray-800 rounded-2xl w-full max-w-lg shadow-2xl relative my-12">
+          <div className="bg-[#121214] border border-gray-800 rounded-2xl w-full max-w-5xl shadow-2xl relative my-12 overflow-hidden flex flex-col md:flex-row">
             <button
               onClick={() => setIsCreateModalOpen(false)}
-              className="absolute top-6 right-6 text-gray-400 hover:text-white transition-colors"
+              className="absolute top-6 right-6 text-gray-400 hover:text-white transition-colors z-20"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </button>
 
-            <div className="p-8 space-y-6">
+            <div className="p-8 md:w-[55%] space-y-6 max-h-[85vh] overflow-y-auto custom-scrollbar">
               <h2 className="text-2xl font-black text-white uppercase italic tracking-wider">Criar Sorteio</h2>
 
               <form onSubmit={handleCreateSorteio} className="space-y-5">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Nome</label>
-                  <input type="text" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} required className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: Sorteio Mensal TopSkin" />
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
+                    Nome
+                    <span className="cursor-help text-purple-500" title="Nome principal do sorteio, ex: Sorteio Mensal TopSkin. Se quiser dividir o título em duas linhas e duas cores, use o caractere | ex: BAIONETA | FOREST DDPAT">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                    </span>
+                  </label>
+                  <input type="text" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} required className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: BAIONETA | FOREST DDPAT" />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Descrição</label>
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
+                    Descrição
+                    <span className="cursor-help text-purple-500" title="Texto completo com as regras do sorteio. Aparece dentro da página do sorteio.">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                    </span>
+                  </label>
                   <textarea rows={3} value={newDesc} onChange={(e) => setNewDesc(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors resize-none" placeholder="Ex: Respostas aceitas de 20/01 até 28/02. Regras, cupom, etc." />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Destaque (Opcional)</label>
-                  <input type="text" value={newHighlight} onChange={(e) => setNewHighlight(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: BÔNUS, NOVO, URGENTE..." />
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
+                    Destaque (Opcional)
+                    <span className="cursor-help text-purple-500" title="Balão colorido que aparece no canto superior esquerdo da imagem no card da Home.">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                    </span>
+                  </label>
+                  <input type="text" value={newHighlight} onChange={(e) => setNewHighlight(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: CSGO-SKINS" />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Linha Fina (Subtítulo)</label>
-                    <input type="text" value={newSubtitle} onChange={(e) => setNewSubtitle(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: SORTEIO ESPECIAL" />
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
+                      Linha Fina (Subtítulo)
+                      <span className="cursor-help text-purple-500" title="Opcional. Outro balão colorido ao lado do destaque, ex: FACTORY-NEW.">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                      </span>
+                    </label>
+                    <input type="text" value={newSubtitle} onChange={(e) => setNewSubtitle(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: FACTORY-NEW" />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Label do Prêmio</label>
-                    <input type="text" value={newPrizeLabel} onChange={(e) => setNewPrizeLabel(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: PRÊMIO" />
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
+                      Texto da Entrada
+                      <span className="cursor-help text-purple-500" title="O texto que aparece em 'ENTRADA' no card inferior esquerdo. Ex: Gratuito ou R$ 12,00">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                      </span>
+                    </label>
+                    <input type="text" value={newPrizeLabel} onChange={(e) => setNewPrizeLabel(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: Gratuito" />
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Texto de Envio</label>
-                  <input type="text" value={newShippingText} onChange={(e) => setNewShippingText(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: 100% grátis · Enviado via Trade" />
-                </div>
-
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {colorOptions.map((color) => (
-                    <button
-                      key={color.name}
-                      type="button"
-                      onClick={() => setSelectedColor(color.name)}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${selectedColor === color.name
-                          ? "bg-gray-800 text-white border border-gray-600"
-                          : "bg-[#0a0a0b] text-gray-400 border border-gray-800 hover:bg-gray-900"
-                        }`}
-                    >
-                      <span className={`w-2.5 h-2.5 rounded-full ${color.hex}`}></span>
-                      {color.name}
-                    </button>
-                  ))}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Valor do Prêmio (R$)</label>
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
+                      Valor do Prêmio (R$)
+                      <span className="cursor-help text-purple-500" title="Aparece em VALOR no card. Ex: 1.364,35">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                      </span>
+                    </label>
                     <input type="text" value={newPrizeValue} onChange={(e) => setNewPrizeValue(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: 1.364,35" />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Data do Sorteio</label>
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
+                      Data do Sorteio
+                      <span className="cursor-help text-purple-500" title="Data exata de encerramento. Serve para alimentar o cronômetro automaticamente.">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                      </span>
+                    </label>
                     <input type="datetime-local" value={newDrawDate} onChange={(e) => setNewDrawDate(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors [color-scheme:dark]" />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Custo em Coins</label>
-                  <input type="number" value={newCoins} onChange={(e) => setNewCoins(Number(e.target.value))} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: 500" />
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
+                    Texto de Login (Página Sorteio)
+                    <span className="cursor-help text-purple-500" title="Texto que aparece abaixo do botão QUERO PARTICIPAR na página interna.">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                    </span>
+                  </label>
+                  <input type="text" value={newLoginText} onChange={(e) => setNewLoginText(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: Entrada Gratuita . Login com a Twitch" />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Imagem (Capa / Home)</label>
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
+                      Imagem (Capa / Home)
+                      <span className="cursor-help text-purple-500" title="Imagem do prêmio, de preferência com fundo transparente, para os cards da tela inicial.">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                      </span>
+                    </label>
                     <label className="w-full border-2 border-dashed border-gray-700 hover:border-purple-500 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition-colors bg-[#0a0a0b] relative">
-                      <input type="file" onChange={(e) => e.target.files && setNewImage(e.target.files[0])} accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                      <input type="file" onChange={(e) => {
+                        if (e.target.files) {
+                          setNewImage(e.target.files[0]);
+                          const reader = new FileReader();
+                          reader.onload = (e) => setPreviewImage(e.target?.result as string);
+                          reader.readAsDataURL(e.target.files[0]);
+                        }
+                      }} accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500 mb-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
                       <span className="text-gray-400 font-bold text-xs uppercase tracking-widest text-center truncate px-2 w-full">
                         {newImage ? newImage.name : "Imagem da Capa"}
@@ -724,7 +765,12 @@ export default function AdminDashboard() {
                     </label>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Imagem (Página Sorteio)</label>
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
+                      Imagem (Página Sorteio)
+                      <span className="cursor-help text-purple-500" title="Imagem grande (com fundo) que aparece dentro da aba do sorteio, em alta resolução.">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                      </span>
+                    </label>
                     <label className="w-full border-2 border-dashed border-gray-700 hover:border-purple-500 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition-colors bg-[#0a0a0b] relative">
                       <input type="file" onChange={(e) => e.target.files && setNewDetailImage(e.target.files[0])} accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500 mb-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
@@ -735,13 +781,103 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
+                <div className="space-y-2 pt-2">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
+                    Cor Principal do Card (Borda / Botão)
+                  </label>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {colorOptions.map((color) => (
+                      <button
+                        key={color.name}
+                        type="button"
+                        onClick={() => setSelectedColor(color.name)}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${selectedColor === color.name
+                            ? "bg-gray-800 text-white border border-gray-600"
+                            : "bg-[#0a0a0b] text-gray-400 border border-gray-800 hover:bg-gray-900"
+                          }`}
+                      >
+                        <span className={`w-2.5 h-2.5 rounded-full ${color.hex}`}></span>
+                        {color.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <button
                   type="submit"
-                  className="w-full btn-neon font-bold italic tracking-widest uppercase py-4 rounded-lg mt-2 text-sm text-center block"
+                  className="w-full btn-neon font-bold italic tracking-widest uppercase py-4 rounded-lg mt-6 text-sm text-center block"
                 >
                   Salvar Sorteio
                 </button>
               </form>
+            </div>
+
+            {/* Live Preview Side */}
+            <div className="hidden md:block md:w-[45%] bg-[#080809] border-l border-gray-800 p-8 flex flex-col items-center justify-center">
+              <h3 className="text-gray-500 font-bold text-sm tracking-widest uppercase mb-6 w-full text-center">Prévia do Card (Home)</h3>
+              
+              {/* O Card Simulado */}
+              <div className="w-full max-w-[320px] rounded-[16px] p-6 bg-[#0c0d10] relative group transition-colors animated-border-card border border-white/5 mx-auto">
+                {/* Destaques */}
+                <div className="flex gap-2 flex-wrap mb-4 z-20 relative">
+                  {newHighlight && (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest bg-[#1a1b23] text-purple-400 border border-purple-500/30">
+                      <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+                      {newHighlight}
+                    </span>
+                  )}
+                  {newSubtitle && (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest bg-[#1a1b23] text-gray-400 border border-gray-800">
+                      {newSubtitle}
+                    </span>
+                  )}
+                </div>
+
+                {/* Imagem */}
+                <div className="relative h-48 w-full mb-6 z-10 flex items-center justify-center">
+                  {previewImage ? (
+                    <img src={previewImage} alt="Preview" className="max-w-full max-h-full object-contain" />
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center text-gray-700 bg-black/50 rounded-xl">
+                      <Gift className="w-12 h-12 mb-2" />
+                      <span className="text-xs font-bold uppercase tracking-widest">Sem Imagem</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Info */}
+                <div className="z-20 relative">
+                  <h3 className="text-xl font-bold text-white mb-6 line-clamp-2">
+                    <span className="text-[#FF6B1C] mr-2">★</span>
+                    {newTitle.split('|')[0] || "BAIONETA"}
+                    {newTitle.includes('|') && (
+                      <span className="text-gray-400 font-normal"> | {newTitle.split('|')[1]}</span>
+                    )}
+                  </h3>
+
+                  <div className="h-[1px] w-full bg-white/5 mb-4" />
+
+                  <div className="flex justify-between items-center mb-6">
+                    <div>
+                      <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest mb-1">ENTRADA</p>
+                      <p className="text-white font-bold text-sm">{newPrizeLabel || "Gratuito"}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest mb-1">Valor</p>
+                      <p className="text-purple-400 font-bold text-sm">R$ {newPrizeValue || "1.364,35"}</p>
+                    </div>
+                  </div>
+
+                  <button type="button" className="w-full flex items-center justify-between text-gray-400 hover:text-white transition-colors group/btn">
+                    <span className="text-xs font-bold uppercase tracking-widest">Participar</span>
+                    <ArrowRight className="w-4 h-4 transform group-hover/btn:translate-x-1 transition-transform" />
+                  </button>
+                </div>
+              </div>
+              
+              <p className="text-gray-600 text-[10px] uppercase font-bold text-center mt-6 max-w-[250px]">
+                A prévia é uma aproximação visual do card que aparecerá na página inicial.
+              </p>
             </div>
           </div>
         </div>
