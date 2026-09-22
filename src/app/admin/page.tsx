@@ -29,11 +29,14 @@ export default function AdminDashboard() {
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [newHighlight, setNewHighlight] = useState("");
-  const [newCoins, setNewCoins] = useState(0);
-  const [newImage, setNewImage] = useState<File | null>(null);
+  const [newCoins, setNewCoins] = useState<number | "">(0);
   const [newSubtitle, setNewSubtitle] = useState("");
   const [newPrizeLabel, setNewPrizeLabel] = useState("");
   const [newShippingText, setNewShippingText] = useState("");
+  const [newPrizeValue, setNewPrizeValue] = useState("");
+  const [newDrawDate, setNewDrawDate] = useState("");
+  const [newImage, setNewImage] = useState<File | null>(null);
+  const [newDetailImage, setNewDetailImage] = useState<File | null>(null);
 
   const [editingGiveaway, setEditingGiveaway] = useState<string | null>(null);
 
@@ -127,7 +130,10 @@ export default function AdminDashboard() {
     setNewSubtitle(giveaway.subtitle || "");
     setNewPrizeLabel(giveaway.prize_label || "");
     setNewShippingText(giveaway.shipping_text || "");
+    setNewPrizeValue(giveaway.prize_value || "");
+    setNewDrawDate(giveaway.draw_date ? new Date(giveaway.draw_date).toISOString().slice(0, 16) : "");
     setNewImage(null);
+    setNewDetailImage(null);
     setEditingGiveaway(giveaway.id);
     setIsCreateModalOpen(true);
   };
@@ -141,9 +147,39 @@ export default function AdminDashboard() {
     setNewSubtitle("");
     setNewPrizeLabel("");
     setNewShippingText("");
+    setNewPrizeValue("");
+    setNewDrawDate("");
     setNewImage(null);
+    setNewDetailImage(null);
     setEditingGiveaway(null);
     setIsCreateModalOpen(true);
+  };
+
+  const readImageAsBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const max = 800;
+          if (width > height) {
+            if (width > max) { height *= max / width; width = max; }
+          } else {
+            if (height > max) { width *= max / height; height = max; }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.8));
+        };
+        img.src = e.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
   };
 
   const handleCreateSorteio = async (e: React.FormEvent) => {
@@ -151,32 +187,10 @@ export default function AdminDashboard() {
     if (!newTitle) return alert("Título é obrigatório!");
 
     let imageUrl = null;
-    if (newImage) {
-      imageUrl = await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const img = new Image();
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            let width = img.width;
-            let height = img.height;
-            const max = 600;
-            if (width > height) {
-              if (width > max) { height *= max / width; width = max; }
-            } else {
-              if (height > max) { width *= max / height; height = max; }
-            }
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx?.drawImage(img, 0, 0, width, height);
-            resolve(canvas.toDataURL('image/jpeg', 0.6));
-          };
-          img.src = e.target?.result as string;
-        };
-        reader.readAsDataURL(newImage);
-      });
-    }
+    if (newImage) imageUrl = await readImageAsBase64(newImage);
+    
+    let detailImageUrl = null;
+    if (newDetailImage) detailImageUrl = await readImageAsBase64(newDetailImage);
 
     if (editingGiveaway) {
       const updateData: any = {
@@ -188,8 +202,11 @@ export default function AdminDashboard() {
         subtitle: newSubtitle,
         prize_label: newPrizeLabel,
         shipping_text: newShippingText,
+        prize_value: newPrizeValue,
+        draw_date: newDrawDate ? new Date(newDrawDate).toISOString() : null,
       };
       if (imageUrl) updateData.image_url = imageUrl;
+      if (detailImageUrl) updateData.detail_image_url = detailImageUrl;
 
       const { error } = await supabase.from('giveaways').update(updateData).eq('id', editingGiveaway);
       
@@ -208,7 +225,10 @@ export default function AdminDashboard() {
         subtitle: newSubtitle,
         prize_label: newPrizeLabel,
         shipping_text: newShippingText,
+        prize_value: newPrizeValue,
+        draw_date: newDrawDate ? new Date(newDrawDate).toISOString() : null,
         image_url: imageUrl,
+        detail_image_url: detailImageUrl,
         type: 'monthly',
         status: 'active'
       }]);
@@ -676,20 +696,43 @@ export default function AdminDashboard() {
                   ))}
                 </div>
 
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Valor do Prêmio (R$)</label>
+                    <input type="text" value={newPrizeValue} onChange={(e) => setNewPrizeValue(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: 1.364,35" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Data do Sorteio</label>
+                    <input type="datetime-local" value={newDrawDate} onChange={(e) => setNewDrawDate(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors [color-scheme:dark]" />
+                  </div>
+                </div>
+
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Custo em Coins</label>
                   <input type="number" value={newCoins} onChange={(e) => setNewCoins(Number(e.target.value))} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: 500" />
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Imagem</label>
-                  <label className="w-full border-2 border-dashed border-gray-700 hover:border-purple-500 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition-colors bg-[#0a0a0b] relative">
-                    <input type="file" onChange={(e) => e.target.files && setNewImage(e.target.files[0])} accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500 mb-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                    <span className="text-gray-400 font-bold text-xs uppercase tracking-widest text-center">
-                      {newImage ? newImage.name : "Clique para enviar"}
-                    </span>
-                  </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Imagem (Capa / Home)</label>
+                    <label className="w-full border-2 border-dashed border-gray-700 hover:border-purple-500 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition-colors bg-[#0a0a0b] relative">
+                      <input type="file" onChange={(e) => e.target.files && setNewImage(e.target.files[0])} accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500 mb-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                      <span className="text-gray-400 font-bold text-xs uppercase tracking-widest text-center truncate px-2 w-full">
+                        {newImage ? newImage.name : "Imagem da Capa"}
+                      </span>
+                    </label>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Imagem (Página Sorteio)</label>
+                    <label className="w-full border-2 border-dashed border-gray-700 hover:border-purple-500 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition-colors bg-[#0a0a0b] relative">
+                      <input type="file" onChange={(e) => e.target.files && setNewDetailImage(e.target.files[0])} accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500 mb-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                      <span className="text-gray-400 font-bold text-xs uppercase tracking-widest text-center truncate px-2 w-full">
+                        {newDetailImage ? newDetailImage.name : "Imagem Interna"}
+                      </span>
+                    </label>
+                  </div>
                 </div>
 
                 <button

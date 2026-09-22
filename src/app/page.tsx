@@ -179,7 +179,9 @@ export default function Home() {
                 <h3 className="text-xl font-bold text-white leading-tight">
                   <span className="text-white">★</span> {featuredGiveaway.title}
                 </h3>
-                <p className="text-purple-400 font-bold text-sm mt-0.5">R$ {featuredGiveaway.coins_cost === 0 ? "860,54" : "1.364,35"}</p>
+                <p className="text-purple-400 font-bold text-sm mt-0.5">
+                  {featuredGiveaway.prize_value ? `R$ ${featuredGiveaway.prize_value}` : (featuredGiveaway.coins_cost === 0 ? "R$ 860,54" : "R$ 1.364,35")}
+                </p>
               </div>
             </div>
 
@@ -272,7 +274,9 @@ export default function Home() {
                   <div className="flex justify-between items-center mb-6">
                     <div className="text-right ml-auto">
                       <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest mb-1">Valor</p>
-                      <p className="text-purple-400 font-bold text-sm">R$ {giveaway.coins_cost === 0 ? "860,54" : "1.364,35"}</p>
+                      <p className="text-purple-400 font-bold text-sm">
+                        {giveaway.prize_value ? `R$ ${giveaway.prize_value}` : (giveaway.coins_cost === 0 ? "R$ 860,54" : "R$ 1.364,35")}
+                      </p>
                     </div>
                   </div>
 

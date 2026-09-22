@@ -2,9 +2,46 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, CheckCircle2, Gift, Sparkles, Trophy, Upload } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Gift, Sparkles, Trophy, Upload, Clock } from "lucide-react";
+import Link from "next/link";
 import { FaTwitch } from "react-icons/fa";
 import { supabase } from "@/lib/supabase";
+
+const useCountdown = (targetDateString: string | null) => {
+  const [timeLeft, setTimeLeft] = useState({
+    days: "00", hours: "00", minutes: "00", seconds: "00"
+  });
+
+  useEffect(() => {
+    if (!targetDateString) return;
+    
+    const targetDate = new Date(targetDateString).getTime();
+
+    const updateTimer = () => {
+      const now = new Date().getTime();
+      const distance = targetDate - now;
+
+      if (distance < 0) {
+        setTimeLeft({ days: "00", hours: "00", minutes: "00", seconds: "00" });
+        return;
+      }
+
+      const days = Math.floor(distance / (1000 * 60 * 60 * 24)).toString().padStart(2, '0');
+      const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)).toString().padStart(2, '0');
+      const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
+      const seconds = Math.floor((distance % (1000 * 60)) / 1000).toString().padStart(2, '0');
+
+      setTimeLeft({ days, hours, minutes, seconds });
+    };
+
+    updateTimer(); // call immediately
+    const interval = setInterval(updateTimer, 1000);
+
+    return () => clearInterval(interval);
+  }, [targetDateString]);
+
+  return timeLeft;
+};
 
 export default function SorteioPage() {
   const params = useParams();
@@ -19,6 +56,8 @@ export default function SorteioPage() {
   const [coinsSpent, setCoinsSpent] = useState("");
   const [isParticipating, setIsParticipating] = useState(false);
   
+  const timeLeft = useCountdown(giveaway?.draw_date || null);
+
   // Simulating Auth for now
   const isLoggedIn = true;
 
@@ -138,8 +177,8 @@ export default function SorteioPage() {
         {/* Bloco 2: Imagem do Prêmio */}
         <div className="overflow-hidden border-t border-b border-white/5">
           <div className="relative h-[320px] md:h-[450px] w-full bg-black">
-            {giveaway.image_url ? (
-              <img src={giveaway.image_url} alt={giveaway.title} className="w-full h-full object-cover" />
+            {giveaway.detail_image_url || giveaway.image_url ? (
+              <img src={giveaway.detail_image_url || giveaway.image_url} alt={giveaway.title} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-gray-700"><Gift className="w-20 h-20" /></div>
             )}
@@ -154,7 +193,9 @@ export default function SorteioPage() {
               <h3 className="text-2xl md:text-3xl font-bold text-white leading-tight">
                 <span className="text-white">★</span> {giveaway.title}
               </h3>
-              <p className="text-purple-400 font-bold text-lg mt-1">R$ {giveaway.coins_cost === 0 ? "860,54" : "1.364,35"}</p>
+              <p className="text-purple-400 font-bold text-lg mt-1">
+                {giveaway.prize_value ? `R$ ${giveaway.prize_value}` : (giveaway.coins_cost === 0 ? "R$ 860,54" : "R$ 1.364,35")}
+              </p>
               <p className="text-[#808080] text-[11px] mt-2 font-bold uppercase tracking-wide">{giveaway.shipping_text || "100% grátis · Enviado direto via Steam Trade"}</p>
             </div>
           </div>
@@ -162,25 +203,29 @@ export default function SorteioPage() {
           {/* Cronômetro */}
           <div className="flex border-t border-white/5 p-4 md:p-6 divide-x divide-white/5 justify-center">
             <div className="flex-1 text-center">
-              <div className="text-3xl md:text-4xl font-black text-white">08</div>
+              <div className="text-3xl md:text-4xl font-black text-white">{timeLeft.days}</div>
               <div className="text-[9px] text-[#505050] uppercase tracking-[0.2em] font-bold mt-1 md:mt-2">DIAS</div>
             </div>
             <div className="flex-1 text-center">
-              <div className="text-3xl md:text-4xl font-black text-white">23</div>
+              <div className="text-3xl md:text-4xl font-black text-white">{timeLeft.hours}</div>
               <div className="text-[9px] text-[#505050] uppercase tracking-[0.2em] font-bold mt-1 md:mt-2">HORAS</div>
             </div>
             <div className="flex-1 text-center">
-              <div className="text-3xl md:text-4xl font-black text-white">12</div>
+              <div className="text-3xl md:text-4xl font-black text-white">{timeLeft.minutes}</div>
               <div className="text-[9px] text-[#505050] uppercase tracking-[0.2em] font-bold mt-1 md:mt-2">MIN</div>
             </div>
             <div className="flex-1 text-center">
-              <div className="text-3xl md:text-4xl font-black text-white">10</div>
+              <div className="text-3xl md:text-4xl font-black text-white">{timeLeft.seconds}</div>
               <div className="text-[9px] text-[#505050] uppercase tracking-[0.2em] font-bold mt-1 md:mt-2">SEG</div>
             </div>
           </div>
           
-          <div className="text-center pb-6">
-             <p className="text-[#606060] text-[10px] font-bold">Sorteio encerra em <span className="text-[#a0a0a0]">30/09/2026 às 23:59</span></p>
+          <div className="text-center pb-6 text-[#505050] text-[10px] font-bold uppercase tracking-wider">
+            Sorteio encerra em <span className="text-white">
+              {giveaway.draw_date ? new Date(giveaway.draw_date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : "30/09/2026"}
+            </span> às <span className="text-white">
+              {giveaway.draw_date ? new Date(giveaway.draw_date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : "23:59"}
+            </span>
           </div>
         </div>
 
