@@ -34,6 +34,7 @@ export default function AdminDashboard() {
   const [editingParticipant, setEditingParticipant] = useState<string | null>(null);
   const [editTwitchUsername, setEditTwitchUsername] = useState("");
   const [editCoinsUsed, setEditCoinsUsed] = useState(0);
+  const [drawnWinner, setDrawnWinner] = useState<any>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedColor, setSelectedColor] = useState("Amarelo");
   const [previewMode, setPreviewMode] = useState<"home" | "destaque" | "sorteio">("home");
@@ -128,6 +129,20 @@ export default function AdminDashboard() {
   const handleOpenParticipants = (id: string) => {
     setManagingParticipants(id);
     fetchParticipants(id);
+  };
+
+  const handleDrawWinner = () => {
+    const approved = participants.filter(p => p.status === 'approved');
+    if (approved.length === 0) {
+      alert("Nenhum participante aprovado para sortear.");
+      return;
+    }
+    
+    // Sorteia aleatoriamente um dos aprovados
+    const randomIndex = Math.floor(Math.random() * approved.length);
+    const winner = approved[randomIndex];
+    
+    setDrawnWinner(winner);
   };
 
   const handleDeleteGiveaway = async (id: string) => {
@@ -330,12 +345,20 @@ export default function AdminDashboard() {
                     </h1>
                     <p className="text-gray-400 mt-1">Apenas participantes <span className="text-green-400 font-bold">Aprovados</span> irão para a roleta.</p>
                   </div>
-                  <button
-                    onClick={() => setManagingParticipants(null)}
-                    className="bg-gray-800 hover:bg-gray-700 text-white px-6 py-3 rounded-lg font-bold flex items-center gap-2 transition-colors"
-                  >
-                    Voltar aos Sorteios
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleDrawWinner}
+                      className="bg-purple-600 hover:bg-purple-500 text-white px-6 py-3 rounded-lg font-bold flex items-center gap-2 transition-colors shadow-[0_0_15px_rgba(168,85,247,0.5)]"
+                    >
+                      <Trophy className="w-5 h-5" /> Sorteie Agora
+                    </button>
+                    <button
+                      onClick={() => setManagingParticipants(null)}
+                      className="bg-gray-800 hover:bg-gray-700 text-white px-6 py-3 rounded-lg font-bold flex items-center gap-2 transition-colors"
+                    >
+                      Voltar aos Sorteios
+                    </button>
+                  </div>
                 </div>
 
                 <div className="glass-panel rounded-xl overflow-hidden border border-gray-800">
@@ -672,6 +695,53 @@ export default function AdminDashboard() {
         )}
 
       </main>
+
+      {/* Pop-up do Vencedor Sorteado */}
+      {drawnWinner && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fade-in">
+          <div className="bg-[#121214] border border-purple-500/50 rounded-2xl w-full max-w-md shadow-[0_0_50px_rgba(168,85,247,0.3)] p-8 text-center relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-purple-600 to-pink-600"></div>
+            
+            <Trophy className="w-20 h-20 text-yellow-500 mx-auto mb-6 drop-shadow-[0_0_15px_rgba(234,179,8,0.5)] animate-pulse" />
+            
+            <h2 className="text-3xl font-black text-white uppercase italic tracking-wider mb-2">Vencedor!</h2>
+            <p className="text-gray-400 mb-6 font-medium">Sorteado pelo ID <span className="text-white font-mono text-xs truncate inline-block max-w-[150px] align-bottom">{drawnWinner.id}</span></p>
+            
+            <div className="bg-purple-900/20 border border-purple-500/30 rounded-xl p-6 mb-8">
+              <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-2">Usuário da Twitch</p>
+              <p className="text-4xl font-black text-purple-400 truncate">@{drawnWinner.twitch_username}</p>
+            </div>
+            
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setDrawnWinner(null)}
+                className="flex-1 bg-gray-800 hover:bg-gray-700 text-white py-3 rounded-lg font-bold transition-colors"
+              >
+                Fechar
+              </button>
+              <button 
+                onClick={async () => {
+                  const sorteio = sorteios.find(s => s.id === managingParticipants);
+                  const prize = sorteio ? sorteio.title : "Prêmio Sorteado";
+                  
+                  await supabase.from('winners').insert([{
+                    twitch_username: drawnWinner.twitch_username,
+                    prize: prize,
+                    in_hall_of_fame: false
+                  }]);
+                  
+                  alert("Vencedor salvo no histórico!");
+                  fetchWinners();
+                  setDrawnWinner(null);
+                }}
+                className="flex-1 bg-green-600 hover:bg-green-500 text-white py-3 rounded-lg font-bold transition-colors"
+              >
+                Salvar Vencedor
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Pop-up de Criação de Sorteio */}
       {isCreateModalOpen && (
