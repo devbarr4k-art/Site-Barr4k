@@ -134,7 +134,7 @@ export default function SorteioPage() {
     }
   };
 
-  if (isLoading) {
+  if (loading) {
     return <div className="min-h-screen bg-[#0a0a0c] flex items-center justify-center text-white font-bold">Carregando...</div>;
   }
 

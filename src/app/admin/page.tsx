@@ -286,7 +286,7 @@ export default function AdminDashboard() {
        
        if (message.toLowerCase().trim() === botCommand.toLowerCase().trim()) {
           const username = tags.username;
-          const isSub = !!tags.subscriber || !!tags.mod || (tags.badges && tags.badges.founder);
+          const isSub = !!tags.subscriber || !!tags.mod || !!(tags.badges && tags.badges.founder);
           
           if (username) {
              await handleChatEntry(username, isSub);
