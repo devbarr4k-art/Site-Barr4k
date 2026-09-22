@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Trophy, Gift, Users, ArrowDown, Zap, X, Info } from "lucide-react";
+import { Trophy, Gift, Users, ArrowDown, Zap, X, Info, ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
