@@ -1,12 +1,21 @@
 import { getSessionUsername } from "@/lib/auth";
 import { isAdmin } from "@/lib/admins";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { fetchTwitchAvatar } from "@/lib/twitch";
+import { chancesFor } from "@/lib/daily";
 
 const GIVEAWAY_FIELDS = [
   "title", "description", "highlight_text", "highlight_color", "coins_cost", "subtitle",
   "prize_label", "shipping_text", "prize_value", "draw_date", "login_text", "image_url",
   "detail_image_url", "type", "status", "is_daily_highlight", "response_seconds",
+  "capture_open", "bot_command", "twitch_channel", "chance_t1", "chance_t2", "chance_t3",
 ] as const;
+
+// O que pode ser alterado com o sorteio diário já rodando
+const DAILY_LIVE_FIELDS = ["response_seconds", "capture_open", "chance_t1", "chance_t2", "chance_t3"] as const;
+
+const DAILY_COLUMNS =
+  "id, title, image_url, status, capture_open, bot_command, twitch_channel, response_seconds, chance_t1, chance_t2, chance_t3, created_at";
 
 const PARTICIPANT_FIELDS = ["status", "twitch_username", "coins_used"] as const;
 
@@ -100,7 +109,7 @@ export async function POST(request: Request) {
     case "completeGiveaway": {
       const { error } = await db
         .from("giveaways")
-        .update({ status: "completed", is_daily_highlight: false })
+        .update({ status: "completed", is_daily_highlight: false, capture_open: false })
         .eq("id", body.id);
       if (error) return fail(error.message, 500);
       return Response.json({ ok: true });
@@ -127,20 +136,67 @@ export async function POST(request: Request) {
       return Response.json({ ok: true });
     }
 
+    case "getActiveDaily": {
+      const { data, error } = await db
+        .from("giveaways")
+        .select(DAILY_COLUMNS)
+        .eq("type", "daily")
+        .eq("status", "active")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) return fail(error.message, 500);
+      return Response.json({ data });
+    }
+
+    case "startDaily": {
+      // Cria o sorteio da live já com a captação aberta
+      const f = body.fields ?? {};
+      const title = String(f.title || "").trim();
+      if (!title) return fail("Informe o prêmio do sorteio.");
+      await db.from("giveaways").update({ is_daily_highlight: false, capture_open: false }).eq("is_daily_highlight", true);
+      const { data, error } = await db
+        .from("giveaways")
+        .insert({
+          title,
+          image_url: f.image_url || null,
+          bot_command: String(f.bot_command || "!sorteio").trim().toLowerCase(),
+          twitch_channel: String(f.twitch_channel || "").trim().replace(/^#/, "").toLowerCase(),
+          response_seconds: Math.max(5, Math.floor(Number(f.response_seconds) || 60)),
+          chance_t1: Math.max(1, Math.floor(Number(f.chance_t1) || 1)),
+          chance_t2: Math.max(1, Math.floor(Number(f.chance_t2) || 1)),
+          chance_t3: Math.max(1, Math.floor(Number(f.chance_t3) || 1)),
+          type: "daily",
+          status: "active",
+          is_daily_highlight: true,
+          capture_open: true,
+        })
+        .select(DAILY_COLUMNS)
+        .single();
+      if (error) return fail(error.message, 500);
+      return Response.json({ data });
+    }
+
+    case "updateDaily": {
+      const fields = pick(body.fields, DAILY_LIVE_FIELDS);
+      const { data, error } = await db.from("giveaways").update(fields).eq("id", body.id).select(DAILY_COLUMNS).single();
+      if (error) return fail(error.message, 500);
+      return Response.json({ data });
+    }
+
     case "chatEntry": {
-      // Entrada vinda do chat da Twitch (!comando) para o sorteio diário ativo.
+      // Entrada vinda do chat da Twitch (!comando) no sorteio da live
       const chatUser = String(body.username || "").toLowerCase();
-      const chances = Math.max(1, Math.floor(Number(body.chances) || 1));
+      const tier = [0, 1, 2, 3].includes(Number(body.tier)) ? Number(body.tier) : 0;
       if (!chatUser) return fail("Usuário inválido.");
 
       const { data: daily } = await db
         .from("giveaways")
-        .select("id")
-        .eq("is_daily_highlight", true)
-        .eq("status", "active")
-        .limit(1)
+        .select("id, status, capture_open, chance_t1, chance_t2, chance_t3")
+        .eq("id", body.giveawayId)
         .maybeSingle();
-      if (!daily) return Response.json({ ok: false, reason: "no-daily" });
+      if (!daily || daily.status !== "active") return Response.json({ ok: false, reason: "no-daily" });
+      if (!daily.capture_open) return Response.json({ ok: false, reason: "closed" });
 
       const { data: existing } = await db
         .from("participants")
@@ -150,15 +206,45 @@ export async function POST(request: Request) {
         .maybeSingle();
       if (existing) return Response.json({ ok: true, duplicate: true });
 
-      const { error } = await db.from("participants").insert({
-        giveaway_id: daily.id,
-        twitch_username: chatUser,
-        coins_used: chances,
-        status: "approved",
-      });
+      const { data, error } = await db
+        .from("participants")
+        .insert({
+          giveaway_id: daily.id,
+          twitch_username: chatUser,
+          sub_tier: tier,
+          coins_used: chancesFor(tier, daily),
+          avatar_url: await fetchTwitchAvatar(chatUser),
+          status: "approved",
+        })
+        .select()
+        .single();
       // 23505 = violou o unique (giveaway_id, twitch_username): já estava inscrito
       if (error?.code === "23505") return Response.json({ ok: true, duplicate: true });
       if (error) return fail(error.message, 500);
+      return Response.json({ ok: true, data });
+    }
+
+    case "finishDaily": {
+      // Confirma o ganhador: vai para o histórico e o sorteio do dia é encerrado
+      const { data: participant } = await db
+        .from("participants")
+        .select("twitch_username, avatar_url, giveaway_id")
+        .eq("id", body.participantId)
+        .maybeSingle();
+      const { data: daily } = await db.from("giveaways").select("id, title").eq("id", body.giveawayId).maybeSingle();
+      if (!participant || !daily || participant.giveaway_id !== daily.id) return fail("Participante ou sorteio inválido.");
+
+      const { error } = await db.from("winners").insert({
+        giveaway_id: daily.id,
+        twitch_username: participant.twitch_username,
+        avatar_url: participant.avatar_url,
+        prize: daily.title.replace(/\s*\|\s*/g, " "),
+      });
+      if (error) return fail(error.message, 500);
+      await db
+        .from("giveaways")
+        .update({ status: "completed", capture_open: false, is_daily_highlight: false })
+        .eq("id", daily.id);
       return Response.json({ ok: true });
     }
 

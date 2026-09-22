@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Plus, Edit, Trash2, Settings, Users, Gift, Star, ArrowRight, Trophy, Sparkles, Bot, Calendar, CheckCircle2, X } from "lucide-react";
-import tmi from "tmi.js";
+import { Plus, Edit, Trash2, Users, Gift, Star, ArrowRight, Trophy, Sparkles, Radio, X } from "lucide-react";
 import { FaTwitch } from "react-icons/fa";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -10,6 +9,7 @@ import { useSession } from "next-auth/react";
 import { isAdmin } from "@/lib/admins";
 import { adminApi } from "@/lib/adminApi";
 import { compressImage } from "@/lib/image";
+import LiveGiveaway from "@/components/admin/LiveGiveaway";
 
 const TooltipIcon = ({ text }: { text: string }) => (
   <div className="relative flex items-center justify-center group/tooltip">
@@ -27,14 +27,6 @@ const toLocalInputValue = (iso: string) => {
   const d = new Date(iso);
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-};
-
-// Tier do sub pela versão do badge: 3000+ = T3, 2000+ = T2, demais = T1.
-const getSubTier = (tags: tmi.ChatUserstate): 0 | 1 | 2 | 3 => {
-  const version = tags.badges?.subscriber ?? tags.badges?.founder;
-  if (version === undefined) return tags.subscriber ? 1 : 0;
-  const n = parseInt(version, 10) || 0;
-  return n >= 3000 ? 3 : n >= 2000 ? 2 : 1;
 };
 
 const ITEM_STEP = 160; // largura do card da roleta (144px) + gap (16px)
@@ -74,30 +66,6 @@ export default function AdminDashboard() {
   const [previewMode, setPreviewMode] = useState<"home" | "destaque" | "sorteio">("home");
   const [isSaving, setIsSaving] = useState(false);
 
-  // Bot da Twitch
-  const [botStatus, setBotStatus] = useState<"disconnected" | "connecting" | "connected">("disconnected");
-  const [botCommand, setBotCommand] = useState("!sorteio");
-  const [subMultiplierT1, setSubMultiplierT1] = useState(2);
-  const [subMultiplierT2, setSubMultiplierT2] = useState(3);
-  const [subMultiplierT3, setSubMultiplierT3] = useState(5);
-  const [twitchGiveawayTitle, setTwitchGiveawayTitle] = useState("");
-  const [twitchGiveawayImage, setTwitchGiveawayImage] = useState<File | null>(null);
-  const [isCreatingTwitchGiveaway, setIsCreatingTwitchGiveaway] = useState(false);
-  const tmiClient = useRef<tmi.Client | null>(null);
-  // O handler do chat é registrado uma vez só; os refs mantêm os valores atuais.
-  const multipliersRef = useRef({ t1: 2, t2: 3, t3: 5 });
-  const seenChatUsers = useRef<Set<string>>(new Set());
-
-  // Sorteio diário (live)
-  const [twitchTimer, setTwitchTimer] = useState(60);
-  const [isRolling, setIsRolling] = useState(false);
-  const [currentRollName, setCurrentRollName] = useState("");
-  const [winnerResult, setWinnerResult] = useState<any>(null);
-  const [timerCount, setTimerCount] = useState<number | null>(null);
-  const [liveDailyParticipants, setLiveDailyParticipants] = useState<any[]>([]);
-  const [dailyImage, setDailyImage] = useState<string | null>(null);
-  const activeDailyGiveaway = sorteios.find((s: any) => s.is_daily_highlight && s.status === "active");
-
   // Formulário Criar Sorteio
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
@@ -123,49 +91,17 @@ export default function AdminDashboard() {
   }, [allowed, status, router]);
 
   useEffect(() => {
-    multipliersRef.current = { t1: subMultiplierT1, t2: subMultiplierT2, t3: subMultiplierT3 };
-  }, [subMultiplierT1, subMultiplierT2, subMultiplierT3]);
-
-  useEffect(() => {
     if (!allowed) return;
     fetchSorteios();
     fetchWinners();
   }, [allowed]);
 
-  // Desconecta o bot e cancela a roleta ao sair da página
+  // Cancela a roleta ao sair da página
   useEffect(() => {
     return () => {
-      tmiClient.current?.disconnect().catch(() => {});
       rouletteTimers.current.forEach(clearTimeout);
     };
   }, []);
-
-  // Lista ao vivo do sorteio diário (atualiza a cada 4s enquanto houver um ativo)
-  useEffect(() => {
-    const id = activeDailyGiveaway?.id;
-    if (!id) {
-      setLiveDailyParticipants([]);
-      setDailyImage(null);
-      return;
-    }
-    supabase.from("giveaways").select("image_url").eq("id", id).maybeSingle()
-      .then(({ data }) => setDailyImage(data?.image_url || null));
-
-    const load = () =>
-      adminApi<{ data: any[] }>("listParticipants", { giveawayId: id })
-        .then(({ data }) => setLiveDailyParticipants(data))
-        .catch(() => {});
-    load();
-    const interval = setInterval(load, 4000);
-    return () => clearInterval(interval);
-  }, [activeDailyGiveaway?.id]);
-
-  // Contagem regressiva para o vencedor do diário responder
-  useEffect(() => {
-    if (timerCount === null || timerCount <= 0) return;
-    const t = setTimeout(() => setTimerCount(timerCount - 1), 1000);
-    return () => clearTimeout(t);
-  }, [timerCount]);
 
   const fetchSorteios = async () => {
     const { data } = await supabase
@@ -185,11 +121,6 @@ export default function AdminDashboard() {
       alert("Erro: " + err.message);
       return null;
     }
-  };
-
-  const toggleDailyHighlight = async (id: string, currentState: boolean) => {
-    await run("setDailyHighlight", { id, on: !currentState });
-    fetchSorteios();
   };
 
   const fetchParticipants = async (giveawayId: string) => {
@@ -270,49 +201,6 @@ export default function AdminDashboard() {
     }
   };
 
-  const toggleTwitchBot = () => {
-    if (botStatus === "connected" || botStatus === "connecting") {
-      tmiClient.current?.disconnect().catch(() => {});
-      tmiClient.current = null;
-      setBotStatus("disconnected");
-      return;
-    }
-
-    setBotStatus("connecting");
-    seenChatUsers.current = new Set();
-
-    // Conecta no canal da Twitch do admin logado
-    const streamerChannel = currentUsername || "barr4k";
-    const command = botCommand.toLowerCase().trim();
-    const client = new tmi.Client({ channels: [streamerChannel] });
-
-    client.on("message", async (_channel, tags, message, self) => {
-      if (self || message.toLowerCase().trim() !== command) return;
-      const username = tags.username;
-      if (!username || seenChatUsers.current.has(username)) return;
-      seenChatUsers.current.add(username);
-
-      const tier = getSubTier(tags);
-      const m = multipliersRef.current;
-      const chances = tier === 3 ? m.t3 : tier === 2 ? m.t2 : tier === 1 ? m.t1 : 1;
-      try {
-        await adminApi("chatEntry", { username, chances });
-      } catch (err) {
-        seenChatUsers.current.delete(username);
-        console.error("Erro ao registrar entrada do chat:", err);
-      }
-    });
-
-    client.connect()
-      .then(() => setBotStatus("connected"))
-      .catch((err) => {
-        console.error("Erro ao conectar bot:", err);
-        setBotStatus("disconnected");
-      });
-
-    tmiClient.current = client;
-  };
-
   const saveWinner = async (drawAgain: boolean) => {
     const sorteio = sorteios.find((s) => s.id === managingParticipants);
     const res = await run("insertWinner", {
@@ -331,97 +219,6 @@ export default function AdminDashboard() {
       setIsDrawing(false);
       setShowWinner(false);
     }
-  };
-
-  const handleDrawDailyWinner = (list: any[] = liveDailyParticipants) => {
-    const tickets: any[] = [];
-    list.forEach((p: any) => {
-      if (p.status === "approved" || p.status === "pending") {
-        const chances = Math.max(1, p.coins_used || 1);
-        for (let i = 0; i < chances; i++) tickets.push(p);
-      }
-    });
-    if (tickets.length === 0) return alert("Nenhum participante válido na fila!");
-
-    setIsRolling(true);
-    setWinnerResult(null);
-    let counter = 0;
-    const interval = setInterval(() => {
-      setCurrentRollName(tickets[Math.floor(Math.random() * tickets.length)].twitch_username);
-      counter++;
-      if (counter >= 30) {
-        clearInterval(interval);
-        const finalWinner = tickets[Math.floor(Math.random() * tickets.length)];
-        setCurrentRollName(finalWinner.twitch_username);
-        setWinnerResult(finalWinner);
-        setIsRolling(false);
-        setTimerCount(activeDailyGiveaway?.response_seconds || 60);
-      }
-    }, 100);
-  };
-
-  const closeDailyResult = () => {
-    setWinnerResult(null);
-    setTimerCount(null);
-    setCurrentRollName("");
-  };
-
-  const confirmWinner = async () => {
-    if (!winnerResult || !activeDailyGiveaway) return;
-    const res = await run("insertWinner", {
-      giveawayId: activeDailyGiveaway.id,
-      twitchUsername: winnerResult.twitch_username,
-      prize: activeDailyGiveaway.title,
-    });
-    if (res) {
-      closeDailyResult();
-      fetchWinners();
-    }
-  };
-
-  const rejectWinner = async () => {
-    if (!winnerResult || !activeDailyGiveaway) return;
-    await run("updateParticipant", { id: winnerResult.id, fields: { status: "rejected" } });
-    closeDailyResult();
-    const res = await run("listParticipants", { giveawayId: activeDailyGiveaway.id });
-    if (res) {
-      setLiveDailyParticipants(res.data);
-      handleDrawDailyWinner(res.data);
-    }
-  };
-
-  const handleStopDaily = async (id: string) => {
-    if (confirm("Tem certeza que deseja encerrar o Sorteio Diário?")) {
-      await run("completeGiveaway", { id });
-      fetchSorteios();
-    }
-  };
-
-  const handleCreateDailyGiveaway = async () => {
-    if (!twitchGiveawayTitle.trim()) return alert("Digite o título do prêmio!");
-    setIsCreatingTwitchGiveaway(true);
-    try {
-      const imageUrl = twitchGiveawayImage ? await compressImage(twitchGiveawayImage) : null;
-      const ok = await run("saveGiveaway", {
-        fields: {
-          title: twitchGiveawayTitle.trim(),
-          image_url: imageUrl,
-          status: "active",
-          is_daily_highlight: true,
-          type: "daily",
-          coins_cost: 0,
-          response_seconds: twitchTimer,
-        },
-      });
-      if (ok) {
-        setTwitchGiveawayTitle("");
-        setTwitchGiveawayImage(null);
-        fetchSorteios();
-      }
-    } catch (err: any) {
-      alert("Erro: " + err.message);
-    }
-    setIsCreatingTwitchGiveaway(false);
   };
 
   const handleDeleteGiveaway = async (id: string) => {
@@ -549,19 +346,13 @@ export default function AdminDashboard() {
           onClick={() => setActiveTab("twitch")}
           className={`flex items-center gap-2 md:gap-3 px-4 py-2 md:py-3 rounded-lg font-medium transition-all flex-shrink-0 ${activeTab === "twitch" ? "bg-purple-600/20 text-purple-300 border border-purple-500/50" : "text-gray-400 hover:bg-gray-900 hover:text-white"}`}
         >
-          <Gift className="w-4 h-4 md:w-5 md:h-5" /> Sorteios Twitch (Live)
+          <Radio className="w-4 h-4 md:w-5 md:h-5" /> Sorteio Diário (Live)
         </button>
         <button
           onClick={() => setActiveTab("users")}
           className={`flex items-center gap-2 md:gap-3 px-4 py-2 md:py-3 rounded-lg font-medium transition-all flex-shrink-0 ${activeTab === "users" ? "bg-purple-600/20 text-purple-300 border border-purple-500/50" : "text-gray-400 hover:bg-gray-900 hover:text-white"}`}
         >
           <Users className="w-4 h-4 md:w-5 md:h-5" /> Usuários / Vencedores
-        </button>
-        <button
-          onClick={() => setActiveTab("settings")}
-          className={`flex items-center gap-2 md:gap-3 px-4 py-2 md:py-3 rounded-lg font-medium transition-all flex-shrink-0 ${activeTab === "settings" ? "bg-purple-600/20 text-purple-300 border border-purple-500/50" : "text-gray-400 hover:bg-gray-900 hover:text-white"}`}
-        >
-          <Settings className="w-4 h-4 md:w-5 md:h-5" /> Configurações
         </button>
       </aside>
 
@@ -793,7 +584,7 @@ export default function AdminDashboard() {
                         </tr>
                       </thead>
                       <tbody>
-                        {sorteios.map((sorteio) => (
+                        {sorteios.filter((s) => s.type !== "daily").map((sorteio) => (
                           <tr key={sorteio.id} className="border-b border-gray-800 hover:bg-white/5 transition-colors">
                             <td className="px-6 py-4 font-bold text-white text-xs truncate max-w-[100px]" title={sorteio.id}>{sorteio.id}</td>
                             <td className="px-6 py-4 text-white font-medium">{sorteio.title}</td>
@@ -820,12 +611,6 @@ export default function AdminDashboard() {
                                   className={`p-2 rounded transition-colors ${sorteio.type === 'featured' ? 'bg-yellow-500/20 text-yellow-500' : 'bg-gray-800 text-gray-500 hover:text-yellow-500'}`}
                                   title="Destacar Sorteio Principal">
                                   <Star className={`w-4 h-4 ${sorteio.type === 'featured' ? 'fill-current' : ''}`} />
-                                </button>
-                                <button
-                                  onClick={() => toggleDailyHighlight(sorteio.id, sorteio.is_daily_highlight)}
-                                  className={`p-2 rounded transition-colors ${sorteio.is_daily_highlight ? 'bg-green-500/20 text-green-500 border border-green-500/30' : 'bg-gray-800 text-gray-500 hover:text-green-500'}`}
-                                  title="Destacar Sorteio Diário (Live)">
-                                  <Calendar className="w-4 h-4" />
                                 </button>
                                 <button
                                   onClick={() => handleCompleteGiveaway(sorteio.id)}
@@ -857,241 +642,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {activeTab === "twitch" && (
-          <div className="space-y-8 animate-fade-in">
-            <div>
-              <h1 className="text-3xl font-bold text-white">Sorteios Twitch (Live)</h1>
-              <p className="text-gray-400">Configure os parâmetros da sua live para captar usuários do chat da Twitch.</p>
-            </div>
-
-
-            {activeDailyGiveaway ? (
-              <>
-                {/* ROULETTE & POPUP OVERLAY */}
-                {(isRolling || winnerResult) && (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm animate-fade-in">
-                    <div className="glass-panel max-w-2xl w-full mx-4 border border-purple-500/50 p-6 md:p-12 text-center rounded-3xl relative overflow-hidden">
-                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-purple-500/20 rounded-full blur-[100px] pointer-events-none" />
-                      <h2 className="text-3xl font-bold text-white mb-8">
-                        {isRolling ? "Sorteando..." : "TEMOS UM VENCEDOR!"}
-                      </h2>
-                      <div className="text-4xl md:text-7xl font-black italic tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500 animate-pulse mb-8 break-all">
-                        @{currentRollName || "?"}
-                      </div>
-                      {winnerResult && (
-                        <div className="space-y-8 animate-fade-in">
-                          <div className="inline-block bg-black/50 border border-gray-800 rounded-2xl p-6">
-                            <p className="text-gray-400 text-sm font-bold uppercase tracking-widest mb-2">Tempo para responder:</p>
-                            <div className={`text-6xl font-black ${timerCount !== null && timerCount <= 10 ? 'text-red-500 animate-bounce' : 'text-white'}`}>
-                              {timerCount}s
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <button onClick={confirmWinner} className="bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500/50 font-bold py-4 rounded-xl transition-all">
-                              Ganhou! (Salvar)
-                            </button>
-                            <button onClick={rejectWinner} className="bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/50 font-bold py-4 rounded-xl transition-all">
-                              Não Respondeu (Sortear Novamente)
-                            </button>
-                          </div>
-                          <button onClick={closeDailyResult} className="text-gray-500 hover:text-white text-xs underline">
-                            Fechar sem salvar
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <div className="space-y-6">
-                    <div className="glass-panel rounded-xl border border-purple-500/30 p-8 flex flex-col items-center justify-center text-center relative overflow-hidden animated-border-card">
-                      <h2 className="text-xl font-bold text-white mb-4">Sorteio em Andamento</h2>
-                      {dailyImage && <img src={dailyImage} alt="Prêmio" className="w-32 h-32 object-contain mb-4" />}
-                      <h3 className="text-2xl font-bold text-purple-400">{activeDailyGiveaway.title}</h3>
-                      <div className="w-full mt-8 grid grid-cols-4 gap-2 text-left">
-                        <div className="col-span-4 sm:col-span-1 space-y-1">
-                          <label className="text-[10px] font-bold text-gray-400 uppercase">Comando</label>
-                          <input
-                            type="text"
-                            value={botCommand}
-                            onChange={(e) => setBotCommand(e.target.value)}
-                            disabled={botStatus !== "disconnected"}
-                            className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:border-purple-500 outline-none disabled:opacity-50"
-                          />
-                        </div>
-                        {([
-                          ["T1", subMultiplierT1, setSubMultiplierT1],
-                          ["T2", subMultiplierT2, setSubMultiplierT2],
-                          ["T3", subMultiplierT3, setSubMultiplierT3],
-                        ] as const).map(([label, value, setter]) => (
-                          <div key={label} className="space-y-1">
-                            <label className="text-[10px] font-bold text-purple-400 uppercase">Chances {label}</label>
-                            <input
-                              type="number"
-                              min={1}
-                              value={value}
-                              onChange={(e) => setter(parseInt(e.target.value) || 1)}
-                              className="w-full bg-[#0a0a0b] border border-purple-500/30 rounded-lg px-3 py-2 text-white text-sm outline-none"
-                            />
-                          </div>
-                        ))}
-                      </div>
-                      <div className="w-full mt-4 space-y-4">
-                        <button
-                          onClick={toggleTwitchBot}
-                          className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${
-                            botStatus === 'connected' ? 'bg-purple-900/50 border border-purple-500 text-purple-400 animate-pulse' : botStatus === 'connecting' ? 'bg-yellow-900/50 border border-yellow-500 text-yellow-500 cursor-wait' : 'bg-black border border-gray-800 text-gray-400 hover:text-white hover:border-gray-600'
-                          }`}
-                        >
-                          <Bot className="w-6 h-6" />
-                          {botStatus === 'connected' ? `Bot Ligado (#${(session?.user as any)?.username || 'chat'})` : botStatus === 'connecting' ? 'Conectando...' : 'Ligar Bot'}
-                        </button>
-                        <button onClick={() => handleDrawDailyWinner()} className="w-full btn-neon font-bold italic tracking-widest uppercase py-4 rounded-xl text-lg flex items-center justify-center gap-2">
-                          <Trophy className="w-6 h-6" /> Sortear Agora
-                        </button>
-                        <button onClick={() => handleStopDaily(activeDailyGiveaway.id)} className="w-full bg-red-900/20 border border-red-500/30 text-red-500 hover:bg-red-900/40 font-bold py-4 rounded-xl text-sm">
-                          Encerrar Sorteio Diário
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="glass-panel rounded-xl border border-gray-800 p-6 flex flex-col max-h-[600px]">
-                    <h2 className="text-lg font-bold text-white mb-4 flex justify-between items-center">
-                      Participantes
-                      <span className="bg-purple-500/20 text-purple-400 px-3 py-1 rounded-full text-xs">{liveDailyParticipants.length} Total</span>
-                    </h2>
-                    <div className="flex-1 overflow-y-auto pr-2 space-y-2">
-                      {liveDailyParticipants.length === 0 ? (
-                        <div className="text-gray-500 text-center py-8">Nenhum participante ainda...</div>
-                      ) : (
-                        liveDailyParticipants.map((p, idx) => (
-                          <div key={idx} className="bg-black/50 border border-gray-800 p-3 rounded-lg flex justify-between items-center">
-                            <span className="font-bold text-white flex items-center gap-2">
-                              {p.status === 'rejected' ? <span className="w-4 h-4 text-red-500 font-bold">X</span> : <CheckCircle2 className="w-4 h-4 text-green-500" />}
-                              @{p.twitch_username}
-                              {p.coins_used > 1 && <span className="ml-2 text-[10px] bg-yellow-500/20 text-yellow-500 px-1 py-0.5 rounded uppercase">Sub</span>}
-                            </span>
-                            <span className="text-xs font-bold text-purple-500 bg-purple-500/10 px-2 py-1 rounded">{p.coins_used} CHANCES</span>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="glass-panel rounded-xl border border-purple-500/30 p-8 relative overflow-hidden animated-border-card">
-
-              <div className="flex justify-between items-start mb-6">
-                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                  <Gift className="w-5 h-5 text-purple-500" /> Criar Sorteio Instantâneo (Chat)
-                </h2>
-                <button
-                  onClick={toggleTwitchBot}
-                  type="button"
-                  className={`flex items-center gap-2 font-bold px-6 py-2 rounded-lg shadow-[0_0_20px_rgba(0,0,0,0.5)] border transition-all ${
-                    botStatus === 'connected'
-                      ? 'bg-purple-900/50 border-purple-500 text-purple-400'
-                      : botStatus === 'connecting'
-                      ? 'bg-yellow-900/50 border-yellow-500 text-yellow-500 cursor-wait'
-                      : 'bg-black border-gray-800 text-gray-400 hover:text-white hover:border-gray-600'
-                  }`}
-                >
-                  <Bot className={`w-5 h-5 ${botStatus === 'connected' ? 'animate-pulse' : ''}`} />
-                  {botStatus === 'connected' ? `Bot em #${(session?.user as any)?.username || session?.user?.name || 'chat'}` : botStatus === 'connecting' ? 'Conectando...' : 'Ligar Bot'}
-                </button>
-              </div>
-              <form className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-gray-400">Título do Prêmio</label>
-                  <input type="text"
-                    value={twitchGiveawayTitle}
-                    onChange={(e) => setTwitchGiveawayTitle(e.target.value)}
-                    className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none"
-                    placeholder="Ex: Faca Butterfly" />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-gray-400">Tempo para Responder (Segundos)</label>
-                    <input
-                      type="number"
-                      value={twitchTimer}
-                      min={5}
-                      onChange={(e) => setTwitchTimer(parseInt(e.target.value) || 60)}
-                      className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-gray-400">Palavra-chave (Comando Chat)</label>
-                    <input
-                      type="text"
-                      value={botCommand}
-                      onChange={(e) => setBotCommand(e.target.value)}
-                      disabled={botStatus !== 'disconnected'}
-                      className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none disabled:opacity-50"
-                      placeholder="Ex: !BARR4K"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-purple-500">Imagem do Prêmio</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setTwitchGiveawayImage(e.target.files?.[0] ?? null)}
-                      className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-2 text-gray-400 focus:border-purple-500 outline-none"
-                    />
-                  </div>
-                </div>
-
-                {/* Twitch Multipliers Config */}
-                <div className="pt-4 border-t border-gray-800 mt-4">
-                  <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-widest">Multiplicador de Subscribers (Por Tier)</h3>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-purple-400">CHANCES TIER 1</label>
-                      <input
-                        type="number"
-                        value={subMultiplierT1}
-                        onChange={(e) => setSubMultiplierT1(parseInt(e.target.value) || 1)}
-                        className="w-full bg-[#0a0a0b] border border-purple-500/30 rounded-lg px-4 py-2 text-white outline-none"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-purple-400">CHANCES TIER 2</label>
-                      <input
-                        type="number"
-                        value={subMultiplierT2}
-                        onChange={(e) => setSubMultiplierT2(parseInt(e.target.value) || 1)}
-                        className="w-full bg-[#0a0a0b] border border-purple-500/30 rounded-lg px-4 py-2 text-white outline-none"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-purple-400">CHANCES TIER 3</label>
-                      <input
-                        type="number"
-                        value={subMultiplierT3}
-                        onChange={(e) => setSubMultiplierT3(parseInt(e.target.value) || 1)}
-                        className="w-full bg-[#0a0a0b] border border-purple-500/30 rounded-lg px-4 py-2 text-white outline-none"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleCreateDailyGiveaway}
-                  disabled={isCreatingTwitchGiveaway}
-                  className="w-full btn-neon font-bold italic tracking-widest uppercase py-4 rounded-lg mt-6 text-sm text-center block disabled:opacity-50"
-                >
-                  {isCreatingTwitchGiveaway ? "Criando..." : "Criar Sorteio Diário (Ao Vivo)"}
-                </button>
-              </form>
-            </div>
-            )}
-          </div>
-        )}
+        {activeTab === "twitch" && <LiveGiveaway defaultChannel={currentUsername || "barr4k"} />}
 
         {activeTab === "users" && (
           <div className="space-y-8 animate-fade-in">
@@ -1133,51 +684,6 @@ export default function AdminDashboard() {
                   </tbody>
                 </table>
               </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === "settings" && (
-          <div className="space-y-8 animate-fade-in">
-            <div>
-              <h1 className="text-3xl font-bold text-white">Configurações Gerais</h1>
-              <p className="text-gray-400">Gerencie integrações, economia da plataforma e alertas globais.</p>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-
-              {/* Twitch API */}
-              <div className="glass-panel rounded-xl border border-purple-500/30 p-8 relative overflow-hidden animated-border-card">
-                <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                  <FaTwitch className="w-5 h-5 text-purple-500" /> Integração Twitch
-                </h2>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-purple-900/10 border border-purple-500/20 rounded-lg">
-                    <div>
-                      <h3 className="font-bold text-white">Bot Leitor de Chat</h3>
-                      <p className="text-sm text-gray-400">
-                        Status:{" "}
-                        {botStatus === "connected" ? (
-                          <span className="text-green-400 font-bold">Conectado</span>
-                        ) : botStatus === "connecting" ? (
-                          <span className="text-yellow-400 font-bold">Conectando...</span>
-                        ) : (
-                          <span className="text-red-400 font-bold">Desconectado</span>
-                        )}
-                      </p>
-                    </div>
-                    <button onClick={() => setActiveTab("twitch")} className="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-lg font-bold text-sm transition-colors">
-                      Abrir Sorteio da Live
-                    </button>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-gray-400">Canal Monitorado</label>
-                    <input type="text" readOnly value={currentUsername} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-gray-400 outline-none" />
-                    <p className="text-xs text-gray-500">O bot lê o chat do canal da conta logada e só funciona enquanto este painel estiver aberto.</p>
-                  </div>
-                </div>
-              </div>
-
             </div>
           </div>
         )}

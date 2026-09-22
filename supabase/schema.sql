@@ -34,6 +34,12 @@ create table public.giveaways (
   status             text not null default 'active' check (status in ('active', 'completed')),
   is_daily_highlight boolean not null default false, -- sorteio que o bot da live está captando
   response_seconds   integer not null default 60 check (response_seconds > 0), -- tempo p/ o vencedor do diário responder
+  capture_open       boolean not null default false, -- captação do chat aberta (diário)
+  bot_command        text,                           -- ex: !sorteio
+  twitch_channel     text,                           -- canal que o bot lê
+  chance_t1          integer not null default 2 check (chance_t1 >= 1), -- chances de sub tier 1
+  chance_t2          integer not null default 3 check (chance_t2 >= 1),
+  chance_t3          integer not null default 5 check (chance_t3 >= 1),
   created_at         timestamptz not null default now()
 );
 
@@ -50,6 +56,8 @@ create table public.participants (
   twitch_username text not null check (twitch_username = lower(twitch_username)), -- login da Twitch
   coins_used      integer not null default 0 check (coins_used >= 0), -- no diário = número de chances
   casa_id         text,                           -- ID do usuário na casa parceira
+  sub_tier        smallint not null default 0 check (sub_tier between 0 and 3), -- 0 = não é sub
+  avatar_url      text,                           -- foto da Twitch (entradas do chat)
   proof_url       text,                           -- comprovante (base64)
   status          text not null default 'pending' check (status in ('pending', 'approved', 'rejected')),
   created_at      timestamptz not null default now(),
@@ -65,6 +73,7 @@ create table public.winners (
   giveaway_id     uuid references public.giveaways (id) on delete set null, -- mantém o histórico se o sorteio for apagado
   twitch_username text not null check (twitch_username = lower(twitch_username)),
   prize           text not null,
+  avatar_url      text,                           -- foto da Twitch do ganhador
   in_hall_of_fame boolean not null default false,
   won_at          timestamptz not null default now()
 );
