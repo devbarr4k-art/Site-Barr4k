@@ -4,6 +4,7 @@ import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import { Providers } from "@/components/Providers";
 import "./globals.css";
 
 const lato = Lato({
@@ -28,13 +29,15 @@ export default function RootLayout({
       <body
         className={`${lato.variable} antialiased bg-black text-slate-100 min-h-screen flex flex-col font-sans italic`}
       >
-        <Navbar />
-        <main className="flex-grow pt-20">
-          {children}
-        </main>
-        <Footer />
-        <Analytics />
-        <SpeedInsights />
+        <Providers>
+          <Navbar />
+          <main className="flex-grow pt-20">
+            {children}
+          </main>
+          <Footer />
+          <Analytics />
+          <SpeedInsights />
+        </Providers>
       </body>
     </html>
   );

@@ -7,6 +7,7 @@ import { FaTwitch } from "react-icons/fa";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { useSession } from "next-auth/react";
 
 const TooltipIcon = ({ text }: { text: string }) => (
   <div className="relative flex items-center justify-center group/tooltip">
@@ -20,6 +21,9 @@ const TooltipIcon = ({ text }: { text: string }) => (
 );
 
 export default function AdminDashboard() {
+  const router = useRouter();
+  const { data: session, status } = useSession();
+
   const [activeTab, setActiveTab] = useState("sorteios");
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
@@ -79,7 +83,24 @@ export default function AdminDashboard() {
     { name: "Rosa", hex: "bg-pink-500" },
   ];
 
-  const router = useRouter();
+  // Segurança da Rota
+  useEffect(() => {
+    if (status === "loading") return;
+    if (!session) {
+      router.push("/");
+      return;
+    }
+
+    // LISTA DE ADMINS PERMITIDOS (Adicione seu username aqui!)
+    const allowedAdmins = ["barr4k", "lpmra", "teste"];
+    // O NextAuth costuma colocar o nome de usuário no name ou username (que a gente injetou)
+    const username = (session.user as any)?.username?.toLowerCase() || session.user?.name?.toLowerCase();
+
+    if (!username || !allowedAdmins.includes(username)) {
+      alert("Acesso negado. Você não é um administrador.");
+      router.push("/");
+    }
+  }, [session, status, router]);
 
   // Conexão Inicial Supabase
   useEffect(() => {
@@ -436,8 +457,19 @@ export default function AdminDashboard() {
     }
   };
 
+  if (status === "loading") {
+    return <div className="min-h-screen bg-[#050505] flex items-center justify-center text-purple-500 font-bold animate-pulse">Carregando painel...</div>;
+  }
+
+  // Se não estiver autorizado, não renderiza o painel (o useEffect vai redirecionar)
+  const allowedAdmins = ["barr4k", "lpmra", "teste"];
+  const currentUsername = (session?.user as any)?.username?.toLowerCase() || session?.user?.name?.toLowerCase();
+  if (!currentUsername || !allowedAdmins.includes(currentUsername)) {
+    return <div className="min-h-screen bg-[#050505] flex items-center justify-center text-red-500 font-bold">Acesso Negado</div>;
+  }
+
   return (
-    <div className="min-h-screen bg-black pt-24 pb-20 flex flex-col md:flex-row">
+    <div className="min-h-screen bg-[#050505] flex flex-col md:flex-row font-sans">
 
       {/* Sidebar Admin */}
       <aside className="w-full md:w-64 glass-panel md:border-r border-b md:border-b-0 border-gray-800 p-4 md:p-6 flex md:flex-col gap-2 overflow-x-auto hide-scrollbar z-10 sticky top-0 md:static bg-black/80 md:bg-transparent backdrop-blur-md">

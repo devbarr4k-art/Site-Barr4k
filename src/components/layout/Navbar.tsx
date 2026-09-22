@@ -5,13 +5,14 @@ import Link from "next/link";
 import Image from "next/image";
 import { FaTwitch, FaInstagram, FaHandshake, FaGamepad, FaHome } from "react-icons/fa";
 import { ShieldAlert, Ticket, LogOut, ChevronDown, Menu, X } from "lucide-react";
+import { signIn, signOut, useSession } from "next-auth/react";
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   
-  // Simulador de Login (Mude para true para testar o painel logado)
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const { data: session } = useSession();
+  const isLoggedIn = !!session;
 
   const navLinks = [
     { name: "HOME", href: "/", icon: <FaHome className="w-4 h-4" /> },
@@ -76,7 +77,7 @@ export default function Navbar() {
           <div className="hidden lg:flex items-center border-l border-white/10 pl-6">
             {!isLoggedIn ? (
               <button 
-                onClick={() => setIsLoggedIn(true)}
+                onClick={() => signIn('twitch')}
                 className="btn-neon px-6 py-2.5 rounded font-black tracking-widest uppercase transition-all flex items-center gap-2"
               >
                 <FaTwitch className="w-4 h-4" /> Entrar
@@ -88,10 +89,14 @@ export default function Navbar() {
                   className="flex items-center gap-3 hover:bg-white/5 p-2 rounded-lg transition-colors focus:outline-none"
                 >
                   <div className="w-10 h-10 rounded-full bg-purple-900 border border-purple-500 flex items-center justify-center font-bold text-white overflow-hidden relative">
-                    <Image src="/avatar.png" alt="User" fill className="object-cover" />
+                    {session?.user?.image ? (
+                      <Image src={session.user.image} alt="User" fill className="object-cover" />
+                    ) : (
+                      <Image src="/avatar.png" alt="User" fill className="object-cover" />
+                    )}
                   </div>
                   <div className="text-left hidden xl:block">
-                    <p className="text-sm font-bold text-white uppercase">Usuário</p>
+                    <p className="text-sm font-bold text-white uppercase">{session?.user?.name || "Usuário"}</p>
                     <p className="text-xs text-gray-400">Minha Conta</p>
                   </div>
                   <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isDropdownOpen ? "rotate-180" : ""}`} />
@@ -119,7 +124,7 @@ export default function Navbar() {
                     <div className="border-t border-gray-800 my-1"></div>
                     <button 
                       onClick={() => {
-                        setIsLoggedIn(false);
+                        signOut();
                         setIsDropdownOpen(false);
                       }}
                       className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:bg-red-500/10 transition-colors text-left"
@@ -169,7 +174,7 @@ export default function Navbar() {
           <div className="mt-6 pt-6 border-t border-gray-800">
             {!isLoggedIn ? (
               <button 
-                onClick={() => setIsLoggedIn(true)}
+                onClick={() => signIn('twitch')}
                 className="w-full btn-neon text-white px-5 py-4 rounded font-black uppercase flex items-center justify-center gap-3 transition-all"
               >
                 <FaTwitch className="w-5 h-5" /> Entrar com a Twitch
@@ -182,7 +187,7 @@ export default function Navbar() {
                 <Link href="/meus-tickets" onClick={() => setIsOpen(false)} className="flex items-center gap-3 px-4 py-3 text-white font-bold bg-white/5 rounded-lg">
                   <Ticket className="w-4 h-4" /> Meus Tickets
                 </Link>
-                <button onClick={() => setIsLoggedIn(false)} className="w-full flex items-center justify-center gap-3 px-4 py-3 text-red-400 font-bold bg-red-500/10 rounded-lg mt-2">
+                <button onClick={() => signOut()} className="w-full flex items-center justify-center gap-3 px-4 py-3 text-red-400 font-bold bg-red-500/10 rounded-lg mt-2">
                   <LogOut className="w-4 h-4" /> Sair
                 </button>
               </div>
