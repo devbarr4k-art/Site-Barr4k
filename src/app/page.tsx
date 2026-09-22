@@ -93,7 +93,7 @@ export default function Home() {
   const fetchHallOfFame = async () => {
     const { data } = await supabase
       .from('winners')
-      .select('*')
+      .select('*, giveaways(image_url)')
       .eq('in_hall_of_fame', true)
       .order('won_at', { ascending: false });
       
@@ -376,10 +376,11 @@ export default function Home() {
                 <div key={i} className="glass-panel rounded-xl overflow-hidden group hover:border-purple-500/50 transition-all hover:-translate-y-2 animated-border-card p-1">
                   <div className="h-48 bg-black/60 rounded-t-lg flex items-center justify-center border-b border-gray-800 relative overflow-hidden">
                     <div className="absolute inset-0 bg-gradient-to-b from-purple-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <div className="text-gray-700 text-sm font-medium z-10 relative">Foto do Prêmio</div>
-                    <div className="absolute top-3 right-3 bg-black/80 backdrop-blur-md px-2 py-1 rounded text-xs font-bold text-yellow-500 border border-yellow-500/30 z-10">
-                      Sorteio #{winner.id}
-                    </div>
+                    {winner.giveaways?.image_url ? (
+                      <img src={winner.giveaways.image_url} alt={winner.prize} className="w-full h-full object-cover relative z-10" />
+                    ) : (
+                      <div className="text-gray-700 text-sm font-medium z-10 relative">Foto do Prêmio</div>
+                    )}
                   </div>
                   <div className="p-5">
                     <h3 className="font-bold text-white mb-1 truncate">{winner.prize}</h3>
