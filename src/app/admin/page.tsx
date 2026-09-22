@@ -671,45 +671,13 @@ export default function AdminDashboard() {
               <h2 className="text-2xl font-black text-white uppercase italic tracking-wider">Criar Sorteio</h2>
 
               <form onSubmit={handleCreateSorteio} className="space-y-5">
+                {/* Campos Globais (Sempre Visíveis) */}
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
                     Nome
                     <TooltipIcon text="Nome principal do sorteio, ex: Sorteio Mensal TopSkin. Se quiser dividir o título em duas linhas e duas cores, use o caractere | ex: BAIONETA | FOREST DDPAT" />
                   </label>
                   <input type="text" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} required className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: BAIONETA | FOREST DDPAT" />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
-                    Descrição
-                    <TooltipIcon text="Texto completo com as regras do sorteio. Aparece dentro da página do sorteio." />
-                  </label>
-                  <textarea rows={3} value={newDesc} onChange={(e) => setNewDesc(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors resize-none" placeholder="Ex: Respostas aceitas de 20/01 até 28/02. Regras, cupom, etc." />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
-                    Destaque (Opcional)
-                    <TooltipIcon text="Balão colorido que aparece no canto superior esquerdo da imagem no card da Home." />
-                  </label>
-                  <input type="text" value={newHighlight} onChange={(e) => setNewHighlight(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: CSGO-SKINS" />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
-                      Linha Fina (Subtítulo)
-                        <TooltipIcon text="Opcional. Outro balão colorido ao lado do destaque, ex: FACTORY-NEW." />
-                    </label>
-                    <input type="text" value={newSubtitle} onChange={(e) => setNewSubtitle(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: FACTORY-NEW" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
-                      Texto da Entrada
-                        <TooltipIcon text="O texto que aparece em 'ENTRADA' no card inferior esquerdo. Ex: Gratuito ou R$ 12,00" />
-                    </label>
-                    <input type="text" value={newPrizeLabel} onChange={(e) => setNewPrizeLabel(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: Gratuito" />
-                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -729,48 +697,98 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
-                    Texto de Login (Página Sorteio)
-                    <TooltipIcon text="Texto que aparece abaixo do botão QUERO PARTICIPAR na página interna." />
-                  </label>
-                  <input type="text" value={newLoginText} onChange={(e) => setNewLoginText(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: Entrada Gratuita . Login com a Twitch" />
-                </div>
+                {/* Campos Condicionais baseados na Aba Selecionada */}
+                <div className="pt-4 border-t border-white/5 space-y-5 animate-fade-in relative min-h-[300px]">
+                  <h3 className="text-[10px] font-bold text-purple-500 tracking-widest uppercase mb-4 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse"></span>
+                    Preenchendo aba: {previewMode}
+                  </h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
-                      Imagem (Capa / Home)
-                        <TooltipIcon text="Imagem do prêmio, de preferência com fundo transparente, para os cards da tela inicial." />
-                    </label>
-                    <label className="w-full border-2 border-dashed border-gray-700 hover:border-purple-500 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition-colors bg-[#0a0a0b] relative">
-                      <input type="file" onChange={(e) => {
-                        if (e.target.files) {
-                          setNewImage(e.target.files[0]);
-                          const reader = new FileReader();
-                          reader.onload = (e) => setPreviewImage(e.target?.result as string);
-                          reader.readAsDataURL(e.target.files[0]);
-                        }
-                      }} accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500 mb-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                      <span className="text-gray-400 font-bold text-xs uppercase tracking-widest text-center truncate px-2 w-full">
-                        {newImage ? newImage.name : "Imagem da Capa"}
-                      </span>
-                    </label>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
-                      Imagem (Página Sorteio)
-                        <TooltipIcon text="Imagem grande (com fundo) que aparece dentro da aba do sorteio, em alta resolução." />
-                    </label>
-                    <label className="w-full border-2 border-dashed border-gray-700 hover:border-purple-500 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition-colors bg-[#0a0a0b] relative">
-                      <input type="file" onChange={(e) => e.target.files && setNewDetailImage(e.target.files[0])} accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500 mb-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                      <span className="text-gray-400 font-bold text-xs uppercase tracking-widest text-center truncate px-2 w-full">
-                        {newDetailImage ? newDetailImage.name : "Imagem Interna"}
-                      </span>
-                    </label>
-                  </div>
+                  {(previewMode === "home" || previewMode === "destaque") && (
+                    <>
+                      <div className="space-y-2 animate-fade-in">
+                        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
+                          Destaque (Opcional)
+                          <TooltipIcon text="Balão colorido que aparece no canto superior esquerdo da imagem no card da Home." />
+                        </label>
+                        <input type="text" value={newHighlight} onChange={(e) => setNewHighlight(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: CSGO-SKINS" />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4 animate-fade-in">
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
+                            Linha Fina (Subtítulo)
+                              <TooltipIcon text="Opcional. Outro balão colorido ao lado do destaque, ex: FACTORY-NEW." />
+                          </label>
+                          <input type="text" value={newSubtitle} onChange={(e) => setNewSubtitle(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: FACTORY-NEW" />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
+                            Texto da Entrada
+                              <TooltipIcon text="O texto que aparece em 'ENTRADA' no card inferior esquerdo. Ex: Gratuito ou R$ 12,00" />
+                          </label>
+                          <input type="text" value={newPrizeLabel} onChange={(e) => setNewPrizeLabel(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: Gratuito" />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 animate-fade-in">
+                        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
+                          Imagem (Capa / Home)
+                            <TooltipIcon text="Imagem principal do prêmio para os cards da tela inicial." />
+                        </label>
+                        <label className="w-full border-2 border-dashed border-gray-700 hover:border-purple-500 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition-colors bg-[#0a0a0b] relative">
+                          <input type="file" onChange={(e) => {
+                            if (e.target.files) {
+                              setNewImage(e.target.files[0]);
+                              const reader = new FileReader();
+                              reader.onload = (e) => setPreviewImage(e.target?.result as string);
+                              reader.readAsDataURL(e.target.files[0]);
+                            }
+                          }} accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500 mb-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                          <span className="text-gray-400 font-bold text-xs uppercase tracking-widest text-center truncate px-2 w-full">
+                            {newImage ? newImage.name : "Imagem da Capa"}
+                          </span>
+                        </label>
+                      </div>
+                    </>
+                  )}
+
+                  {(previewMode === "destaque" || previewMode === "sorteio") && (
+                    <div className="space-y-2 animate-fade-in">
+                      <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
+                        Descrição
+                        <TooltipIcon text="Texto com as regras. Aparece no popup e na página." />
+                      </label>
+                      <textarea rows={3} value={newDesc} onChange={(e) => setNewDesc(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors resize-none" placeholder="Ex: Respostas aceitas de 20/01 até 28/02. Regras, cupom, etc." />
+                    </div>
+                  )}
+
+                  {previewMode === "sorteio" && (
+                    <>
+                      <div className="space-y-2 animate-fade-in">
+                        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
+                          Texto de Login
+                          <TooltipIcon text="Texto abaixo do botão QUERO PARTICIPAR." />
+                        </label>
+                        <input type="text" value={newLoginText} onChange={(e) => setNewLoginText(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: Entrada Gratuita . Login com a Twitch" />
+                      </div>
+
+                      <div className="space-y-2 animate-fade-in">
+                        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
+                          Imagem (Página Sorteio)
+                            <TooltipIcon text="Imagem grande/fundo para a aba do sorteio." />
+                        </label>
+                        <label className="w-full border-2 border-dashed border-gray-700 hover:border-purple-500 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition-colors bg-[#0a0a0b] relative">
+                          <input type="file" onChange={(e) => e.target.files && setNewDetailImage(e.target.files[0])} accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500 mb-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                          <span className="text-gray-400 font-bold text-xs uppercase tracking-widest text-center truncate px-2 w-full">
+                            {newDetailImage ? newDetailImage.name : "Imagem Interna"}
+                          </span>
+                        </label>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 <div className="space-y-2 pt-2">
