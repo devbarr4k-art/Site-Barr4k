@@ -692,30 +692,6 @@ export default function AdminDashboard() {
                     <p className="text-gray-400">Crie, edite ou encerre os sorteios da plataforma.</p>
                   </div>
                   <div className="flex gap-4 items-center">
-                    <div className="relative flex items-center">
-                      <input 
-                        type="text" 
-                        value={botCommand}
-                        onChange={(e) => setBotCommand(e.target.value)}
-                        disabled={botStatus !== 'disconnected'}
-                        placeholder="Ex: !sorteio"
-                        className="bg-black/50 border border-gray-700 text-white font-mono rounded-lg px-4 py-3 w-40 disabled:opacity-50 focus:border-purple-500 focus:outline-none transition-colors"
-                        title="Comando que o bot vai escutar no chat"
-                      />
-                    </div>
-                    <button 
-                      onClick={toggleTwitchBot}
-                      className={`flex items-center gap-2 font-bold px-6 py-3 rounded-lg shadow-[0_0_20px_rgba(0,0,0,0.5)] border transition-all ${
-                        botStatus === 'connected' 
-                          ? 'bg-purple-900/50 border-purple-500 text-purple-400' 
-                          : botStatus === 'connecting'
-                          ? 'bg-yellow-900/50 border-yellow-500 text-yellow-500 cursor-wait'
-                          : 'bg-black border-gray-800 text-gray-400 hover:text-white hover:border-gray-600'
-                      }`}
-                    >
-                      <Bot className={`w-5 h-5 ${botStatus === 'connected' ? 'animate-pulse' : ''}`} />
-                      {botStatus === 'connected' ? 'Bot Rodando' : botStatus === 'connecting' ? 'Conectando...' : 'Ligar Bot'}
-                    </button>
                     <button
                       onClick={openCreateModal}
                       className="btn-neon px-6 py-3 rounded-lg font-bold flex items-center gap-2"
@@ -798,9 +774,25 @@ export default function AdminDashboard() {
             </div>
 
             <div className="glass-panel rounded-xl border border-purple-500/30 p-8 relative overflow-hidden animated-border-card">
-              <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                <Gift className="w-5 h-5 text-purple-500" /> Criar Sorteio Instantâneo (Chat)
-              </h2>
+              <div className="flex justify-between items-start mb-6">
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                  <Gift className="w-5 h-5 text-purple-500" /> Criar Sorteio Instantâneo (Chat)
+                </h2>
+                <button 
+                  onClick={toggleTwitchBot}
+                  type="button"
+                  className={`flex items-center gap-2 font-bold px-6 py-2 rounded-lg shadow-[0_0_20px_rgba(0,0,0,0.5)] border transition-all ${
+                    botStatus === 'connected' 
+                      ? 'bg-purple-900/50 border-purple-500 text-purple-400' 
+                      : botStatus === 'connecting'
+                      ? 'bg-yellow-900/50 border-yellow-500 text-yellow-500 cursor-wait'
+                      : 'bg-black border-gray-800 text-gray-400 hover:text-white hover:border-gray-600'
+                  }`}
+                >
+                  <Bot className={`w-5 h-5 ${botStatus === 'connected' ? 'animate-pulse' : ''}`} />
+                  {botStatus === 'connected' ? 'Bot Rodando' : botStatus === 'connecting' ? 'Conectando...' : 'Ligar Bot'}
+                </button>
+              </div>
               <form className="space-y-4">
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-gray-400">Título do Prêmio</label>
@@ -810,7 +802,14 @@ export default function AdminDashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-gray-400">Palavra-chave (Comando Chat)</label>
-                    <input type="text" className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none" placeholder="Ex: !BARR4K" defaultValue="!BARR4K" />
+                    <input 
+                      type="text" 
+                      value={botCommand}
+                      onChange={(e) => setBotCommand(e.target.value)}
+                      disabled={botStatus !== 'disconnected'}
+                      className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none disabled:opacity-50" 
+                      placeholder="Ex: !BARR4K" 
+                    />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-purple-500">Imagem do Prêmio</label>
