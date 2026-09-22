@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+    <head>
+        <meta charset="utf-8">
+        <title>RWG | Ilustração & Streampack</title>
+        <meta name="description" content="Ilustração & Streampack">
+            
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <link rel="icon" href="/uploads/icone_website.webp" sizes="32x32">
+        <link rel="icon" href="/uploads/icone_website.webp" sizes="192x192">
+        <link rel="apple-touch-icon" href="/uploads/icone_website.webp">
+            
+        <!--  Fonte Lato -->
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&display=swap" rel="stylesheet">
+
+        <!-- Link Icones -->
+        <link href='https://unpkg.com/boxicons@2.0.7/css/boxicons.min.css' rel='stylesheet'>
+
+        <!-- Link CSS -->
+        <link rel="stylesheet" href="/geral.css">
+        <link rel="stylesheet" href="/paginas/css/home.css">
+        
+    </head>
+
+<body class="stop-scrolling">
+
+    <div class="pagina" id="pagina" style="opacity:0">
+        
+        
+<!-- Cabecalhos -->
+
+<section>
+
+    <!-- Cabecalho Desktop -->
+    <section class="rwg-secao secao-cabecalho">
+
+        <div class="rwg-cabecalho rwg-largura-pagina">
+
+            <div class="rwg-cabecalho-logo">
+                <img src="/uploads/logoPequena.webp" alt="Logo RWG" class="rwg-cabecalho-logo-img">
+            </div>
+        
+            <div class="rwg-cabecalho-navegacao" id="rwg-cabecalho-navegacao">
+                <a class="rwg-cabecalho-pagina" href="/portfolio">Portfólio</a>
+                <a class="rwg-cabecalho-pagina" href="/precos">Preços</a>
+                <a class="rwg-cabecalho-pagina" href="/clientes">Clientes</a>
+                <!-- <a class="rwg-cabecalho-pagina" href="/agenda">Agenda</a> -->
+
+                <a href="/dashboard" class="rwg-btn-branco-cabecalho" role="button">DASHBOARD</a>
+            </div>
+        </div>
+
+    </section>
+    
+    <!-- Cabecalho Mobile -->
+    <section class="rwg-secao secao-cabecalho-mobile">
+
+            <div class="rwg-cabecalho-mobile">
+
+                <div class="rwg-cabecalho-mobile-logo">
+                    <img src="/uploads/logoPequena.webp" alt="Logo RWG" class="rwg-cabecalho-mobile-logo-img" id="rwg-cabecalho-mobile-logo-img">
+                </div>
+
+                <div class="rwg-cabecalho-mobile-icone" id="rwg-cabecalho-mobile-icone" onclick="cabecalhoMobile()">
+                    <i class="bx bx-menu"></i>
+                </div>
+        
+                <div class="rwg-cabecalho-mobile-navegacao" id="rwg-cabecalho-mobile-navegacao">
+                    <a class="rwg-cabecalho-mobile-pagina" href="/portfolio">Portfólio</a>
+                    <a class="rwg-cabecalho-mobile-pagina" href="/precos">Preços</a>
+                    <a class="rwg-cabecalho-mobile-pagina" href="/clientes">Clientes</a>
+                    <!-- <a class="rwg-cabecalho-mobile-pagina" href="/agenda">Agenda</a> -->
+                    
+
+                    <a href="/dashboard" class="rwg-btn-preto-cabecalho-mobile" role="button">DASHBOARD</a>
+                </div>
+            </div>
+
+    </section>
+            
+    <link rel="stylesheet" href="/elementos/css/cabecalho-branco.css">
+    
+    <script>
+        
+        var cabecalhoIcone = document.getElementById('rwg-cabecalho-mobile-icone');
+        var cabecalhoConteudo = document.getElementById('rwg-cabecalho-mobile-navegacao');
+        var cabecalhoLogo = document.getElementById("rwg-cabecalho-mobile-logo-img");
+        var cabecalhoLogoGeral = document.getElementsByClassName("rwg-cabecalho-logo")[0];
+        var cabecalhoStatus = false;
+            
+        function cabecalhoMobile(){
+        
+            if(cabecalhoStatus == false){ // mostrar navegacao
+
+                cabecalhoStatus = true;
+                cabecalhoIcone.getElementsByTagName("i")[0].setAttribute("class","bx bx-x");
+                cabecalhoIcone.setAttribute("style", "color: var(--cor-azul-escuro); position: fixed; right: 30px;");
+                cabecalhoConteudo.setAttribute("style", "transform: translateX(0vw); opacity: 1;");
+                cabecalhoLogoGeral.setAttribute("style", "position: fixed;");
+
+                document.querySelector('body').setAttribute("class", "stop-scrolling");
+
+
+                cabecalhoLogo.setAttribute("style", "position: fixed;top: 34px;");
+    
+                setTimeout(function delay() {
+                    cabecalhoLogo.setAttribute("style", "filter: invert(8%) sepia(32%) saturate(2155%) hue-rotate(207deg) brightness(88%) contrast(107%); position: fixed;top: 34px;");
+                }, 200);
+
+    
+            }else{ // fechar navegacao
+    
+                cabecalhoStatus = false;
+                cabecalhoIcone.getElementsByTagName("i")[0].setAttribute("class","bx bx-menu");
+                cabecalhoIcone.setAttribute("style", "color: var(--cor-branco)");
+    
+                cabecalhoConteudo.setAttribute("style", "transform: translateX(100vw); opacity: 1;");
+                cabecalhoLogo.setAttribute("style", "filter: brightness(0) invert(1);");
+                cabecalhoLogoGeral.setAttribute("style", "");
+
+                document.querySelector('body').setAttribute("class", "");
+    
+                setTimeout(function delay() {
+                    cabecalhoConteudo.setAttribute("style", "transform: translateX(100vw); opacity: 0;");
+                }, 350);
+    
+    
+            }
+        
+        
+        };
+        
+        cabecalhoRestricao();
+        
+        function cabecalhoRestricao(){
+
+            var restricao = "off";
+            
+            if(restricao == "off"){
+
+                document.getElementById("rwg-cabecalho-navegacao").getElementsByClassName("rwg-btn-branco-cabecalho")[0].setAttribute("style","display:none");
+                document.getElementById("rwg-cabecalho-mobile-navegacao").getElementsByClassName("rwg-btn-preto-cabecalho-mobile")[0].setAttribute("style","display:none");
+                
+            }
+            
+        }
+        
+    </script>
+        
+</section>
+        <!-- Seções -->
+        <section class="rwg-secao secao-home">
+            
+            
+            <div class="home-colunas rwg-largura-pagina">
+                
+                <div class="home-coluna-1">
+                    
+                    <h1 class="home-titulo">ilustração & streampack</h1>
+                    
+                    <p>
+                        <strong><em>Transforme sua foto em desenho ou</em></strong><br>
+                        <strong><em>crie a identidade visual da sua stream!</em></strong>
+                    </p>
+                    
+                    <a href="/contato" class="rwg-btn-branco-cabecalho" role="button">TRABALHE COMIGO</a>
+                    
+                </div>
+
+                <div class="home-coluna-2">
+                    
+                    <img src="/uploads/personagemPrincipal.webp">
+                    
+                </div>
+                
+            </div>
+            
+            <div class="home-fundo-geral">
+                <div class="home-fundo" style="width: 100%;height: 138%;--translateY: -43.8447px;--blur: 0.5152px;transform: translateY(var(--translateY));"></div>
+            </div>
+
+        </section>
+        
+        <section class="rwg-secao secao-sobre">
+            
+          
+        </section>
+        
+        <!-- Rodapés -->
+
+<section>
+
+    <!-- Rodapé Desktop -->
+    <section class="rwg-rodape">
+
+        <div class="rwg-rodape-colunas rwg-largura-pagina">
+
+            <div class="rwg-rodape-coluna coluna-1">
+                <img src="/uploads/logoPequena.webp" alt="Logo RWG" class="rwg-rodape-logo-img">
+            </div>
+            
+            <div class="rwg-rodape-coluna coluna-2">
+                <div class="rwg-rodape-icones">
+                
+                    <a class="rwg-rodape-btn-icone" href="https://www.instagram.com/rwg.art/">
+                        <i class='bx bxl-instagram' ></i>		
+                    </a>
+                
+                    <a class="rwg-rodape-btn-icone" href="https://twitter.com/rwgart">
+                        <i class='bx bxl-twitter' ></i>	
+                    </a>
+                    
+                    <a class="rwg-rodape-btn-icone" href="https://www.youtube.com/channel/UCzlW2OMWLx1644JAOs4ZNfA">
+                        <i class='bx bxl-youtube' ></i>		
+                    </a>
+                    
+                    <a class="rwg-rodape-btn-icone" href="https://www.twitch.tv/rwgart">
+                        <i class='bx bxl-twitch' ></i>	
+                    </a>
+
+                </div>
+                
+                <p><em>contato@rwgart.com.br</em></p>
+                
+            </div>
+            
+            <div class="rwg-rodape-coluna coluna-3">
+                <p><em>Copyright © 2023 RWG</em></p>
+            </div>
+            
+            <div class="rwg-rodape-coluna coluna-4">
+                <a href="/contato" class="rwg-btn-preto" role="button">CONTATO</a>
+            </div>
+        
+        </div>
+        
+    </section>
+
+    <!-- Rodapé Mobile -->
+    <section class="rwg-rodape-mobile">
+
+        <div class="rwg-rodape-colunas rwg-largura-pagina">
+
+            <div class="rwg-rodape-coluna coluna-1">
+                <img src="/uploads/logoPequena.webp" alt="Logo RWG" class="rwg-rodape-logo-img">
+            </div>
+            
+            <div class="rwg-rodape-coluna coluna-2">
+                <div class="rwg-rodape-icones">
+                
+                    <a class="rwg-rodape-btn-icone" href="https://www.instagram.com/rwg.art/">
+                        <i class='bx bxl-instagram' ></i>		
+                    </a>
+                
+                    <a class="rwg-rodape-btn-icone" href="https://twitter.com/rwgart">
+                        <i class='bx bxl-twitter' ></i>	
+                    </a>
+                    
+                    <a class="rwg-rodape-btn-icone" href="https://www.youtube.com/channel/UCzlW2OMWLx1644JAOs4ZNfA">
+                        <i class='bx bxl-youtube' ></i>		
+                    </a>
+                    
+                    <a class="rwg-rodape-btn-icone" href="https://www.twitch.tv/rwgart">
+                        <i class='bx bxl-twitch' ></i>	
+                    </a>
+
+                </div>
+                
+                <p><em>contato@rwgart.com.br</em></p>
+                
+            </div>
+        
+        </div>
+
+        <div class="rwg-rodape-coluna coluna-3">
+            <a href="/contato" class="rwg-btn-preto" role="button">CONTATO</a>
+        </div>
+        
+        <div class="rwg-rodape-coluna coluna-4">
+            <p><em>Copyright © 2023 RWG</em></p>
+        </div>
+        
+    </section>
+
+    <link rel="stylesheet" href="/elementos/css/rodape.css">
+
+    <script>
+
+        document.querySelector(".rwg-rodape").querySelector(".coluna-3").innerHTML = "<p><em>Copyright © "+new Date().getFullYear()+" RWG</em></p>";
+        document.querySelector(".rwg-rodape-mobile").querySelector(".coluna-4").innerHTML = "<p><em>Copyright © "+new Date().getFullYear()+" RWG</em></p>";
+
+    </script>
+
+</section>
+
+
+    </div>
+    
+    <!-- Intro (SplashScreen) -->
+<section class="rwg-secao secao-intro">
+    <div class="intro">
+        
+        <div class="logo-header">
+                    
+            <img class="logo" src="/uploads/logoPequena.webp">
+                    
+        </div>
+            
+    </div>
+    
+    <style>
+
+        .intro{
+        
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100vh;
+            
+            background-color: var(--cor-azul-escuro);
+            
+            transition: 1s;
+        
+        
+        }
+        
+        .logo-header{
+            
+            position: absolute;
+            top: 45%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        
+        .logo{
+            
+            position: relative;
+            bottom: -60px;
+            opacity: 0;
+            
+            width: 150px;
+            
+            filter: brightness(0) invert(1);
+            
+        }
+        
+        .logo.active{
+            
+            bottom: 0;
+            opacity: 1;
+            transition: ease-in-out 0.5s;
+            
+        }
+        
+        .logo.fade{
+            
+            bottom: 180px;
+            opacity: 0;
+            transition: ease-in-out 0.5s;
+            
+        }
+        
+        @media (max-width: 767px) {
+            
+            .logo{
+        
+                width: 100px;
+            
+            } 
+            
+            
+        }
+    
+    </style>
+
+    <script>
+    
+        var intro = document.querySelector('.intro');
+        var logo = document.querySelector('.logo');
+        var pag = document.getElementById("pagina");
+        var body = document.querySelector('body');
+
+        window.addEventListener('DOMContentLoaded', ()=>{
+        
+            setTimeout(()=>{
+                        
+                setTimeout(()=>{
+                    logo.classList.add('active');
+                },0);
+        
+            })	
+        
+        });
+
+        window.onload = function loaded(){
+            
+            setTimeout(()=>{
+                
+                setTimeout(()=>{
+                    pag.style.opacity = '1';
+                },1000);
+                
+                setTimeout(()=>{
+                    logo.classList.remove('active');
+                    logo.classList.add('fade');
+                },2000);
+                            
+                setTimeout(()=>{
+                    intro.style.top = '-100vh';
+                    body.classList.remove('stop-scrolling');
+                },2300);
+                            
+                        
+            })	
+            
+        }
+
+    </script>
+    
+    
+</section>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script type="text/javascript" src="/paginas/js/home.js"></script>
+    
+</body>
+</html>
