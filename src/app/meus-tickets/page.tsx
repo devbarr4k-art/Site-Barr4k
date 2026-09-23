@@ -40,7 +40,7 @@ export default function MeusTicketsPage() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
 
         <div className="mb-10">
-          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+          <h1 className="font-graffiti text-4xl md:text-5xl text-white mb-4">
             Meus <span className="text-purple-500">Tickets</span>
           </h1>
           <p className="text-gray-400 text-lg">
@@ -64,7 +64,7 @@ export default function MeusTicketsPage() {
               </div>
               <button
                 onClick={() => signIn("twitch")}
-                className="mt-6 flex items-center gap-3 bg-white hover:bg-gray-100 text-black px-8 py-4 rounded-xl font-bold text-lg transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:shadow-[0_0_30px_rgba(255,255,255,0.4)] hover:-translate-y-1"
+                className="mt-6 btn-neon flex items-center gap-3 px-8 py-4 text-base"
               >
                 <FaTwitch className="w-5 h-5 text-purple-500" />
                 Continuar com a Twitch

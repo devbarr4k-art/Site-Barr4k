@@ -500,7 +500,7 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
           <p className="text-xs text-gray-500">Quem não é sub tem 1 chance. As chances podem ser ajustadas durante a live.</p>
 
           <button type="submit" disabled={busy}
-            className="w-full btn-neon font-black italic tracking-widest uppercase py-4 rounded-lg text-sm flex items-center justify-center gap-2 disabled:opacity-50">
+            className="w-full btn-neon font-black tracking-widest uppercase py-4 rounded-lg text-sm flex items-center justify-center gap-2 disabled:opacity-50">
             <Radio className="w-5 h-5" /> {busy ? "Abrindo..." : "Iniciar Captação"}
           </button>
         </form>
@@ -627,7 +627,7 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
           )}
 
           <button onClick={() => startDraw()} disabled={isSpinning || eligible.length === 0}
-            className="w-full flex items-center justify-center gap-3 py-5 rounded-xl font-black italic uppercase tracking-widest text-lg text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 shadow-[0_0_30px_rgba(168,85,247,0.4)] disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+            className="w-full flex items-center justify-center gap-3 py-5 rounded-xl font-black uppercase tracking-widest text-lg text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 shadow-[0_0_30px_rgba(168,85,247,0.4)] disabled:opacity-40 disabled:cursor-not-allowed transition-all">
             <Trophy className="w-6 h-6" /> Iniciar Sorteio
           </button>
 
@@ -654,8 +654,11 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
             </div>
           </div>
 
-          <button onClick={handleEndWithoutWinner} className="w-full text-xs text-gray-500 hover:text-red-400 underline py-2">
-            Encerrar sorteio de hoje sem ganhador
+          <button
+            onClick={handleEndWithoutWinner}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold uppercase tracking-widest text-xs text-red-300 bg-red-500/10 border border-red-500/40 hover:bg-red-500/20 transition-colors"
+          >
+            <X className="w-4 h-4" /> Encerrar sorteio sem ganhador
           </button>
         </div>
 
@@ -711,7 +714,7 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
       {/* Roleta */}
       {isSpinning && (
         <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-black/95 backdrop-blur-md px-4 animate-fade-in">
-          <h2 className="text-3xl md:text-5xl font-black italic uppercase tracking-wider text-white mb-10 animate-pulse">Sorteando...</h2>
+          <h2 className="text-3xl md:text-5xl font-black uppercase tracking-wider text-white mb-10 animate-pulse">Sorteando...</h2>
           <div ref={trackRef} className="relative w-full max-w-5xl h-48 overflow-hidden rounded-2xl border-y-2 border-purple-500/40 bg-[#0c0c10]">
             <div className="absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-[#0c0c10] to-transparent z-20 pointer-events-none" />
             <div className="absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-[#0c0c10] to-transparent z-20 pointer-events-none" />
@@ -744,7 +747,7 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
             <p className="relative text-xs font-black uppercase tracking-[0.3em] text-purple-400 mb-5">Sorteado!</p>
             <img src={avatarFor(drawn.twitch_username, drawn.avatar_url)} alt=""
               className="relative w-28 h-28 rounded-full mx-auto border-4 border-yellow-400 shadow-[0_0_40px_rgba(250,204,21,0.5)] object-cover" />
-            <h3 className="relative mt-4 text-4xl md:text-5xl font-black italic text-white break-all">@{drawn.twitch_username}</h3>
+            <h3 className="relative mt-4 text-4xl md:text-5xl font-black text-white break-all">@{drawn.twitch_username}</h3>
             <div className="relative mt-3 flex justify-center gap-2">
               <SubBadge tier={drawn.sub_tier} />
               <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 border border-gray-700 rounded-md px-1.5 py-0.5">{chancesFor(drawn.sub_tier, daily)} {chancesFor(drawn.sub_tier, daily) === 1 ? "chance" : "chances"}</span>
@@ -799,7 +802,7 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
             <p className="text-xs font-black uppercase tracking-[0.3em] text-yellow-400">Ganhador do dia</p>
             <img src={avatarFor(confirmedWinner.twitch_username, confirmedWinner.avatar_url)} alt=""
               className="w-24 h-24 rounded-full mx-auto mt-4 border-4 border-yellow-400 object-cover" />
-            <h3 className="mt-3 text-4xl font-black italic text-white break-all">@{confirmedWinner.twitch_username}</h3>
+            <h3 className="mt-3 text-4xl font-black text-white break-all">@{confirmedWinner.twitch_username}</h3>
             <p className="mt-2 text-gray-400">{daily.title.replace("|", " ")}</p>
             <p className="mt-4 text-sm text-gray-500">Salvo no histórico de 30 dias da página Sorteio Diário.</p>
             <button onClick={resetToSetup} className="mt-6 w-full btn-neon py-4 rounded-xl font-black uppercase tracking-widest text-sm">

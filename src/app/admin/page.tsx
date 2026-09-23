@@ -308,11 +308,15 @@ export default function AdminDashboard() {
     setShowWinner(false);
   };
 
+  // Muda na hora nas duas listas (vencedores do sorteio e aba de vencedores) e confirma no servidor
   const toggleHallOfFame = async (winnerId: string, currentState: boolean) => {
-    if (await run("setHallOfFame", { id: winnerId, value: !currentState })) {
-      fetchWinners();
-      if (managingParticipants) fetchLocalWinners(managingParticipants);
-    }
+    const apply = (value: boolean) => {
+      const update = (list: any[]) => list.map((w) => (w.id === winnerId ? { ...w, in_hall_of_fame: value } : w));
+      setWinners(update);
+      setLocalWinners(update);
+    };
+    apply(!currentState);
+    if (!(await run("setHallOfFame", { id: winnerId, value: !currentState }))) apply(currentState);
   };
 
   const saveWinner = async (drawAgain: boolean) => {
@@ -518,7 +522,7 @@ export default function AdminDashboard() {
           <Radio className="w-4 h-4 md:w-5 md:h-5" /> Sorteio Diário (Live)
         </button>
         <button
-          onClick={() => setActiveTab("users")}
+          onClick={() => { setActiveTab("users"); fetchWinners(); }}
           className={`flex items-center gap-2 md:gap-3 px-4 py-2 md:py-3 rounded-lg font-medium transition-all flex-shrink-0 ${activeTab === "users" ? "bg-purple-600/20 text-purple-300 border border-purple-500/50" : "text-gray-400 hover:bg-gray-900 hover:text-white"}`}
         >
           <Trophy className="w-4 h-4 md:w-5 md:h-5" /> Vencedores dos Sorteios
@@ -978,7 +982,7 @@ export default function AdminDashboard() {
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md animate-fade-in">
           <div className="w-full max-w-5xl flex flex-col items-center">
 
-            <h2 className={`text-4xl font-black text-white uppercase italic tracking-wider mb-12 ${showWinner ? "" : "animate-pulse"}`}>{showWinner ? "Ganhador!" : "Sorteando..."}</h2>
+            <h2 className={`text-4xl font-black text-white uppercase tracking-wider mb-12 ${showWinner ? "" : "animate-pulse"}`}>{showWinner ? "Ganhador!" : "Sorteando..."}</h2>
 
             {/* A linha de centro (mirador) */}
             <div className="relative w-full h-48 bg-[#121214] border-y-4 border-purple-500/30 overflow-hidden shadow-[0_0_50px_rgba(168,85,247,0.1)] flex items-center">
@@ -1035,7 +1039,7 @@ export default function AdminDashboard() {
                   className="w-24 h-24 rounded-full mx-auto mb-4 object-cover border-4 border-yellow-400 shadow-[0_0_30px_rgba(234,179,8,0.45)]"
                 />
 
-                <h3 className="text-3xl font-black text-white uppercase italic tracking-wider mb-2 truncate">@{drawnWinner?.twitch_username}</h3>
+                <h3 className="text-3xl font-black text-white uppercase tracking-wider mb-2 truncate">@{drawnWinner?.twitch_username}</h3>
                 <p className="text-gray-400 mb-6 font-medium text-xs uppercase tracking-widest">Vencedor do sorteio</p>
 
                 <div className="flex gap-3">
@@ -1081,7 +1085,7 @@ export default function AdminDashboard() {
             </button>
 
             <div className="p-6 md:p-8 md:w-[55%] space-y-6 max-h-none md:max-h-[85vh] overflow-y-visible md:overflow-y-auto custom-scrollbar pt-16 md:pt-8">
-              <h2 className="text-2xl font-black text-white uppercase italic tracking-wider">{editingGiveaway ? "Editar Sorteio" : "Criar Sorteio"}</h2>
+              <h2 className="text-2xl font-black text-white uppercase tracking-wider">{editingGiveaway ? "Editar Sorteio" : "Criar Sorteio"}</h2>
 
               <form onSubmit={handleCreateSorteio} className="space-y-5">
                 {/* Campos Globais (Sempre Visíveis) */}
@@ -1228,7 +1232,7 @@ export default function AdminDashboard() {
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="w-full btn-neon font-bold italic tracking-widest uppercase py-4 rounded-lg mt-6 text-sm text-center block disabled:opacity-50"
+                  className="w-full btn-neon font-bold tracking-widest uppercase py-4 rounded-lg mt-6 text-sm text-center block disabled:opacity-50"
                 >
                   {isSaving ? "Salvando..." : "Salvar Sorteio"}
                 </button>
@@ -1424,10 +1428,10 @@ export default function AdminDashboard() {
                   {/* Bloco 3: Formulário de Participação */}
                   <div className="p-6 text-center flex flex-col items-center">
                     <Sparkles className="w-6 h-6 text-purple-500 mb-4" />
-                    <h3 className="text-lg font-black text-white italic tracking-wider uppercase mb-2">
+                    <h3 className="text-lg font-black text-white tracking-wider uppercase mb-2">
                       PARTICIPE AGORA
                     </h3>
-                    <button type="button" className="w-full btn-neon font-bold italic tracking-widest uppercase py-3 rounded-lg mt-2 text-xs flex items-center justify-center gap-2">
+                    <button type="button" className="w-full btn-neon font-bold tracking-widest uppercase py-3 rounded-lg mt-2 text-xs flex items-center justify-center gap-2">
                       <FaTwitch className="w-3 h-3" />
                       {newLoginText || "Entrada Gratuita . Login com a Twitch"}
                     </button>

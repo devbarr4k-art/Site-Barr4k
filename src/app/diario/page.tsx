@@ -56,7 +56,7 @@ export default function DiarioPage() {
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 font-bold text-xs tracking-widest uppercase">
             <Calendar className="w-4 h-4" /> Sorteio Diário
           </div>
-          <h1 className="text-5xl md:text-7xl font-black text-white uppercase tracking-tighter" style={{ fontFamily: "var(--font-kanit)" }}>
+          <h1 className="font-graffiti text-5xl md:text-7xl text-white uppercase">
             O SORTEIO DA <span className="text-purple-500">LIVE</span>
           </h1>
           <p className="text-gray-400 max-w-2xl mx-auto font-medium">
@@ -147,7 +147,7 @@ export default function DiarioPage() {
             <h2 className="text-yellow-500 font-black tracking-widest uppercase text-sm mb-4 relative">Vencedor de hoje</h2>
             <img src={avatarFor(todayWinner.twitch_username, todayWinner.avatar_url)} alt=""
               className="w-24 h-24 rounded-full border-4 border-yellow-400 object-cover relative mb-4" />
-            <div className="text-4xl font-black text-white uppercase italic tracking-wider mb-4 relative break-all">
+            <div className="text-4xl font-black text-white uppercase tracking-wider mb-4 relative break-all">
               @{todayWinner.twitch_username}
             </div>
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-yellow-500/20 rounded-lg text-yellow-400 font-bold border border-yellow-500/30 relative">

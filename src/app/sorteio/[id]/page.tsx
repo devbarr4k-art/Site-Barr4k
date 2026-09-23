@@ -10,7 +10,8 @@ import ClosedStamp from "@/components/ui/ClosedStamp";
 import NumberInput from "@/components/ui/NumberInput";
 import { useSession, signIn } from "next-auth/react";
 
-const useCountdown = (targetDateString: string | null) => {
+// onEnd é chamado quando o cronômetro zera (com a página aberta)
+const useCountdown = (targetDateString: string | null, onEnd?: () => void) => {
   const [timeLeft, setTimeLeft] = useState({
     days: "00", hours: "00", minutes: "00", seconds: "00"
   });
@@ -24,8 +25,10 @@ const useCountdown = (targetDateString: string | null) => {
       const now = new Date().getTime();
       const distance = targetDate - now;
 
-      if (distance < 0) {
+      if (distance <= 0) {
         setTimeLeft({ days: "00", hours: "00", minutes: "00", seconds: "00" });
+        onEnd?.();
+        clearInterval(interval);
         return;
       }
 
@@ -37,11 +40,11 @@ const useCountdown = (targetDateString: string | null) => {
       setTimeLeft({ days, hours, minutes, seconds });
     };
 
-    updateTimer(); // call immediately
-    const interval = setInterval(updateTimer, 1000);
+    const interval = setInterval(() => updateTimer(), 1000);
+    updateTimer();
 
     return () => clearInterval(interval);
-  }, [targetDateString]);
+  }, [targetDateString]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return timeLeft;
 };
@@ -65,7 +68,7 @@ export default function SorteioPage() {
   const [isParticipating, setIsParticipating] = useState(false);
   const [isExpired, setIsExpired] = useState(false);
 
-  const timeLeft = useCountdown(giveaway?.draw_date || null);
+  const timeLeft = useCountdown(giveaway?.draw_date || null, () => setIsExpired(true));
 
   useEffect(() => {
     async function fetchGiveaway() {
@@ -156,7 +159,7 @@ export default function SorteioPage() {
           </div>
 
           <h2 className="text-[#a0a0a0] font-bold text-sm tracking-[0.4em] mb-2 uppercase">SORTEIO</h2>
-          <h1 className="text-4xl sm:text-5xl md:text-[4rem] font-black text-white uppercase tracking-tighter leading-[0.9]" style={{ fontFamily: 'Impact, sans-serif' }}>
+          <h1 className="font-graffiti text-4xl sm:text-5xl md:text-[4rem] text-white uppercase leading-[1]">
             {giveaway.title.split('|')[0] || giveaway.title} <br/>
             {giveaway.title.includes('|') && (
               <span className="text-purple-500 block mt-1">{giveaway.title.split('|')[1]}</span>
@@ -233,19 +236,19 @@ export default function SorteioPage() {
           {isSuccess ? (
             <div className="flex flex-col items-center text-center py-4">
               <CheckCircle2 className="w-16 h-16 text-green-500 mb-6 animate-pulse" />
-              <h3 className="text-2xl font-black text-white uppercase italic tracking-wider mb-2">Entrada Confirmada!</h3>
+              <h3 className="text-2xl font-black text-white uppercase tracking-wider mb-2">Entrada Confirmada!</h3>
               <p className="text-[#a0a0a0]">Sua participação foi registrada. Redirecionando...</p>
             </div>
           ) : isClosed ? (
             <div className="flex flex-col items-center text-center py-4">
               <Trophy className="w-12 h-12 text-gray-600 mb-4" />
-              <h3 className="text-2xl font-black text-white uppercase italic tracking-wider mb-2">Sorteio Encerrado</h3>
+              <h3 className="text-2xl font-black text-white uppercase tracking-wider mb-2">Sorteio Encerrado</h3>
               <p className="text-[#a0a0a0] text-sm">As inscrições para este sorteio já foram fechadas.</p>
             </div>
           ) : !isParticipating ? (
             <>
               <Sparkles className="w-8 h-8 text-purple-500 mb-6" />
-              <h3 className="text-2xl font-black text-white italic tracking-wider uppercase mb-3">
+              <h3 className="text-2xl font-black text-white tracking-wider uppercase mb-3">
                 PARTICIPE AGORA
               </h3>
               <p className="text-[#a0a0a0] text-sm max-w-xs mx-auto mb-8 leading-relaxed font-medium">
@@ -259,7 +262,7 @@ export default function SorteioPage() {
                     setIsParticipating(true);
                   }
                 }}
-                className="w-full max-w-[280px] bg-white hover:bg-gray-200 text-black font-black uppercase tracking-widest py-3.5 rounded-xl transition-all duration-300 flex items-center justify-center gap-3 text-[11px]"
+                className="w-full max-w-[300px] btn-neon py-3.5 flex items-center justify-center gap-3 text-xs"
               >
                 <FaTwitch className="w-4 h-4 text-purple-600" /> {isLoggedIn ? 'PREENCHER DADOS' : 'ENTRAR COM A TWITCH'}
               </button>
@@ -267,7 +270,7 @@ export default function SorteioPage() {
           ) : (
             <form onSubmit={handleConfirm} className="w-full text-left space-y-6">
               <div className="text-center mb-8">
-                <h3 className="text-2xl font-black text-white italic tracking-wider uppercase mb-2">
+                <h3 className="text-2xl font-black text-white tracking-wider uppercase mb-2">
                   Preencher Requisitos
                 </h3>
               </div>
@@ -337,7 +340,7 @@ export default function SorteioPage() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-black italic uppercase tracking-wider py-4 rounded-xl transition-all shadow-lg text-sm disabled:opacity-50"
+                  className="flex-1 btn-neon py-4 text-sm disabled:opacity-50"
                 >
                   {isSubmitting ? "Enviando..." : "Confirmar"}
                 </button>

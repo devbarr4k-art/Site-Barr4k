@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Lato, Kanit } from "next/font/google";
+import { Lato, Kanit, Sedgwick_Ave_Display } from "next/font/google";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import Navbar from "@/components/layout/Navbar";
@@ -22,6 +22,13 @@ const kanit = Kanit({
   style: ["normal", "italic"]
 });
 
+// Estilo pichação/grafite, usado nos títulos (classe font-graffiti)
+const graffiti = Sedgwick_Ave_Display({
+  variable: "--font-graffiti",
+  subsets: ["latin"],
+  weight: "400",
+});
+
 export const metadata: Metadata = {
   title: "BARR4K",
   description: "Plataforma oficial de sorteios e engajamento da comunidade do BARR4K.",
@@ -35,7 +42,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className="dark scroll-smooth">
       <body
-        className={`${lato.variable} ${kanit.variable} antialiased bg-black text-slate-100 min-h-screen flex flex-col font-sans italic`}
+        className={`${lato.variable} ${kanit.variable} ${graffiti.variable} antialiased bg-black text-slate-100 min-h-screen flex flex-col font-sans`}
       >
         <Providers>
           <Navbar />

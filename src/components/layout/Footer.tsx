@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
-import { FaTwitch, FaInstagram, FaTwitter } from "react-icons/fa";
+import { FaTwitch, FaInstagram, FaYoutube } from "react-icons/fa";
+import { FaXTwitter } from "react-icons/fa6";
 
 export default function Footer() {
   return (
@@ -20,7 +21,7 @@ export default function Footer() {
                   className="object-cover"
                 />
               </div>
-              <span className="font-black text-2xl tracking-wider italic text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-500 to-blue-500 animate-pulse-glow flex items-center">
+              <span className="font-graffiti text-2xl tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-500 to-blue-500 animate-pulse-glow flex items-center">
                 BARR4K
               </span>
             </Link>
@@ -65,13 +66,23 @@ export default function Footer() {
               >
                 <FaInstagram className="w-4 h-4" />
               </a>
-              <a 
-                href="https://twitter.com/barr4k" 
-                target="_blank" 
+              <a
+                href="https://x.com/jpbarrak"
+                target="_blank"
                 rel="noreferrer"
-                className="w-10 h-10 rounded-full border border-gray-800 flex items-center justify-center text-gray-400 hover:text-white hover:bg-blue-500 hover:border-blue-400 transition-all shadow-[0_0_0_rgba(59,130,246,0)] hover:shadow-[0_0_15px_rgba(59,130,246,0.5)]"
+                aria-label="X (Twitter)"
+                className="w-10 h-10 rounded-full border border-gray-800 flex items-center justify-center text-gray-400 hover:text-white hover:bg-black hover:border-white/60 transition-all shadow-[0_0_0_rgba(255,255,255,0)] hover:shadow-[0_0_15px_rgba(255,255,255,0.25)]"
               >
-                <FaTwitter className="w-4 h-4" />
+                <FaXTwitter className="w-4 h-4" />
+              </a>
+              <a
+                href="https://www.youtube.com/@barr4k/shorts"
+                target="_blank"
+                rel="noreferrer"
+                aria-label="YouTube"
+                className="w-10 h-10 rounded-full border border-gray-800 flex items-center justify-center text-gray-400 hover:text-white hover:bg-red-600 hover:border-red-500 transition-all shadow-[0_0_0_rgba(220,38,38,0)] hover:shadow-[0_0_15px_rgba(220,38,38,0.5)]"
+              >
+                <FaYoutube className="w-4 h-4" />
               </a>
             </div>
           </div>

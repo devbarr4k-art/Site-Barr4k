@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Trophy, Gift, ArrowDown, Zap, X, ArrowRight, Clock } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -53,6 +53,7 @@ export default function Home() {
   const [activeGiveaways, setActiveGiveaways] = useState<any[]>([]);
   const [isLoadingGiveaways, setIsLoadingGiveaways] = useState(true);
   const [winners, setWinners] = useState<any[]>([]);
+  const rawGiveaways = useRef<any[]>([]);
 
   const timeLeft = useCountdown(featuredGiveaway?.draw_date || null);
 
@@ -71,20 +72,32 @@ export default function Home() {
       .order('created_at', { ascending: false })
       .limit(40);
     if (data) {
-      // Abertos primeiro; depois os 6 encerrados mais recentes, em preto e branco
-      const now = Date.now();
-      const withState = data.map((g) => ({ ...g, isClosed: isGiveawayClosed(g, now) }));
-      const open = withState.filter((g) => !g.isClosed);
-      const closed = withState.filter((g) => g.isClosed).slice(0, 6);
-
-      // Destaque só abre enquanto o sorteio está aberto; aparece toda vez que a pessoa volta para a home
-      const featured = open.find(g => g.type === 'featured');
-      setFeaturedGiveaway(featured ?? null);
-      setShowFeaturedPopup(!!featured);
-      setActiveGiveaways([...open, ...closed]);
+      rawGiveaways.current = data;
+      classifyGiveaways(true);
     }
     setIsLoadingGiveaways(false);
   };
+
+  // Abertos primeiro; depois os 6 encerrados mais recentes, em preto e branco.
+  // Roda de novo a cada 15s para o card virar "encerrado" na hora em que o tempo acaba.
+  const classifyGiveaways = (firstLoad: boolean) => {
+    const now = Date.now();
+    const withState = rawGiveaways.current.map((g) => ({ ...g, isClosed: isGiveawayClosed(g, now) }));
+    const open = withState.filter((g) => !g.isClosed);
+    const closed = withState.filter((g) => g.isClosed).slice(0, 6);
+    setActiveGiveaways([...open, ...closed]);
+
+    // Destaque só aparece com o sorteio aberto; abre toda vez que a pessoa volta para a home
+    const featured = open.find((g) => g.type === 'featured');
+    setFeaturedGiveaway(featured ?? null);
+    if (firstLoad) setShowFeaturedPopup(!!featured);
+    else if (!featured) setShowFeaturedPopup(false);
+  };
+
+  useEffect(() => {
+    const interval = setInterval(() => classifyGiveaways(false), 15000);
+    return () => clearInterval(interval);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchHallOfFame = async () => {
     const { data } = await supabase
@@ -159,10 +172,10 @@ export default function Home() {
             <span>Inscritos têm até 5x mais chances de ganhar!</span>
           </div>
 
-          <h1 className="text-4xl sm:text-5xl md:text-7xl font-extrabold tracking-tight mb-6 text-white drop-shadow-md leading-[1.1]">
-            Sorteios Exclusivos para a <br className="hidden md:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-500 to-blue-500 animate-pulse-glow italic">
-              Família BARR4K
+          <h1 className="font-graffiti text-4xl sm:text-5xl md:text-7xl tracking-normal mb-6 text-white drop-shadow-md leading-[1.15]">
+            Sorteios Exclusivos para <br className="hidden md:block" />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-500 to-blue-500 animate-pulse-glow">
+              APOIADORES!
             </span>
           </h1>
           <p className="max-w-2xl mx-auto text-sm sm:text-base md:text-xl text-gray-400 mb-10 font-light px-4">
@@ -246,7 +259,7 @@ export default function Home() {
                 </span>
               </div>
 
-              <h1 className="text-4xl sm:text-[2.5rem] font-black text-white uppercase tracking-tighter leading-[0.95]" style={{ fontFamily: 'var(--font-kanit)' }}>
+              <h1 className="font-graffiti text-4xl sm:text-[2.5rem] text-white uppercase leading-[1]">
                 SORTEIO {featuredGiveaway.title.split('|')[0]} <br/>
                 {featuredGiveaway.title.includes('|') && (
                   <span className="text-purple-500 inline-block mt-1">{featuredGiveaway.title.split('|')[1]}</span>
@@ -282,7 +295,7 @@ export default function Home() {
                   closeFeaturedPopup();
                   handleOpenModal(featuredGiveaway);
                 }}
-                className={`w-full text-white font-black uppercase tracking-widest py-4 rounded-xl transition-all duration-300 flex items-center justify-center gap-3 text-sm mb-4 ${featuredGiveaway.isClosed ? 'bg-white/10 hover:bg-white/15' : 'bg-purple-600 hover:bg-purple-500 shadow-[0_0_20px_rgba(147,51,234,0.3)]'}`}
+                className={`w-full py-4 flex items-center justify-center gap-3 text-sm mb-4 ${featuredGiveaway.isClosed ? 'text-white font-black uppercase tracking-widest rounded-xl bg-white/10 hover:bg-white/15 transition-colors' : 'btn-neon'}`}
               >
                 {featuredGiveaway.isClosed ? 'VER SORTEIO' : 'QUERO PARTICIPAR'} <ArrowRight className="w-4 h-4" />
               </button>
@@ -303,7 +316,7 @@ export default function Home() {
 
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
             <div>
-              <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter" style={{ fontFamily: 'var(--font-kanit)' }}>
+              <h2 className="font-graffiti text-4xl md:text-5xl text-white uppercase">
                 SORTEIOS <span className="text-purple-500">ATIVOS</span>
               </h2>
               <p className="text-gray-400 text-xs tracking-widest uppercase font-bold mt-3">
@@ -396,7 +409,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
             <div>
-              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 flex items-center gap-3">
+              <h2 className="font-graffiti text-3xl md:text-4xl text-white mb-4 flex items-center gap-3">
                 <Trophy className="w-8 h-8 text-purple-500" /> Hall da Fama
               </h2>
               <p className="text-gray-400 max-w-xl">Os sortudos que já levaram prêmios para casa recentemente. O próximo pode ser você!</p>
@@ -446,7 +459,7 @@ export default function Home() {
                 </div>
                 <Link
                   href="#active-giveaways"
-                  className="mt-4 bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 border border-purple-500/50 px-6 py-3 rounded-full font-medium transition-all"
+                  className="mt-4 btn-neon px-8 py-3"
                 >
                   Participar Agora
                 </Link>
@@ -460,7 +473,7 @@ export default function Home() {
       <section id="parceiros" className="py-20 bg-black border-t border-white/5 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+            <h2 className="font-graffiti text-3xl md:text-4xl text-white mb-4">
               Nossos <span className="text-purple-500">Parceiros</span>
             </h2>
             <p className="text-gray-400">Apoie o canal utilizando nossos cupons e links de afiliado!</p>
