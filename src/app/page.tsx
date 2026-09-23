@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Trophy, Gift, Users, ArrowDown, Zap, X, ArrowRight, Clock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { isGiveawayClosed } from "@/lib/giveaway";
+import ClosedStamp from "@/components/ui/ClosedStamp";
 
 const useCountdown = (targetDateString: string | null) => {
   const [timeLeft, setTimeLeft] = useState({
@@ -63,11 +65,18 @@ export default function Home() {
     const { data } = await supabase
       .from('giveaways')
       .select('*')
-      .eq('status', 'active')
+      .in('status', ['active', 'completed'])
       .neq('type', 'daily') // o sorteio da live tem página própria (/diario)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(40);
     if (data) {
-      const featured = data.find(g => g.type === 'featured');
+      // Abertos primeiro; depois os 6 encerrados mais recentes, em preto e branco
+      const now = Date.now();
+      const withState = data.map((g) => ({ ...g, isClosed: isGiveawayClosed(g, now) }));
+      const open = withState.filter((g) => !g.isClosed);
+      const closed = withState.filter((g) => g.isClosed).slice(0, 6);
+
+      const featured = withState.find(g => g.type === 'featured');
       if (featured) {
         setFeaturedGiveaway(featured);
         let closed = false;
@@ -76,7 +85,7 @@ export default function Home() {
           setShowFeaturedPopup(true);
         }
       }
-      setActiveGiveaways(data);
+      setActiveGiveaways([...open, ...closed]);
     }
     setIsLoadingGiveaways(false);
   };
@@ -156,12 +165,13 @@ export default function Home() {
             {/* Top Image Area */}
             <div className="relative h-[300px] sm:h-[380px] w-full bg-black">
               {featuredGiveaway.featured_image_url || featuredGiveaway.image_url ? (
-                <img src={featuredGiveaway.featured_image_url || featuredGiveaway.image_url} alt={featuredGiveaway.title} className="w-full h-full object-cover" />
+                <img src={featuredGiveaway.featured_image_url || featuredGiveaway.image_url} alt={featuredGiveaway.title} className={`w-full h-full object-cover ${featuredGiveaway.isClosed ? 'grayscale opacity-60' : ''}`} />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-gray-700"><Gift className="w-20 h-20" /></div>
               )}
               {/* Gradient Overlay for bottom text */}
               <div className="absolute inset-0 bg-gradient-to-t from-[#101010] via-black/20 to-transparent z-10" />
+              {featuredGiveaway.isClosed && <ClosedStamp />}
 
               {/* Top Badges */}
               <div className="absolute top-4 left-4 z-20 flex gap-2 w-[calc(100%-32px)] justify-between items-start">
@@ -227,8 +237,13 @@ export default function Home() {
                 )}
               </p>
 
-              {/* Cronômetro Compacto */}
-              {featuredGiveaway.draw_date && (
+              {/* Cronômetro Compacto (ou aviso de encerrado) */}
+              {featuredGiveaway.isClosed ? (
+              <div className="w-full bg-red-500/10 border border-red-500/30 rounded-xl p-4 mb-6">
+                <span className="text-[9px] text-red-400/80 uppercase tracking-widest font-bold">Sorteio encerrado</span>
+                <p className="text-white font-bold text-sm mt-1">As inscrições para este sorteio já foram fechadas.</p>
+              </div>
+              ) : featuredGiveaway.draw_date && (
               <div className="w-full flex items-center justify-between bg-black/50 border border-white/5 rounded-xl p-4 mb-6">
                 <div className="flex flex-col">
                   <span className="text-[9px] text-[#606060] uppercase tracking-widest font-bold mb-1">Encerra em</span>
@@ -245,14 +260,16 @@ export default function Home() {
                   closeFeaturedPopup();
                   handleOpenModal(featuredGiveaway);
                 }}
-                className="w-full bg-purple-600 hover:bg-purple-500 text-white font-black uppercase tracking-widest py-4 rounded-xl transition-all duration-300 flex items-center justify-center gap-3 text-sm shadow-[0_0_20px_rgba(147,51,234,0.3)] mb-4"
+                className={`w-full text-white font-black uppercase tracking-widest py-4 rounded-xl transition-all duration-300 flex items-center justify-center gap-3 text-sm mb-4 ${featuredGiveaway.isClosed ? 'bg-white/10 hover:bg-white/15' : 'bg-purple-600 hover:bg-purple-500 shadow-[0_0_20px_rgba(147,51,234,0.3)]'}`}
               >
-                QUERO PARTICIPAR <ArrowRight className="w-4 h-4" />
+                {featuredGiveaway.isClosed ? 'VER SORTEIO' : 'QUERO PARTICIPAR'} <ArrowRight className="w-4 h-4" />
               </button>
 
+              {!featuredGiveaway.isClosed && (
               <p className="w-full text-center text-[#606060] text-[10px] font-bold uppercase tracking-widest">
                 {featuredGiveaway.login_text || "Entrada Gratuita . Login com a Twitch"}
               </p>
+              )}
             </div>
           </div>
         </div>
@@ -287,7 +304,7 @@ export default function Home() {
               <div
                 key={giveaway.id}
                 onClick={() => handleOpenModal(giveaway)}
-                className={`bg-[#0c0d10] rounded-xl overflow-hidden border cursor-pointer transition-all hover:scale-[1.02] flex flex-col group ${index === 0 ? 'border-purple-500/50' : 'border-white/5 hover:border-white/20'}`}
+                className={`bg-[#0c0d10] rounded-xl overflow-hidden border cursor-pointer transition-all hover:scale-[1.02] flex flex-col group ${giveaway.isClosed ? 'border-white/5 opacity-80 hover:opacity-100' : index === 0 ? 'border-purple-500/50' : 'border-white/5 hover:border-white/20'}`}
               >
                 {/* Imagem e Badges */}
                 <div className="relative h-64 bg-[#0c0d10] p-4 flex flex-col">
@@ -305,11 +322,12 @@ export default function Home() {
                   </div>
                   <div className="absolute inset-0 flex items-center justify-center z-0">
                     {giveaway.image_url ? (
-                      <img src={giveaway.image_url} alt={giveaway.title} className="w-full h-full object-cover filter transition-transform duration-500 group-hover:scale-110 opacity-90 group-hover:opacity-100" />
+                      <img src={giveaway.image_url} alt={giveaway.title} className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 ${giveaway.isClosed ? 'grayscale opacity-60' : 'opacity-90 group-hover:opacity-100'}`} />
                     ) : (
                       <Gift className="w-20 h-20 text-gray-700" />
                     )}
                   </div>
+                  {giveaway.isClosed && <ClosedStamp />}
                 </div>
 
                 {/* Informações */}
@@ -336,7 +354,9 @@ export default function Home() {
                   </div>
 
                   <div className="flex items-center justify-between mt-auto text-gray-500 group-hover:text-gray-300 transition-colors">
-                    <span className="text-[11px] font-bold uppercase tracking-widest">Participar</span>
+                    <span className={`text-[11px] font-bold uppercase tracking-widest ${giveaway.isClosed ? 'text-red-400' : ''}`}>
+                      {giveaway.isClosed ? 'Encerrado' : 'Participar'}
+                    </span>
                     <span className="text-sm font-bold">↗</span>
                   </div>
                 </div>

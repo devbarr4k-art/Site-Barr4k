@@ -6,6 +6,7 @@ import { ArrowLeft, CheckCircle2, Gift, Sparkles, Trophy, Upload } from "lucide-
 import { FaTwitch } from "react-icons/fa";
 import { supabase } from "@/lib/supabase";
 import { compressImage } from "@/lib/image";
+import ClosedStamp from "@/components/ui/ClosedStamp";
 import { useSession, signIn } from "next-auth/react";
 
 const useCountdown = (targetDateString: string | null) => {
@@ -170,11 +171,12 @@ export default function SorteioPage() {
         <div className="overflow-hidden border-t border-b border-white/5">
           <div className="relative h-[320px] md:h-[450px] w-full bg-black">
             {giveaway.detail_image_url || giveaway.image_url ? (
-              <img src={giveaway.detail_image_url || giveaway.image_url} alt={giveaway.title} className="w-full h-full object-cover" />
+              <img src={giveaway.detail_image_url || giveaway.image_url} alt={giveaway.title} className={`w-full h-full object-cover ${isClosed ? "grayscale opacity-60" : ""}`} />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-gray-700"><Gift className="w-20 h-20" /></div>
             )}
             <div className="absolute inset-0 bg-gradient-to-t from-[#101010] via-black/20 to-transparent z-10" />
+            {isClosed && <ClosedStamp size="lg" />}
 
             {/* Title Overlay in Image */}
             <div className="absolute bottom-6 left-6 right-6 z-20">
@@ -192,7 +194,8 @@ export default function SorteioPage() {
             </div>
           </div>
 
-          {/* Cronômetro */}
+          {/* Cronômetro (some quando o sorteio já encerrou) */}
+          {!isClosed && (
           <div className="flex border-t border-white/5 p-4 md:p-6 divide-x divide-white/5 justify-center">
             <div className="flex-1 text-center">
               <div className="text-3xl md:text-4xl font-black text-white">{timeLeft.days}</div>
@@ -211,10 +214,11 @@ export default function SorteioPage() {
               <div className="text-[9px] text-[#505050] uppercase tracking-[0.2em] font-bold mt-1 md:mt-2">SEG</div>
             </div>
           </div>
+          )}
 
           {giveaway.draw_date && (
-            <div className="text-center pb-6 text-[#505050] text-[10px] font-bold uppercase tracking-wider">
-              Sorteio encerra em <span className="text-white">
+            <div className={`text-center pb-6 text-[#505050] text-[10px] font-bold uppercase tracking-wider ${isClosed ? "border-t border-white/5 pt-6" : ""}`}>
+              {isClosed ? "Sorteio encerrado em" : "Sorteio encerra em"} <span className="text-white">
                 {new Date(giveaway.draw_date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
               </span> às <span className="text-white">
                 {new Date(giveaway.draw_date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
