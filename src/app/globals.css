@@ -93,10 +93,11 @@
   color: #fff;
   border: 2px solid #000;
   border-radius: 0.75rem;
-  font-weight: 800;
-  font-style: normal;
+  font-family: var(--font-lato), sans-serif;
+  font-weight: 900;
+  font-style: italic; /* igual ao rwgart.com.br: Lato Black itálico */
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.01em;
   transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 .btn-neon::before {
@@ -136,12 +137,14 @@
   opacity: 0.4;
 }
 
-/* Títulos: Lato no peso mais forte, sem itálico */
+/* Títulos no estilo do rwgart.com.br: Lato Black, itálico e maiúsculo */
 .font-title {
   font-family: var(--font-lato), sans-serif;
   font-weight: 900;
-  font-style: normal;
+  font-style: italic;
+  text-transform: uppercase;
   letter-spacing: -0.01em;
+  line-height: 1.05;
 }
 
 /* Floating Underline Animation for Links */

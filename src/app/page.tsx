@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import Link from "next/link";
 import { Trophy, Gift, ArrowDown, Zap, X, ArrowRight, Clock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -136,6 +135,17 @@ export default function Home() {
     return () => window.removeEventListener("scroll", update);
   }, [isLoadingGiveaways]);
 
+  // Rola até a seção descontando o menu fixo (o # do Next não rolava depois
+  // que a URL passou a acompanhar a rolagem)
+  const scrollToSection = (e: React.MouseEvent, id: string) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    e.preventDefault();
+    const top = el.getBoundingClientRect().top + window.scrollY - 80;
+    window.scrollTo({ top, behavior: "smooth" });
+    window.history.replaceState(window.history.state, "", `#${id}`);
+  };
+
   const closeFeaturedPopup = () => {
     setShowFeaturedPopup(false);
   };
@@ -179,12 +189,13 @@ export default function Home() {
             </span>
           </h1>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <Link
+            <a
               href="#active-giveaways"
+              onClick={(e) => scrollToSection(e, "active-giveaways")}
               className="btn-neon px-8 py-4 rounded-full font-bold text-lg flex items-center justify-center gap-2"
             >
               Ver Sorteios Ativos <ArrowDown className="w-5 h-5 animate-bounce" />
-            </Link>
+            </a>
           </div>
         </div>
       </section>
@@ -320,9 +331,9 @@ export default function Home() {
                 Sorteios feitos automaticamente para quem acompanha a live na twitch!
               </p>
             </div>
-            <Link href="#hall-da-fama" className="text-gray-500 hover:text-white text-xs font-bold uppercase tracking-widest transition-colors mb-1">
+            <a href="#hall-da-fama" onClick={(e) => scrollToSection(e, "hall-da-fama")} className="text-gray-500 hover:text-white text-xs font-bold uppercase tracking-widest transition-colors mb-1">
               VER HALL DA FAMA
-            </Link>
+            </a>
           </div>
 
           {isLoadingGiveaways ? (
@@ -454,12 +465,13 @@ export default function Home() {
                     Ainda não tivemos nosso primeiro sorteio concluído. Participe dos sorteios ativos e garanta seu lugar no Hall da Fama da família BARR4K!
                   </p>
                 </div>
-                <Link
+                <a
                   href="#active-giveaways"
+                  onClick={(e) => scrollToSection(e, "active-giveaways")}
                   className="mt-4 btn-neon px-8 py-3"
                 >
                   Participar Agora
-                </Link>
+                </a>
               </div>
             </div>
           )}
