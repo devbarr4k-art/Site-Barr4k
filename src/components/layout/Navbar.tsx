@@ -63,6 +63,7 @@ export default function Navbar() {
                   src="/barr4k-avatar.png"
                   alt="BARR4K"
                   fill
+                  priority
                   sizes="48px"
                   className="object-cover"
                 />

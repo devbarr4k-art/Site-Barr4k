@@ -85,6 +85,7 @@ create table public.winners (
 
 create index winners_giveaway on public.winners (giveaway_id);
 create index winners_won_at   on public.winners (won_at desc);
+create index winners_hall     on public.winners (in_hall_of_fame, won_at desc);
 
 
 -- 4. Segurança (RLS) --------------------------------------------------

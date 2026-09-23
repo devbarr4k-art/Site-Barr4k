@@ -571,7 +571,7 @@ export default function AdminDashboard() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-6 md:p-10">
+      <main className="flex-1 min-w-0 p-6 md:p-10">
 
         {activeTab === "sorteios" && (
           <div className="space-y-8 animate-fade-in">
