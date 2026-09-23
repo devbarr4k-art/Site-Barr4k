@@ -129,6 +129,21 @@ export async function POST(request: Request) {
       return Response.json({ ok: true });
     }
 
+    case "reopenGiveaway": {
+      // Volta um sorteio encerrado ao ar até a nova data escolhida pelo streamer
+      const drawDate = new Date(body.drawDate);
+      if (isNaN(drawDate.getTime()) || drawDate.getTime() <= Date.now()) {
+        return fail("Escolha uma data e hora no futuro.");
+      }
+      const { error } = await db
+        .from("giveaways")
+        .update({ status: "active", draw_date: drawDate.toISOString() })
+        .eq("id", body.id)
+        .neq("type", "daily");
+      if (error) return fail(error.message, 500);
+      return Response.json({ ok: true });
+    }
+
     case "insertWinner": {
       const { data, error } = await db
         .from("winners")

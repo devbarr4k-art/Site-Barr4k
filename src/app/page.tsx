@@ -305,10 +305,10 @@ export default function Home() {
               <div
                 key={giveaway.id}
                 onClick={() => handleOpenModal(giveaway)}
-                className={`bg-[#0c0d10] rounded-xl overflow-hidden border cursor-pointer transition-all hover:scale-[1.02] flex flex-col group ${giveaway.isClosed ? 'border-white/5 opacity-80 hover:opacity-100' : index === 0 ? 'border-purple-500/50' : 'border-white/5 hover:border-white/20'}`}
+                className={`bg-[#0c0d10] rounded-xl overflow-hidden border cursor-pointer transition-all flex flex-col group ${giveaway.isClosed ? '' : 'hover:scale-[1.02]'} ${giveaway.isClosed ? 'border-white/5 opacity-80 hover:opacity-100' : index === 0 ? 'border-purple-500/50' : 'border-white/5 hover:border-white/20'}`}
               >
                 {/* Imagem e Badges */}
-                <div className="relative h-64 bg-[#0c0d10] p-4 flex flex-col">
+                <div className="relative h-64 bg-[#0c0d10] p-4 flex flex-col overflow-hidden">
                   <div className="flex gap-2 relative z-10">
                     {giveaway.highlight_text && (
                       <span className="px-3 py-1 bg-black/60 backdrop-blur-sm border border-white/10 text-gray-300 rounded-md text-[10px] font-bold uppercase tracking-wider shadow-sm truncate max-w-full">
@@ -323,7 +323,7 @@ export default function Home() {
                   </div>
                   <div className="absolute inset-0 flex items-center justify-center z-0">
                     {giveaway.image_url ? (
-                      <img src={giveaway.image_url} alt={giveaway.title} className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 ${giveaway.isClosed ? 'grayscale opacity-60' : 'opacity-90 group-hover:opacity-100'}`} />
+                      <img src={giveaway.image_url} alt={giveaway.title} className={`w-full h-full object-cover transition-transform duration-500 ${giveaway.isClosed ? 'grayscale opacity-60' : 'group-hover:scale-110 opacity-90 group-hover:opacity-100'}`} />
                     ) : (
                       <Gift className="w-20 h-20 text-gray-700" />
                     )}

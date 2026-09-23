@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Plus, Edit, Trash2, Users, Gift, Star, ArrowRight, Trophy, Sparkles, Radio, X } from "lucide-react";
+import { Plus, Edit, Trash2, Users, Gift, Star, ArrowRight, Trophy, Sparkles, Radio, X, RotateCcw, Clock } from "lucide-react";
 import { FaTwitch } from "react-icons/fa";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -11,6 +11,7 @@ import { adminApi } from "@/lib/adminApi";
 import { compressImage } from "@/lib/image";
 import { useDialog } from "@/components/ui/Dialog";
 import { avatarFor } from "@/lib/daily";
+import { isGiveawayClosed } from "@/lib/giveaway";
 import LiveGiveaway from "@/components/admin/LiveGiveaway";
 
 const TooltipIcon = ({ text }: { text: string }) => (
@@ -143,6 +144,12 @@ export default function AdminDashboard() {
 
   const [editingGiveaway, setEditingGiveaway] = useState<string | null>(null);
 
+  // Reabrir sorteio encerrado (popup com a nova data de encerramento)
+  const [reopenTarget, setReopenTarget] = useState<{ id: string; title: string } | null>(null);
+  const [reopenDate, setReopenDate] = useState("");
+  const [isReopening, setIsReopening] = useState(false);
+  const [listLoadedAt, setListLoadedAt] = useState(0); // "agora" usado para saber quais já passaram da data
+
   // Segurança da rota (a proteção real está na /api/admin, que confere no servidor)
   useEffect(() => {
     if (status === "loading") return;
@@ -167,7 +174,10 @@ export default function AdminDashboard() {
       .from("giveaways")
       .select("id, title, description, highlight_text, highlight_color, coins_cost, subtitle, prize_label, shipping_text, prize_value, draw_date, login_text, type, status, is_daily_highlight, response_seconds, created_at")
       .order("created_at", { ascending: false });
-    if (data) setSorteios(data);
+    if (data) {
+      setSorteios(data);
+      setListLoadedAt(Date.now());
+    }
     adminApi<{ data: Record<string, number> }>("participantCounts")
       .then(({ data }) => setParticipantCounts(data))
       .catch(() => {});
@@ -307,6 +317,41 @@ export default function AdminDashboard() {
     if (ok && (await run("completeGiveaway", { id }))) fetchSorteios();
   };
 
+  const openReopen = (sorteio: any) => {
+    // Sugere daqui a 2 horas
+    setReopenDate(toLocalInputValue(new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString()));
+    setReopenTarget({ id: sorteio.id, title: sorteio.title.replace("|", " ") });
+  };
+
+  const handleReopen = async () => {
+    if (!reopenTarget) return;
+    const date = new Date(reopenDate);
+    if (!reopenDate || isNaN(date.getTime()) || date.getTime() <= Date.now()) {
+      dialog.alert({ title: "Data inválida", message: "Escolha um dia e horário no futuro.", tone: "warning" });
+      return;
+    }
+    setIsReopening(true);
+    const ok = await run("reopenGiveaway", { id: reopenTarget.id, drawDate: date.toISOString() });
+    setIsReopening(false);
+    if (ok) {
+      setReopenTarget(null);
+      fetchSorteios();
+    }
+  };
+
+  const handleDeleteWinner = async (winner: any) => {
+    const ok = await dialog.confirm({
+      title: `Excluir @${winner.twitch_username} dos vencedores?`,
+      message: `O vencedor de "${winner.prize}" sai desta lista, do Hall da Fama e do histórico. Não dá para desfazer.`,
+      confirmText: "Excluir vencedor",
+      tone: "danger",
+    });
+    if (ok && (await run("deleteWinner", { id: winner.id, reopen: false }))) {
+      fetchWinners();
+      fetchSorteios();
+    }
+  };
+
   const handleSetFeatured = async (id: string, currentType: string) => {
     await run("setFeatured", { id, on: currentType !== "featured" });
     fetchSorteios();
@@ -433,7 +478,7 @@ export default function AdminDashboard() {
           onClick={() => setActiveTab("users")}
           className={`flex items-center gap-2 md:gap-3 px-4 py-2 md:py-3 rounded-lg font-medium transition-all flex-shrink-0 ${activeTab === "users" ? "bg-purple-600/20 text-purple-300 border border-purple-500/50" : "text-gray-400 hover:bg-gray-900 hover:text-white"}`}
         >
-          <Users className="w-4 h-4 md:w-5 md:h-5" /> Usuários / Vencedores
+          <Trophy className="w-4 h-4 md:w-5 md:h-5" /> Vencedores dos Sorteios
         </button>
       </aside>
 
@@ -665,7 +710,9 @@ export default function AdminDashboard() {
                         </tr>
                       </thead>
                       <tbody>
-                        {sorteios.filter((s) => s.type !== "daily").map((sorteio) => (
+                        {sorteios.filter((s) => s.type !== "daily").map((sorteio) => {
+                          const closed = isGiveawayClosed(sorteio, listLoadedAt || undefined);
+                          return (
                           <tr key={sorteio.id} className="border-b border-gray-800 hover:bg-white/5 transition-colors">
                             <td className="px-6 py-4 font-bold text-white text-xs truncate max-w-[100px]" title={sorteio.id}>{sorteio.id}</td>
                             <td className="px-6 py-4 text-white font-medium">{sorteio.title}</td>
@@ -673,9 +720,14 @@ export default function AdminDashboard() {
                               {sorteio.type === "featured" ? "Destaque" : sorteio.type === "daily" ? "Diário (Live)" : "Mensal"}
                             </td>
                             <td className="px-6 py-4">
-                              <span className={`px-2 py-1 rounded text-xs font-bold ${sorteio.status === "active" ? "bg-green-500/20 text-green-400 border border-green-500/30" : "bg-gray-800 text-gray-400"}`}>
-                                {sorteio.status === "active" ? "Ativo" : "Encerrado"}
+                              <span className={`px-2 py-1 rounded text-xs font-bold ${!closed ? "bg-green-500/20 text-green-400 border border-green-500/30" : "bg-red-500/10 text-red-400 border border-red-500/30"}`}>
+                                {!closed ? "Ativo" : "Encerrado"}
                               </span>
+                              {sorteio.draw_date && (
+                                <span className="block text-[10px] text-gray-500 mt-1">
+                                  {closed ? "encerrou" : "até"} {new Date(sorteio.draw_date).toLocaleDateString("pt-BR")} {new Date(sorteio.draw_date).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                                </span>
+                              )}
                             </td>
                             <td className="px-6 py-4 font-bold">{participantCounts[sorteio.id] || 0}</td>
                             <td className="px-6 py-4 text-right">
@@ -693,13 +745,19 @@ export default function AdminDashboard() {
                                   title="Destacar Sorteio Principal">
                                   <Star className={`w-4 h-4 ${sorteio.type === 'featured' ? 'fill-current' : ''}`} />
                                 </button>
-                                <button
-                                  onClick={() => handleCompleteGiveaway(sorteio.id)}
-                                  className="p-2 bg-pink-500/10 hover:bg-pink-500/20 text-pink-400 rounded transition-colors" title="Encerrar Sorteio (X)">
-                                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                  </svg>
-                                </button>
+                                {closed ? (
+                                  <button
+                                    onClick={() => openReopen(sorteio)}
+                                    className="p-2 bg-green-500/10 hover:bg-green-500/20 text-green-400 rounded transition-colors" title="Voltar o sorteio ao ar">
+                                    <RotateCcw className="w-4 h-4" />
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => handleCompleteGiveaway(sorteio.id)}
+                                    className="p-2 bg-pink-500/10 hover:bg-pink-500/20 text-pink-400 rounded transition-colors" title="Encerrar Sorteio">
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                )}
                                 <button
                                   onClick={() => handleEditGiveaway(sorteio)}
                                   className="p-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded transition-colors" title="Editar Sorteio">
@@ -713,7 +771,8 @@ export default function AdminDashboard() {
                               </div>
                             </td>
                           </tr>
-                        ))}
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -728,8 +787,8 @@ export default function AdminDashboard() {
         {activeTab === "users" && (
           <div className="space-y-8 animate-fade-in">
             <div>
-              <h1 className="text-3xl font-bold text-white">Usuários Vencedores</h1>
-              <p className="text-gray-400">Histórico permanente de vencedores. Controle quem aparece no Hall da Fama.</p>
+              <h1 className="text-3xl font-bold text-white">Vencedores dos Sorteios</h1>
+              <p className="text-gray-400">Todos os vencedores ficam salvos aqui, mesmo depois que o sorteio é excluído. Controle quem aparece no Hall da Fama.</p>
             </div>
 
             <div className="glass-panel rounded-xl overflow-hidden border border-gray-800">
@@ -741,14 +800,20 @@ export default function AdminDashboard() {
                       <th className="px-6 py-4">Prêmio Ganho</th>
                       <th className="px-6 py-4">Data do Sorteio</th>
                       <th className="px-6 py-4 text-center">Hall da Fama</th>
+                      <th className="px-6 py-4 text-right">Excluir</th>
                     </tr>
                   </thead>
                   <tbody>
                     {winners.map((winner: any) => (
                       <tr key={winner.id} className="border-b border-gray-800 hover:bg-white/5 transition-colors">
-                        <td className="px-6 py-4 font-bold text-white">@{winner.twitch_username}</td>
+                        <td className="px-6 py-4 font-bold text-white">
+                          <div className="flex items-center gap-3">
+                            <img src={avatarFor(winner.twitch_username, winner.avatar_url)} alt="" className="w-8 h-8 rounded-full object-cover border border-gray-700" />
+                            @{winner.twitch_username}
+                          </div>
+                        </td>
                         <td className="px-6 py-4 text-purple-400 font-bold">{winner.prize}</td>
-                        <td className="px-6 py-4">{new Date(winner.won_at).toLocaleDateString()}</td>
+                        <td className="px-6 py-4">{new Date(winner.won_at).toLocaleDateString("pt-BR")}</td>
                         <td className="px-6 py-4 text-center">
                           <button
                             onClick={() => toggleHallOfFame(winner.id, winner.in_hall_of_fame)}
@@ -760,8 +825,22 @@ export default function AdminDashboard() {
                             {winner.in_hall_of_fame ? "Destacado" : "Destacar"}
                           </button>
                         </td>
+                        <td className="px-6 py-4 text-right">
+                          <button
+                            onClick={() => handleDeleteWinner(winner)}
+                            className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded transition-colors"
+                            title="Excluir vencedor"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
                       </tr>
                     ))}
+                    {winners.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-10 text-center text-gray-500">Nenhum vencedor ainda.</td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -770,6 +849,64 @@ export default function AdminDashboard() {
         )}
 
       </main>
+
+      {/* Voltar sorteio ao ar */}
+      {reopenTarget && (
+        <div
+          className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in"
+          onClick={(e) => { if (e.target === e.currentTarget) setReopenTarget(null); }}
+        >
+          <div className="w-full max-w-md rounded-2xl border border-green-500/30 bg-[#101014] p-6 shadow-2xl animate-scale-up not-italic">
+            <div className="flex items-start gap-4">
+              <div className="shrink-0 w-11 h-11 rounded-full border border-green-500/30 bg-green-500/10 text-green-400 flex items-center justify-center">
+                <RotateCcw className="w-5 h-5" />
+              </div>
+              <div className="min-w-0 flex-1 pt-1">
+                <h2 className="text-lg font-black text-white leading-snug">Voltar &quot;{reopenTarget.title}&quot; ao ar?</h2>
+                <p className="mt-2 text-sm text-gray-400">Até que dia e horário as inscrições ficam abertas?</p>
+              </div>
+            </div>
+
+            <label className="mt-5 block text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5" /> Encerra em
+            </label>
+            <input
+              type="datetime-local"
+              value={reopenDate}
+              onChange={(e) => setReopenDate(e.target.value)}
+              className="mt-2 w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-green-500 outline-none [color-scheme:dark]"
+            />
+            <div className="mt-3 flex flex-wrap gap-2">
+              {[1, 3, 6, 24].map((h) => (
+                <button
+                  key={h}
+                  type="button"
+                  onClick={() => setReopenDate(toLocalInputValue(new Date(Date.now() + h * 60 * 60 * 1000).toISOString()))}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold text-gray-300 bg-white/5 hover:bg-white/10 border border-gray-800"
+                >
+                  +{h === 24 ? "1 dia" : `${h}h`}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={() => setReopenTarget(null)}
+                className="px-5 py-2.5 rounded-lg font-bold text-sm text-gray-300 bg-white/5 hover:bg-white/10 border border-gray-800 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleReopen}
+                disabled={isReopening}
+                className="px-5 py-2.5 rounded-lg font-bold text-sm text-white bg-green-600 hover:bg-green-500 transition-colors disabled:opacity-50"
+              >
+                {isReopening ? "Reabrindo..." : "Voltar ao ar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Pop-up do Sorteio (Roleta) */}
       {isDrawing && (
