@@ -1,10 +1,8 @@
 "use client";
 
 import { ArrowRight, Clock, Eye, Play } from "lucide-react";
-import { timeAgo, videoUrl, YOUTUBE_CHANNEL, type Video } from "@/lib/videos";
-
-const MAX_VIDEOS = 4;
-const MAX_SHORTS = 6;
+import { HOME_LIMITS, mostViewed, timeAgo, videoUrl, YOUTUBE_CHANNEL, type Video } from "@/lib/videos";
+import VideoCarousel from "@/components/home/VideoCarousel";
 
 // Se a capa grande (maxres/oar2) sumir no YouTube, cai para a padrão, que sempre existe
 const fallbackThumb = (e: React.SyntheticEvent<HTMLImageElement>, youtubeId: string) => {
@@ -26,10 +24,10 @@ function RowHeader({ title, href }: { title: string; href: string }) {
   );
 }
 
-// "Vídeos Recentes": vídeos e Shorts do YouTube cadastrados no painel (aba Vídeos)
+// "Vídeos Mais Acessados": os vídeos e Shorts com mais visualizações entre os cadastrados no painel (aba Vídeos)
 export default function VideosSection({ videos }: { videos: Video[] }) {
-  const longs = videos.filter((v) => v.kind === "video").slice(0, MAX_VIDEOS);
-  const shorts = videos.filter((v) => v.kind === "short").slice(0, MAX_SHORTS);
+  const longs = mostViewed(videos, "video", HOME_LIMITS.video);
+  const shorts = mostViewed(videos, "short", HOME_LIMITS.short);
   if (longs.length === 0 && shorts.length === 0) return null;
 
   return (
@@ -40,22 +38,23 @@ export default function VideosSection({ videos }: { videos: Video[] }) {
             <span className="w-1.5 h-1.5 rounded-full bg-purple-500" /> Conteúdo
           </p>
           <h2 className="font-title text-4xl md:text-5xl text-white">
-            Vídeos <span className="text-purple-500">Recentes</span>
+            Vídeos <span className="text-purple-500">Mais Acessados</span>
           </h2>
-          <p className="text-gray-400 mt-4">Acompanhe todos os conteúdos disponíveis no canal</p>
+          <p className="text-gray-400 mt-4">Os conteúdos que a galera mais assistiu no canal</p>
         </div>
 
         {longs.length > 0 && (
           <div className={shorts.length > 0 ? "mb-16" : ""}>
             <RowHeader title="Vídeos" href={`${YOUTUBE_CHANNEL}/videos`} />
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* 4 por tela no computador, 2 no tablet e 1 e pouco no celular (dá a dica de arrastar) */}
+            <VideoCarousel label="Vídeos">
               {longs.map((v) => (
                 <a
                   key={v.id}
                   href={videoUrl(v)}
                   target="_blank"
                   rel="noreferrer"
-                  className="group rounded-xl overflow-hidden border border-white/10 hover:border-purple-500/60 bg-[#0c0d10] transition-all hover:-translate-y-1 hover:shadow-[0_0_25px_rgba(168,85,247,0.2)]"
+                  className="group shrink-0 snap-start w-[85%] sm:w-[calc((100%-1rem)/2)] md:w-[calc((100%-1.5rem)/2)] lg:w-[calc((100%-4.5rem)/4)] rounded-xl overflow-hidden border border-white/10 hover:border-purple-500/60 bg-[#0c0d10] transition-colors"
                 >
                   <div className="relative aspect-video overflow-hidden bg-black">
                     <img
@@ -82,21 +81,21 @@ export default function VideosSection({ videos }: { videos: Video[] }) {
                   </div>
                 </a>
               ))}
-            </div>
+            </VideoCarousel>
           </div>
         )}
 
         {shorts.length > 0 && (
           <div>
             <RowHeader title="Shorts" href={`${YOUTUBE_CHANNEL}/shorts`} />
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+            <VideoCarousel label="Shorts">
               {shorts.map((v) => (
                 <a
                   key={v.id}
                   href={videoUrl(v)}
                   target="_blank"
                   rel="noreferrer"
-                  className="group rounded-xl overflow-hidden border border-white/10 hover:border-purple-500/60 bg-[#0c0d10] transition-all hover:-translate-y-1 hover:shadow-[0_0_25px_rgba(168,85,247,0.2)]"
+                  className="group shrink-0 snap-start w-[42%] sm:w-[calc((100%-2rem)/3)] md:w-[calc((100%-3rem)/3)] lg:w-[calc((100%-7.5rem)/6)] rounded-xl overflow-hidden border border-white/10 hover:border-purple-500/60 bg-[#0c0d10] transition-colors"
                 >
                   <div className="relative aspect-[9/16] overflow-hidden bg-black">
                     <img
@@ -117,7 +116,7 @@ export default function VideosSection({ videos }: { videos: Video[] }) {
                   </div>
                 </a>
               ))}
-            </div>
+            </VideoCarousel>
           </div>
         )}
       </div>

@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { adminApi } from "@/lib/adminApi";
 import { uploadGiveawayImage } from "@/lib/image";
 import { useDialog } from "@/components/ui/Dialog";
-import { parseYouTubeId, timeAgo, videoUrl, type Video } from "@/lib/videos";
+import { HOME_LIMITS, mostViewed, parseYouTubeId, timeAgo, videoUrl, type Video } from "@/lib/videos";
 
 type Kind = "video" | "short";
 type Draft = {
@@ -35,8 +35,8 @@ const emptyDraft = (): Draft => ({
   thumbnailUrl: "", thumbs: null, customFile: null, customPreview: null,
 });
 
-// Vídeos e Shorts da seção "Vídeos Recentes" da home. A home mostra os 4 vídeos e os
-// 6 Shorts com a data de publicação mais recente.
+// Vídeos e Shorts da seção "Vídeos Mais Acessados" da home: todos entram no carrossel,
+// ordenados por visualizações (até HOME_LIMITS de cada tipo).
 export default function VideosManager() {
   const dialog = useDialog();
   const [videos, setVideos] = useState<Video[]>([]);
@@ -61,11 +61,11 @@ export default function VideosManager() {
   useEffect(() => { load(); }, []);
 
   const shown = useMemo(() => (filter === "all" ? videos : videos.filter((v) => v.kind === filter)), [videos, filter]);
-  // O que aparece hoje na home (4 vídeos + 6 Shorts mais recentes)
+  // O que aparece hoje no carrossel da home
   const onHome = useMemo(() => {
     const ids = new Set<string>();
-    videos.filter((v) => v.kind === "video").slice(0, 4).forEach((v) => ids.add(v.id));
-    videos.filter((v) => v.kind === "short").slice(0, 6).forEach((v) => ids.add(v.id));
+    mostViewed(videos, "video", HOME_LIMITS.video).forEach((v) => ids.add(v.id));
+    mostViewed(videos, "short", HOME_LIMITS.short).forEach((v) => ids.add(v.id));
     return ids;
   }, [videos]);
 
@@ -158,7 +158,7 @@ export default function VideosManager() {
         <div>
           <h1 className="text-3xl font-bold text-white">Vídeos</h1>
           <p className="text-gray-400">
-            Seção &quot;Vídeos Recentes&quot; da home. Aparecem os 4 vídeos e os 6 Shorts com a data de publicação mais recente.
+            Seção &quot;Vídeos Mais Acessados&quot; da home, em carrossel. A ordem é pelas visualizações (mais vistos primeiro), então mantenha esse campo atualizado.
           </p>
         </div>
         {!missingTable && (

@@ -46,3 +46,24 @@ export function timeAgo(date: string, now = new Date()): string {
   const yr = Math.floor(days / 365);
   return `há ${yr} ${yr === 1 ? "ano" : "anos"}`;
 }
+
+/** "25K" → 25000, "9,4K" → 9400, "1,2M" → 1200000, "7 mil" → 7000, "268" → 268. */
+export function viewsToNumber(views: string | null): number {
+  if (!views) return 0;
+  const m = views.trim().toLowerCase().replace(/\./g, "").replace(",", ".").match(/^([\d.]+)\s*(k|mil|m|mi|mil?h(ões|ão)?)?/);
+  if (!m) return 0;
+  const n = parseFloat(m[1]);
+  const unit = m[2] ?? "";
+  return Math.round(unit.startsWith("k") || unit === "mil" ? n * 1e3 : unit.startsWith("m") ? n * 1e6 : n);
+}
+
+/** Os mais vistos de um tipo (empate: o mais novo primeiro). É o que a home mostra. */
+export function mostViewed(videos: Video[], kind: Video["kind"], limit: number): Video[] {
+  return videos
+    .filter((v) => v.kind === kind)
+    .sort((a, b) => viewsToNumber(b.views) - viewsToNumber(a.views) || b.published_at.localeCompare(a.published_at))
+    .slice(0, limit);
+}
+
+/** Quantos entram no carrossel da home (os mais vistos de cada tipo). */
+export const HOME_LIMITS = { video: 20, short: 30 } as const;

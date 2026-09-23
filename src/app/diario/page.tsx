@@ -116,7 +116,7 @@ export default function DiarioPage() {
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-2 content-start pr-1 custom-scrollbar">
+              <div className="flex-1 min-h-0 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-2 content-start pr-1 custom-scrollbar">
                 {participants.length > 0 ? (
                   participants.map((p) => (
                     <div key={p.twitch_username} className="flex items-center gap-3 bg-black/40 border border-white/5 rounded-lg p-2.5 animate-fade-in">
