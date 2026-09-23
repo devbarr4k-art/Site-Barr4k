@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Edit, Search, Trash2, UserCheck, UserPlus, Users } from "lucide-react";
+import { Download, Edit, Search, Trash2, UserCheck, UserPlus, Users } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { adminApi } from "@/lib/adminApi";
 import { avatarFor } from "@/lib/daily";
@@ -60,6 +60,31 @@ export default function SiteUsers() {
       u.twitch_username.includes(q) || u.email.includes(q) || (digits && u.whatsapp.includes(digits))
     );
   }, [users, query]);
+
+  // Baixa a lista (a da busca, se tiver busca) num .txt que abre no Bloco de Notas
+  const downloadList = () => {
+    const stamp = new Date();
+    const lines = [
+      `USUÁRIOS DO SITE BARR4K — ${fmtDate(stamp.toISOString())}`,
+      `Total: ${filtered.length}${query.trim() ? ` (busca: "${query.trim()}")` : ""}`,
+      "",
+      ...filtered.flatMap((u, i) => [
+        `${i + 1}. @${u.twitch_username}`,
+        `   WhatsApp: ${formatWhatsapp(u.whatsapp)}`,
+        `   E-mail: ${u.email}`,
+        `   Cadastro: ${fmtDate(u.created_at)} | Último acesso: ${fmtDate(u.last_seen_at)} | Acessos: ${u.visits}`,
+        "",
+      ]),
+    ];
+    // BOM + quebra de linha do Windows: acentos e linhas certos no Bloco de Notas
+    const blob = new Blob(["\uFEFF" + lines.join("\r\n")], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `usuarios-barr4k-${stamp.toISOString().slice(0, 10)}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const startEdit = (u: SiteUser) => {
     setEditing(u.twitch_username);
@@ -123,14 +148,24 @@ export default function SiteUsers() {
             ))}
           </div>
 
-          <div className="relative max-w-md">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Buscar por nick, WhatsApp ou e-mail"
-              className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg pl-11 pr-4 py-3 text-white placeholder:text-gray-600 focus:border-purple-500 outline-none"
-            />
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="relative w-full max-w-md">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Buscar por nick, WhatsApp ou e-mail"
+                className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg pl-11 pr-4 py-3 text-white placeholder:text-gray-600 focus:border-purple-500 outline-none"
+              />
+            </div>
+            <button
+              onClick={downloadList}
+              disabled={filtered.length === 0}
+              title={query.trim() ? "Baixa só os usuários da busca" : "Baixa todos os usuários"}
+              className="btn-neon px-5 py-3 rounded-lg font-bold flex items-center justify-center gap-2 shrink-0 disabled:opacity-40"
+            >
+              <Download className="w-4 h-4" /> Baixar lista (.txt)
+            </button>
           </div>
 
           <div className="glass-panel rounded-xl overflow-hidden border border-gray-800">
