@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRefreshOnReturn } from "@/lib/freshData";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, Gift, Sparkles, Trophy, Upload } from "lucide-react";
 import { FaTwitch } from "react-icons/fa";
@@ -70,23 +71,27 @@ export default function SorteioPage() {
 
   const timeLeft = useCountdown(giveaway?.draw_date || null, () => setIsExpired(true));
 
-  useEffect(() => {
-    async function fetchGiveaway() {
-      if (!params.id) return;
-      const { data } = await supabase
-        .from('giveaways')
-        .select('*')
-        .eq('id', params.id)
-        .single();
+  const fetchGiveaway = async () => {
+    if (!params.id) return;
+    const { data } = await supabase
+      .from('giveaways')
+      .select('*')
+      .eq('id', params.id)
+      .single();
 
-      if (data) {
-        setGiveaway(data);
-        setIsExpired(!!data.draw_date && new Date(data.draw_date).getTime() < Date.now());
-      }
-      setLoading(false);
+    if (data) {
+      setGiveaway(data);
+      setIsExpired(!!data.draw_date && new Date(data.draw_date).getTime() < Date.now());
     }
+    setLoading(false);
+  };
+
+  useEffect(() => {
     fetchGiveaway();
-  }, [params.id]);
+  }, [params.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Voltou para a aba: pega data, textos e status atualizados
+  useRefreshOnReturn(fetchGiveaway);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedFile(e.target.files?.[0] ?? null);

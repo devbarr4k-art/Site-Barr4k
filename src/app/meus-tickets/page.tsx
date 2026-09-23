@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRefreshOnReturn } from "@/lib/freshData";
 import Link from "next/link";
 import { FaTwitch, FaTicketAlt } from "react-icons/fa";
 import { ArrowRight } from "lucide-react";
@@ -22,15 +23,22 @@ export default function MeusTicketsPage() {
 
   const currentUser = String((session?.user as any)?.username || session?.user?.name || "").toLowerCase();
 
-  useEffect(() => {
+  const loadTickets = (silent = false) => {
     if (status !== "authenticated") return;
-    setIsLoading(true);
+    if (!silent) setIsLoading(true);
     fetch("/api/meus-tickets")
       .then((res) => res.json())
       .then((json) => setMyTickets(json.tickets ?? []))
-      .catch(() => setMyTickets([]))
+      .catch(() => { if (!silent) setMyTickets([]); })
       .finally(() => setIsLoading(false));
-  }, [status]);
+  };
+
+  useEffect(() => {
+    loadTickets();
+  }, [status]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Voltou para a aba: status das entradas pode ter mudado (aprovado/recusado)
+  useRefreshOnReturn(() => loadTickets(true));
 
   const totalPages = Math.ceil(myTickets.length / ITEMS_PER_PAGE) || 1;
   const currentTickets = myTickets.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);

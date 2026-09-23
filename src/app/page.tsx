@@ -8,6 +8,7 @@ import { isGiveawayClosed } from "@/lib/giveaway";
 import { handleSectionLink, scrollToSectionId } from "@/lib/sectionNav";
 import ClosedStamp from "@/components/ui/ClosedStamp";
 import { avatarFor } from "@/lib/daily";
+import { dataVersionQuery, useRefreshOnReturn } from "@/lib/freshData";
 
 const useCountdown = (targetDateString: string | null) => {
   const [timeLeft, setTimeLeft] = useState({
@@ -61,16 +62,19 @@ export default function Home() {
     loadHome();
   }, []);
 
+  // Voltou para a aba: busca de novo, sem piscar a tela de carregamento
+  useRefreshOnReturn(() => loadHome(true));
+
   // Home e Hall da Fama numa chamada só, pela rota com cache da Vercel (/api/home).
   // Se ela falhar, busca direto no banco como reserva.
-  const loadHome = async () => {
-    setIsLoadingGiveaways(true);
+  const loadHome = async (silent = false) => {
+    if (!silent) setIsLoadingGiveaways(true);
     let giveaways: any[] | null = null;
     let hall: any[] | null = null;
     try {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 10000);
-      const res = await fetch("/api/home", { signal: controller.signal });
+      const res = await fetch("/api/home" + dataVersionQuery(), { signal: controller.signal });
       clearTimeout(timer);
       if (res.ok) {
         const json = await res.json();
@@ -81,6 +85,7 @@ export default function Home() {
       // cai para a reserva abaixo
     }
     if (!giveaways) {
+      if (silent) return; // numa atualização em segundo plano, mantém o que já está na tela
       const [g, w] = await Promise.all([
         supabase.from('giveaways').select('*').in('status', ['active', 'completed']).neq('type', 'daily')
           .order('created_at', { ascending: false }).limit(40),
@@ -91,7 +96,7 @@ export default function Home() {
       hall = w.data ?? [];
     }
     rawGiveaways.current = giveaways;
-    classifyGiveaways(true);
+    classifyGiveaways(!silent);
     setWinners(hall ?? []);
     setIsLoadingGiveaways(false);
   };
