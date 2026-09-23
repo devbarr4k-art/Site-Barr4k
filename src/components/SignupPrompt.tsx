@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { FaTwitch, FaWhatsapp } from "react-icons/fa";
 import { Mail, UserPlus } from "lucide-react";
 import { formatWhatsapp, isValidEmail, normalizeWhatsapp } from "@/lib/siteUsers";
+import { getRecaptchaToken } from "@/lib/recaptcha";
 
 const CHECKED_KEY = "signup_checked"; // já consultou o cadastro nesta sessão
 
@@ -53,7 +54,7 @@ export default function SignupPrompt() {
       const res = await fetch("/api/perfil", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ whatsapp, email }),
+        body: JSON.stringify({ whatsapp, email, recaptcha: await getRecaptchaToken("cadastro") }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || "Não foi possível salvar agora.");
@@ -69,8 +70,8 @@ export default function SignupPrompt() {
     "w-full bg-[#0a0a0b] border border-gray-800 rounded-lg pl-11 pr-4 py-3 text-white placeholder:text-gray-600 focus:border-purple-500 outline-none transition-colors";
 
   return (
-    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-fade-in">
-      <div className="relative w-full max-w-md rounded-2xl border border-purple-500/50 bg-[#101012] shadow-[0_0_60px_rgba(147,51,234,0.25)] p-6 sm:p-8 animate-scale-up">
+    <div className="fixed inset-0 z-[300] flex overflow-y-auto p-4 bg-black/85 backdrop-blur-sm animate-fade-in">
+      <div className="relative m-auto w-full max-w-md rounded-2xl border border-purple-500/50 bg-[#101012] shadow-[0_0_60px_rgba(147,51,234,0.25)] p-6 sm:p-8 animate-scale-up">
         {done ? (
           <div className="text-center py-6">
             <div className="mx-auto mb-4 w-14 h-14 rounded-full bg-purple-600/20 border border-purple-500/50 flex items-center justify-center">

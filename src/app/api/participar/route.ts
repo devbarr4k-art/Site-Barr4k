@@ -2,6 +2,7 @@ import { getSessionUsername } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { fetchTwitchAvatar } from "@/lib/twitch";
 import { PROOFS_BUCKET } from "@/lib/proofs";
+import { RECAPTCHA_FAILED, verifyRecaptcha } from "@/lib/recaptchaServer";
 
 const MAX_PROOF_LENGTH = 3_000_000; // ~2 MB de imagem em base64
 
@@ -18,6 +19,9 @@ export async function POST(request: Request) {
   const proof = typeof body?.proof === "string" ? body.proof : "";
 
   if (!giveawayId) return Response.json({ error: "Sorteio inválido." }, { status: 400 });
+  if (!(await verifyRecaptcha(body?.recaptcha, "participar"))) {
+    return Response.json({ error: RECAPTCHA_FAILED }, { status: 403 });
+  }
   if (!proof.startsWith("data:image/") || proof.length > MAX_PROOF_LENGTH) {
     return Response.json({ error: "Envie o comprovante como imagem (até 2 MB)." }, { status: 400 });
   }

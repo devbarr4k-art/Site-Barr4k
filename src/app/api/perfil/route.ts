@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { normalizeWhatsapp, isValidEmail } from "@/lib/siteUsers";
+import { RECAPTCHA_FAILED, verifyRecaptcha } from "@/lib/recaptchaServer";
 
 async function sessionUser() {
   const session = await getServerSession(authOptions);
@@ -46,6 +47,7 @@ export async function POST(request: Request) {
 
   if (!whatsapp) return Response.json({ error: "Digite um WhatsApp válido, com DDD." }, { status: 400 });
   if (!isValidEmail(email)) return Response.json({ error: "Digite um e-mail válido." }, { status: 400 });
+  if (!(await verifyRecaptcha(body?.recaptcha, "cadastro"))) return Response.json({ error: RECAPTCHA_FAILED }, { status: 403 });
 
   const { error } = await supabaseAdmin.from("site_users").upsert(
     {

@@ -10,6 +10,7 @@ import { compressImage } from "@/lib/image";
 import ClosedStamp from "@/components/ui/ClosedStamp";
 import NumberInput from "@/components/ui/NumberInput";
 import { useSession, signIn } from "next-auth/react";
+import { getRecaptchaToken } from "@/lib/recaptcha";
 
 // onEnd é chamado quando o cronômetro zera (com a página aberta)
 const useCountdown = (targetDateString: string | null, onEnd?: () => void) => {
@@ -111,11 +112,14 @@ export default function SorteioPage() {
     setError("");
     setIsSubmitting(true);
     try {
-      const proof = await compressImage(selectedFile, 1600, 0.85);
+      const [proof, recaptcha] = await Promise.all([
+        compressImage(selectedFile, 1600, 0.85),
+        getRecaptchaToken("participar"),
+      ]);
       const res = await fetch("/api/participar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ giveawayId: giveaway.id, coins: coinsSpent, casaId, proof }),
+        body: JSON.stringify({ giveawayId: giveaway.id, coins: coinsSpent, casaId, proof, recaptcha }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || "Erro ao participar.");

@@ -182,7 +182,7 @@ export default function Home() {
   return (
     <div className="flex flex-col min-h-screen">
       {/* Hero Section */}
-      <section id="home" className="relative py-20 lg:py-32 overflow-hidden flex flex-col justify-center min-h-[100svh]">
+      <section id="home" className="relative py-20 lg:py-32 overflow-hidden flex flex-col justify-center min-h-[calc(100svh-5rem)]">
 
         {/* Background Video */}
         {/* Vídeo em 1080p no computador e 720p no celular; a capa aparece enquanto carrega */}
