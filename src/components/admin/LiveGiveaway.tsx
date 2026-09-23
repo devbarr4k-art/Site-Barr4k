@@ -251,13 +251,13 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
 
   // Cronômetro para o ganhador responder (para quando ele responde)
   useEffect(() => {
-    if (!showPopup || winnerReply !== null || timeLeft <= 0) return;
+    if (!showPopup || winnerReply !== null || timeLeft <= 0 || (drawn && drawn.sub_tier >= 3)) return;
     const t = setTimeout(() => {
       setTimeLeft((s) => s - 1);
       if (timeLeft - 1 === 0) sounds.alarm();
     }, 1000);
     return () => clearTimeout(t);
-  }, [showPopup, timeLeft, winnerReply]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [showPopup, timeLeft, winnerReply, drawn]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Confere a captação pelo servidor ao abrir a tela e a cada 30s; se a captação está
   // aberta mas a escuta do servidor caiu (ou acabou de autorizar), tenta ligar de novo
@@ -422,8 +422,12 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
       sounds.win();
       setTimeout(() => {
         setIsSpinning(false);
-        awaitingRef.current = winner.twitch_username;
-        setTimeLeft(daily.response_seconds);
+        if (winner.sub_tier >= 3) {
+          awaitingRef.current = null;
+        } else {
+          awaitingRef.current = winner.twitch_username;
+          setTimeLeft(daily.response_seconds);
+        }
         setShowPopup(true);
       }, 900);
     }, SPIN_MS);
@@ -629,7 +633,7 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
   const visibleList = [...eligible]
     .reverse()
     .filter((p) => p.twitch_username.includes(search.trim().toLowerCase()));
-  const timeUp = timeLeft <= 0 && winnerReply === null;
+  const timeUp = drawn && drawn.sub_tier < 3 && timeLeft <= 0 && winnerReply === null;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -891,7 +895,14 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
             </div>
 
             <div className="relative mt-6">
-              {winnerReply !== null ? (
+              {drawn.sub_tier >= 3 ? (
+                <div className="rounded-2xl border border-yellow-500/40 bg-yellow-500/10 p-4">
+                  <p className="text-yellow-400 font-black uppercase tracking-widest text-sm flex items-center justify-center gap-2">
+                    <Star className="w-5 h-5 fill-yellow-400" /> Sub Tier 3
+                  </p>
+                  <p className="mt-2 text-white font-bold">Ganhou direto! Sem precisar responder no chat.</p>
+                </div>
+              ) : winnerReply !== null ? (
                 <div className="rounded-2xl border border-green-500/40 bg-green-500/10 p-4">
                   <p className="text-green-400 font-black uppercase tracking-widest text-sm flex items-center justify-center gap-2">
                     <CheckCircle2 className="w-5 h-5" /> Respondeu no chat!
