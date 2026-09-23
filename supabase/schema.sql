@@ -61,9 +61,12 @@ create table public.participants (
   avatar_url      text,                           -- foto da Twitch (entradas do chat)
   proof_url       text,                           -- comprovante (base64)
   status          text not null default 'pending' check (status in ('pending', 'approved', 'rejected')),
-  created_at      timestamptz not null default now(),
-  unique (giveaway_id, twitch_username)           -- uma participação por usuário
+  created_at      timestamptz not null default now()
+  -- sem unique: no sorteio mensal a mesma pessoa pode ter várias entradas;
+  -- no diário o site impede a entrada repetida pelo chat
 );
+
+create index participants_giveaway on public.participants (giveaway_id, twitch_username);
 
 create index participants_username on public.participants (twitch_username, created_at desc);
 
@@ -75,6 +78,7 @@ create table public.winners (
   twitch_username text not null check (twitch_username = lower(twitch_username)),
   prize           text not null,
   avatar_url      text,                           -- foto da Twitch do ganhador
+  image_url       text,                           -- imagem do prêmio no Hall da Fama (editável)
   in_hall_of_fame boolean not null default false,
   won_at          timestamptz not null default now()
 );

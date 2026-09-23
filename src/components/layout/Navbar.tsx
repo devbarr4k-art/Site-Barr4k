@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { FaTwitch, FaHandshake, FaGamepad, FaHome } from "react-icons/fa";
-import { ShieldAlert, Ticket, LogOut, ChevronDown, Menu, X, Crosshair } from "lucide-react";
+import { ShieldAlert, Ticket, LogOut, ChevronDown, Menu, X, Gift, UserRound } from "lucide-react";
+import { GiAk47 } from "react-icons/gi";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import { handleSectionLink } from "@/lib/sectionNav";
@@ -19,9 +20,10 @@ export default function Navbar() {
 
   const navLinks = [
     { name: "HOME", href: "/", icon: <FaHome className="w-4 h-4" /> },
+    { name: "SORTEIOS ATIVOS", href: "/#active-giveaways", icon: <Gift className="w-4 h-4" /> },
     { name: "SORTEIO DIÁRIO", href: "/diario", icon: <FaGamepad className="w-4 h-4" /> },
-    { name: "SKINS", href: "/skins", icon: <Crosshair className="w-4 h-4" /> },
-    { name: "BIOGRAFIA", href: "/sobre", icon: <FaTwitch className="w-4 h-4" /> },
+    { name: "VENDAS", href: "/skins", icon: <GiAk47 className="w-5 h-5" /> },
+    { name: "BIOGRAFIA", href: "/sobre", icon: <UserRound className="w-4 h-4" /> },
     { name: "PARCEIROS", href: "/#parceiros", icon: <FaHandshake className="w-4 h-4" /> },
   ];
 
@@ -58,8 +60,8 @@ export default function Navbar() {
             <Link href="/" className="flex items-center gap-3 group">
               <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-purple-500/50 group-hover:border-purple-400 group-hover:shadow-[0_0_15px_rgba(168,85,247,0.5)] transition-all duration-300 relative">
                 <Image
-                  src="/avatar.png"
-                  alt="BARR4K Avatar"
+                  src="/barr4k-avatar.png"
+                  alt="BARR4K"
                   fill
                   sizes="48px"
                   className="object-cover"
@@ -72,7 +74,7 @@ export default function Navbar() {
           </div>
 
           {/* Desktop Navigation (Center) */}
-          <nav className="hidden lg:flex items-center gap-8">
+          <nav className="hidden xl:flex items-center gap-6">
             {navLinks.map((link) => (
               <Link
                 key={link.name}
@@ -87,7 +89,7 @@ export default function Navbar() {
           </nav>
 
           {/* User Section (Right) */}
-          <div className="hidden lg:flex items-center border-l border-white/10 pl-6">
+          <div className="hidden xl:flex items-center border-l border-white/10 pl-6">
             {!isLoggedIn ? (
               <button
                 onClick={() => signIn('twitch')}
@@ -150,7 +152,7 @@ export default function Navbar() {
           </div>
 
           {/* Mobile Menu Button */}
-          <div className="lg:hidden flex items-center">
+          <div className="xl:hidden flex items-center">
             <button
               onClick={() => setIsOpen(!isOpen)}
               aria-label={isOpen ? "Fechar menu" : "Abrir menu"}
@@ -164,7 +166,7 @@ export default function Navbar() {
 
       {/* Mobile Menu Panel */}
       <div
-        className={`lg:hidden fixed left-0 right-0 top-20 bg-[#050505] shadow-2xl transition-all duration-300 ease-in-out overflow-hidden border-b border-gray-800 ${
+        className={`xl:hidden fixed left-0 right-0 top-20 bg-[#050505] shadow-2xl transition-all duration-300 ease-in-out overflow-hidden border-b border-gray-800 ${
           isOpen ? "max-h-[80vh] opacity-100 pb-6" : "max-h-0 opacity-0"
         }`}
       >

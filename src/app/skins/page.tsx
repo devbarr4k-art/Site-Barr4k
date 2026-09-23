@@ -1,5 +1,6 @@
 import { FaWhatsapp, FaSteam } from "react-icons/fa";
-import { Crosshair, MessageCircle, Package, BadgeDollarSign } from "lucide-react";
+import { MessageCircle, Package, BadgeDollarSign } from "lucide-react";
+import { GiAk47 } from "react-icons/gi";
 
 export const metadata = {
   title: "BARR4K",
@@ -12,9 +13,9 @@ const WHATSAPP_URL =
 const STEAM_URL = "https://steamcommunity.com/id/barr4k/";
 
 const STEPS = [
-  { icon: MessageCircle, title: "Chama o BARR4K", text: "No WhatsApp ou na Steam, do jeito que for melhor pra você." },
-  { icon: Package, title: "Mostra o inventário", text: "Manda o link do inventário ou o print das skins que quer vender." },
-  { icon: BadgeDollarSign, title: "Recebe a proposta", text: "Ele avalia e te passa o valor. Fechou, é só fazer a troca." },
+  { icon: MessageCircle, title: "Chame o BARR4K", text: "No WhatsApp ou pelo chat da live, do jeito que for melhor pra você." },
+  { icon: Package, title: "Mostre seu inventário", text: "Compartilhe o trade link ou print das skins que deseja vender." },
+  { icon: BadgeDollarSign, title: "Receba a proposta", text: "Curtiu a proposta? É só fazer a troca e receber o $$$." },
 ];
 
 // Página SKINS: o streamer compra skins da comunidade
@@ -27,7 +28,7 @@ export default function SkinsPage() {
 
       <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-24 text-center">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-300 font-bold text-xs tracking-widest uppercase mb-8">
-          <Crosshair className="w-4 h-4" /> O BARR4K compra suas skins
+          <GiAk47 className="w-5 h-5" /> O BARR4K compra suas skins
         </div>
 
         <h1 className="font-title text-5xl sm:text-6xl md:text-8xl text-white drop-shadow-md">
@@ -38,7 +39,7 @@ export default function SkinsPage() {
         </h1>
 
         <p className="mt-6 max-w-2xl mx-auto text-lg md:text-xl text-gray-300 font-medium">
-          Tem skin parada no inventário? Transforma em dinheiro. Chama o BARR4K e recebe uma proposta pelo seu inventário de CS2.
+          Tem itens parados no seu inventário? Eu compro! Me chame pelo botão e receba uma cotação pelas suas skins de CS2, sem compromisso!
         </p>
 
         <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-5">

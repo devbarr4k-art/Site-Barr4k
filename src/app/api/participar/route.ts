@@ -32,17 +32,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "Este sorteio já foi encerrado." }, { status: 400 });
   }
 
-  const { data: existing } = await supabaseAdmin
-    .from("participants")
-    .select("id")
-    .eq("giveaway_id", giveawayId)
-    .eq("twitch_username", username)
-    .maybeSingle();
-
-  if (existing) {
-    return Response.json({ error: "Você já está participando deste sorteio." }, { status: 409 });
-  }
-
+  // A mesma pessoa pode mandar mais de uma entrada (cada comprovante vira uma entrada)
   const { error } = await supabaseAdmin.from("participants").insert({
     giveaway_id: giveawayId,
     twitch_username: username,
@@ -53,9 +43,6 @@ export async function POST(request: Request) {
     status: "pending",
   });
 
-  if (error?.code === "23505") {
-    return Response.json({ error: "Você já está participando deste sorteio." }, { status: 409 });
-  }
   if (error) return Response.json({ error: error.message }, { status: 500 });
   return Response.json({ ok: true });
 }

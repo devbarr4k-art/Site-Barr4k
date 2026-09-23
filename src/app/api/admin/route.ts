@@ -204,6 +204,20 @@ export async function POST(request: Request) {
       return Response.json({ data });
     }
 
+    case "updateWinner": {
+      // Texto do prêmio e imagem do vencedor (aparecem assim no Hall da Fama)
+      const fields: Record<string, unknown> = {};
+      if (typeof body.prize === "string") {
+        const prize = body.prize.trim();
+        if (!prize) return fail("O prêmio não pode ficar vazio.");
+        fields.prize = prize;
+      }
+      if ("imageUrl" in body) fields.image_url = body.imageUrl || null;
+      const { error } = await db.from("winners").update(fields).eq("id", body.id);
+      if (error) return fail(error.message, 500);
+      return Response.json({ ok: true });
+    }
+
     case "setHallOfFame": {
       const { error } = await db.from("winners").update({ in_hall_of_fame: !!body.value }).eq("id", body.id);
       if (error) return fail(error.message, 500);

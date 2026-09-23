@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Plus, Edit, Trash2, Users, Gift, Star, ArrowRight, Trophy, Sparkles, Radio, X, RotateCcw, Clock, Volume2, VolumeX } from "lucide-react";
+import { Plus, Edit, Trash2, Users, Gift, Star, ArrowRight, Trophy, Sparkles, Radio, X, RotateCcw, Clock, Volume2, VolumeX, ImagePlus } from "lucide-react";
 import { FaTwitch } from "react-icons/fa";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -154,6 +154,11 @@ export default function AdminDashboard() {
     setImages((prev) => ({ ...prev, [slot]: { file: null, preview: null, changed: true } }));
 
   const [editingGiveaway, setEditingGiveaway] = useState<string | null>(null);
+
+  // Edição do vencedor (texto do prêmio e imagem que aparecem no Hall da Fama)
+  const [editingPrizeId, setEditingPrizeId] = useState<string | null>(null);
+  const [prizeDraft, setPrizeDraft] = useState("");
+  const [uploadingWinnerId, setUploadingWinnerId] = useState<string | null>(null);
 
   // Reabrir sorteio encerrado (popup com a nova data de encerramento)
   const [reopenTarget, setReopenTarget] = useState<{ id: string; title: string } | null>(null);
@@ -396,6 +401,28 @@ export default function AdminDashboard() {
       setReopenTarget(null);
       fetchSorteios();
     }
+  };
+
+  const saveWinnerPrize = async (winner: any) => {
+    const prize = prizeDraft.trim();
+    if (!prize || prize === winner.prize) { setEditingPrizeId(null); return; }
+    if (await run("updateWinner", { id: winner.id, prize })) {
+      setWinners((prev) => prev.map((w) => (w.id === winner.id ? { ...w, prize } : w)));
+      setEditingPrizeId(null);
+    }
+  };
+
+  const changeWinnerImage = async (winner: any, file: File | null) => {
+    setUploadingWinnerId(winner.id);
+    try {
+      const imageUrl = file ? await uploadGiveawayImage(file) : null;
+      if (await run("updateWinner", { id: winner.id, imageUrl })) {
+        setWinners((prev) => prev.map((w) => (w.id === winner.id ? { ...w, image_url: imageUrl } : w)));
+      }
+    } catch (err) {
+      dialog.error(err, "Não foi possível enviar a imagem");
+    }
+    setUploadingWinnerId(null);
   };
 
   const handleDeleteWinner = async (winner: any) => {
@@ -902,7 +929,63 @@ export default function AdminDashboard() {
                             @{winner.twitch_username}
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-purple-400 font-bold">{winner.prize}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            {/* Imagem do prêmio no Hall da Fama */}
+                            <label
+                              title={winner.image_url ? "Trocar imagem" : "Adicionar imagem"}
+                              className="relative shrink-0 w-12 h-12 rounded-lg border border-dashed border-purple-500/40 bg-black/40 hover:border-purple-400 cursor-pointer overflow-hidden flex items-center justify-center"
+                            >
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="absolute inset-0 opacity-0 cursor-pointer"
+                                onChange={(e) => { const f = e.target.files?.[0]; if (f) changeWinnerImage(winner, f); e.target.value = ""; }}
+                              />
+                              {uploadingWinnerId === winner.id ? (
+                                <div className="w-5 h-5 rounded-full border-2 border-purple-500/30 border-t-purple-400 animate-spin" />
+                              ) : winner.image_url ? (
+                                <img src={winner.image_url} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                <ImagePlus className="w-5 h-5 text-purple-400" />
+                              )}
+                            </label>
+
+                            {editingPrizeId === winner.id ? (
+                              <div className="flex items-center gap-2 flex-1">
+                                <input
+                                  autoFocus
+                                  value={prizeDraft}
+                                  onChange={(e) => setPrizeDraft(e.target.value)}
+                                  onKeyDown={(e) => { if (e.key === "Enter") saveWinnerPrize(winner); if (e.key === "Escape") setEditingPrizeId(null); }}
+                                  className="flex-1 min-w-0 bg-black border border-purple-500/50 rounded px-2 py-1 text-white outline-none focus:border-purple-400"
+                                />
+                                <button onClick={() => saveWinnerPrize(winner)} className="px-2 py-1 rounded text-xs font-bold bg-green-600 hover:bg-green-500 text-white">Salvar</button>
+                                <button onClick={() => setEditingPrizeId(null)} className="px-2 py-1 rounded text-xs font-bold bg-gray-700 hover:bg-gray-600 text-white">Cancelar</button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="text-purple-400 font-bold truncate">{winner.prize}</span>
+                                <button
+                                  onClick={() => { setPrizeDraft(winner.prize); setEditingPrizeId(winner.id); }}
+                                  title="Editar texto do prêmio"
+                                  className="shrink-0 p-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded transition-colors"
+                                >
+                                  <Edit className="w-3.5 h-3.5" />
+                                </button>
+                                {winner.image_url && (
+                                  <button
+                                    onClick={() => changeWinnerImage(winner, null)}
+                                    title="Remover imagem"
+                                    className="shrink-0 p-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded transition-colors"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </td>
                         <td className="px-6 py-4">{new Date(winner.won_at).toLocaleDateString("pt-BR")}</td>
                         <td className="px-6 py-4 text-center">
                           <button

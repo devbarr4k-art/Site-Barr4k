@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Trophy, Gift, ArrowDown, Zap, X, ArrowRight, Clock } from "lucide-react";
+import { Trophy, Gift, ArrowDown, X, ArrowRight, Clock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { isGiveawayClosed } from "@/lib/giveaway";
@@ -108,7 +108,11 @@ export default function Home() {
     // Destaque só aparece com o sorteio aberto; abre toda vez que a pessoa volta para a home
     const featured = open.find((g) => g.type === 'featured');
     setFeaturedGiveaway(featured ?? null);
-    if (firstLoad) setShowFeaturedPopup(!!featured);
+    if (firstLoad) {
+      let seen = false;
+      try { seen = !!sessionStorage.getItem('featured_seen'); } catch {}
+      setShowFeaturedPopup(!!featured && !seen);
+    }
     else if (!featured) setShowFeaturedPopup(false);
   };
 
@@ -161,8 +165,10 @@ export default function Home() {
   }, [isLoadingGiveaways]);
 
 
+  // Fechou uma vez, não abre de novo nesta visita
   const closeFeaturedPopup = () => {
     setShowFeaturedPopup(false);
+    try { sessionStorage.setItem('featured_seen', '1'); } catch {}
   };
 
   return (
@@ -189,30 +195,16 @@ export default function Home() {
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-[#050505] z-0 pointer-events-none" />
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20 pointer-events-none animate-[pulse_4s_ease-in-out_infinite] z-0" />
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-purple-700/30 blur-[120px] rounded-full pointer-events-none animate-[pulse-glow_6s_ease-in-out_infinite] z-0" />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
-
-          {/* Alerta Chamativo para Inscritos */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-900/40 border border-purple-500/50 text-purple-200 text-sm font-bold mb-8 animate-[float_4s_ease-in-out_infinite] shadow-[0_0_15px_rgba(168,85,247,0.4)]">
-            <Zap className="w-4 h-4 text-purple-400 fill-purple-400" />
-            <span>Inscritos têm até 5x mais chances de ganhar!</span>
-          </div>
-
-          <h1 className="font-title text-4xl sm:text-5xl md:text-7xl tracking-normal mb-10 text-white drop-shadow-md leading-[1.15]">
-            Sorteios Exclusivos para <br className="hidden md:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-500 to-blue-500 animate-pulse-glow">
-              APOIADORES!
-            </span>
-          </h1>
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <a
-              href="#active-giveaways"
-              onClick={(e) => scrollToSection(e, "active-giveaways")}
-              className="btn-neon px-8 py-4 rounded-full font-bold text-lg flex items-center justify-center gap-2"
-            >
-              Ver Sorteios Ativos <ArrowDown className="w-5 h-5 animate-bounce" />
-            </a>
-          </div>
-        </div>
+        {/* Só o vídeo; a setinha discreta leva para os sorteios ativos */}
+        <a
+          href="#active-giveaways"
+          onClick={(e) => scrollToSection(e, "active-giveaways")}
+          aria-label="Ver sorteios ativos"
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-1 text-white/60 hover:text-white transition-colors"
+        >
+          <span className="text-[10px] font-bold uppercase tracking-[0.3em]">Ver sorteios ativos</span>
+          <ArrowDown className="w-6 h-6 animate-bounce" />
+        </a>
       </section>
 
       {/* Featured Giveaway Popup Modal */}
@@ -233,10 +225,7 @@ export default function Home() {
 
               {/* Top Badges */}
               <div className="absolute top-4 left-4 z-20 flex gap-2 w-[calc(100%-32px)] justify-between items-start">
-                <div className="bg-purple-600 rounded-full px-3 py-1.5 flex items-center gap-1.5 shadow-lg">
-                  <Gift className="w-3.5 h-3.5 text-white" />
-                  <span className="text-[10px] font-bold text-white tracking-widest uppercase">100% GRÁTIS</span>
-                </div>
+                <div />
 
                 <div className="flex gap-2">
                   {featuredGiveaway.prize_value && (
@@ -343,7 +332,7 @@ export default function Home() {
                 SORTEIOS <span className="text-purple-500">ATIVOS</span>
               </h2>
               <p className="text-gray-400 text-xs tracking-widest uppercase font-bold mt-3">
-                Sorteios feitos automaticamente para quem acompanha a live na twitch!
+                Sorteios para depositantes!
               </p>
             </div>
             <a href="#hall-da-fama" onClick={(e) => scrollToSection(e, "hall-da-fama")} className="text-gray-500 hover:text-white text-xs font-bold uppercase tracking-widest transition-colors mb-1">
@@ -439,14 +428,19 @@ export default function Home() {
             </div>
           </div>
 
-          {winners.length > 0 ? (
+          {isLoadingGiveaways ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-4">
+              <div className="uiverse-loader"></div>
+              <p className="text-purple-500 font-bold tracking-widest uppercase text-xs animate-pulse">Carregando Hall da Fama...</p>
+            </div>
+          ) : winners.length > 0 ? (
             <div className="flex overflow-x-auto gap-6 pb-6 snap-x snap-mandatory custom-scrollbar">
               {winners.map((winner, i) => (
                 <div key={winner.id ?? i} className="min-w-[280px] md:min-w-[320px] snap-center shrink-0 glass-panel rounded-xl overflow-hidden group hover:border-purple-500/50 transition-all hover:-translate-y-2 animated-border-card p-1">
                   <div className="h-48 bg-black/60 rounded-t-lg flex items-center justify-center border-b border-gray-800 relative overflow-hidden">
                     <div className="absolute inset-0 bg-gradient-to-b from-purple-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                    {winner.giveaways?.image_url ? (
-                      <img src={winner.giveaways.image_url} alt={winner.prize} className="w-full h-full object-cover relative z-10" />
+                    {winner.image_url || winner.giveaways?.image_url ? (
+                      <img src={winner.image_url || winner.giveaways.image_url} alt={winner.prize} className="w-full h-full object-cover relative z-10" />
                     ) : (
                       <div className="text-gray-700 text-sm font-medium z-10 relative">Foto do Prêmio</div>
                     )}
@@ -477,7 +471,7 @@ export default function Home() {
                     Pode ser você aqui!
                   </h3>
                   <p className="text-gray-400 max-w-md mx-auto">
-                    Ainda não tivemos nosso primeiro sorteio concluído. Participe dos sorteios ativos e garanta seu lugar no Hall da Fama da família BARR4K!
+                    Sem últimos vencedores registrados. Participe dos sorteios ativos e garanta seu lugar no Hall da Fama!
                   </p>
                 </div>
                 <a
@@ -500,7 +494,7 @@ export default function Home() {
             <h2 className="font-title text-3xl md:text-4xl text-white mb-4">
               Nossos <span className="text-purple-500">Parceiros</span>
             </h2>
-            <p className="text-gray-400">Apoie o canal utilizando nossos cupons e links de afiliado!</p>
+            <p className="text-gray-400">Apoie o canal utilizando os nossos cupons e participe de Sorteios EXCLUSIVOS!</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">

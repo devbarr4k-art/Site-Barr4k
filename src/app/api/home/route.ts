@@ -16,7 +16,7 @@ export async function GET() {
       .limit(40),
     supabaseAdmin
       .from("winners")
-      .select("id, twitch_username, prize, avatar_url, won_at, giveaways(image_url)")
+      .select("*, giveaways(image_url)") // inclui image_url do vencedor quando a coluna existir
       .eq("in_hall_of_fame", true)
       .order("won_at", { ascending: false }),
   ]);

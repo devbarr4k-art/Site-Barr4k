@@ -252,7 +252,7 @@ export default function SorteioPage() {
                 PARTICIPE AGORA
               </h3>
               <p className="text-[#a0a0a0] text-sm max-w-xs mx-auto mb-8 leading-relaxed font-medium">
-                Entre com sua conta da Twitch para garantir sua vaga no sorteio. Uma participação por usuário.
+                Entre com sua conta da Twitch para garantir sua vaga no sorteio. Você pode enviar mais de uma entrada.
               </p>
               <button
                 onClick={() => {
