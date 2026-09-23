@@ -32,13 +32,19 @@ export default function VideoCarousel({ children, label }: { children: React.Rea
     if (el) el.scrollBy({ left: dir * el.clientWidth * 0.9, behavior: "smooth" });
   };
 
-  const arrow = "absolute top-1/2 -translate-y-1/2 z-10 w-11 h-11 rounded-full bg-black/80 border border-purple-500/50 text-white items-center justify-center hover:bg-purple-600 transition-colors shadow-lg hidden md:flex";
+  // Setas no meio do espaço vazio ao lado dos cards (entre a fileira e a borda da tela),
+  // do tamanho que couber nesse espaço: nunca por cima dos vídeos nem para fora da tela
+  const gutter = "((100vw - 100%) / 2 - 6px)";
+  const size = `min(2.75rem, calc(${gutter} - 4px))`;
+  const offset = `calc(-1 * ${gutter} / 2 - ${size} / 2)`;
+  const arrowStyle = { width: size, height: size };
+  const arrow = "absolute top-1/2 -translate-y-1/2 z-10 rounded-full bg-black/80 border border-purple-500/50 text-white items-center justify-center hover:bg-purple-600 transition-colors shadow-lg hidden lg:flex";
 
   return (
     <div className="relative" role="region" aria-label={label}>
       {canPrev && (
-        <button type="button" onClick={() => go(-1)} aria-label="Anteriores" className={`${arrow} -left-5`}>
-          <ChevronLeft className="w-5 h-5" />
+        <button type="button" onClick={() => go(-1)} aria-label="Anteriores" className={arrow} style={{ ...arrowStyle, left: offset }}>
+          <ChevronLeft className="w-3/5 h-3/5" />
         </button>
       )}
       <div
@@ -49,8 +55,8 @@ export default function VideoCarousel({ children, label }: { children: React.Rea
         {children}
       </div>
       {canNext && (
-        <button type="button" onClick={() => go(1)} aria-label="Próximos" className={`${arrow} -right-5`}>
-          <ChevronRight className="w-5 h-5" />
+        <button type="button" onClick={() => go(1)} aria-label="Próximos" className={arrow} style={{ ...arrowStyle, right: offset }}>
+          <ChevronRight className="w-3/5 h-3/5" />
         </button>
       )}
     </div>
