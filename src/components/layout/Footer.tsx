@@ -60,7 +60,7 @@ export default function Footer() {
 
           {/* Social Links */}
           <div className="flex flex-col items-center md:items-start h-full">
-            <h4 className="text-white font-bold tracking-widest uppercase mb-4 text-sm">Siga-nos</h4>
+            <h4 className="text-white font-bold tracking-widest uppercase mb-4 text-sm">Redes Sociais</h4>
             <div className="flex items-center gap-4">
               <a
                 href="https://twitch.tv/barr4k"
