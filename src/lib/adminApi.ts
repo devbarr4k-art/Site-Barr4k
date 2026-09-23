@@ -1,6 +1,6 @@
 import { markDataChanged } from "@/lib/freshData";
 
-const READ_ACTIONS = new Set(["listParticipants", "participantCounts", "listDailyWinners", "getActiveDaily", "serverCapture", "listSiteUsers"]);
+const READ_ACTIONS = new Set(["listParticipants", "participantCounts", "listDailyWinners", "getActiveDaily", "serverCapture", "listSiteUsers", "youtubeInfo"]);
 
 // Chamada do painel para a rota /api/admin. Lança erro com a mensagem do servidor.
 export async function adminApi<T = any>(action: string, payload: Record<string, unknown> = {}): Promise<T> {

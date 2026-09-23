@@ -5,6 +5,7 @@ import { fetchTwitchAvatar, fetchTwitchAvatars } from "@/lib/twitch";
 import { addChatEntry } from "@/lib/dailyEntry";
 import { removeProofs, signProofs } from "@/lib/proofs";
 import { isValidEmail, normalizeWhatsapp } from "@/lib/siteUsers";
+import { isShortsLink, parseYouTubeId } from "@/lib/videos";
 import { serverCaptureStatus, startServerCapture, stopServerCapture } from "@/lib/eventsub";
 
 const GIVEAWAY_FIELDS = [
@@ -23,6 +24,7 @@ const DAILY_COLUMNS =
 const PARTICIPANT_FIELDS = ["status", "twitch_username", "coins_used"] as const;
 
 const MISSING_TABLE = "Falta rodar o SQL supabase/migracao-usuarios-e-parceiros.sql no Supabase.";
+const MISSING_VIDEOS_TABLE = "Falta rodar o SQL supabase/migracao-videos.sql no Supabase.";
 
 function pick(source: any, fields: readonly string[]) {
   const out: Record<string, unknown> = {};
@@ -424,6 +426,58 @@ export async function POST(request: Request) {
 
     case "deleteSiteUser": {
       const { error } = await db.from("site_users").delete().eq("twitch_username", body.username);
+      if (error) return fail(error.message, 500);
+      return Response.json({ ok: true });
+    }
+
+    // ---- Vídeos do YouTube (seção da home) ----
+    case "youtubeInfo": {
+      // Título pelo oEmbed (sem chave de API) e a melhor capa disponível
+      const link = String(body.url ?? "");
+      const id = parseYouTubeId(link);
+      if (!id) return fail("Link do YouTube inválido.");
+      const exists = async (u: string) => (await fetch(u, { method: "HEAD" }).catch(() => null))?.ok ?? false;
+      const [oembed, hasVertical, hasMaxres] = await Promise.all([
+        fetch(`https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(`https://www.youtube.com/watch?v=${id}`)}`)
+          .then((r) => (r.ok ? r.json() : null))
+          .catch(() => null),
+        exists(`https://i.ytimg.com/vi/${id}/oar2.jpg`),
+        exists(`https://i.ytimg.com/vi/${id}/maxresdefault.jpg`),
+      ]);
+      if (!oembed) return fail("Não achei esse vídeo no YouTube (ele é privado ou foi apagado?).");
+      const kind = body.kind === "short" || body.kind === "video" ? body.kind : isShortsLink(link) ? "short" : "video";
+      const thumb = (k: string) =>
+        k === "short"
+          ? `https://i.ytimg.com/vi/${id}/${hasVertical ? "oar2" : "hqdefault"}.jpg`
+          : `https://i.ytimg.com/vi/${id}/${hasMaxres ? "maxresdefault" : "hqdefault"}.jpg`;
+      return Response.json({ youtubeId: id, title: oembed.title as string, kind, thumbnails: { video: thumb("video"), short: thumb("short") } });
+    }
+
+    case "saveVideo": {
+      const youtubeId = parseYouTubeId(String(body.youtubeId ?? ""));
+      const title = String(body.title ?? "").trim().slice(0, 200);
+      const kind = body.kind === "short" ? "short" : "video";
+      const thumbnailUrl = String(body.thumbnailUrl ?? "").trim();
+      const publishedAt = /^\d{4}-\d{2}-\d{2}$/.test(String(body.publishedAt)) ? body.publishedAt : new Date().toISOString().slice(0, 10);
+      if (!youtubeId || !title || !thumbnailUrl) return fail("Preencha o link, o título e a capa do vídeo.");
+      const fields = {
+        kind,
+        youtube_id: youtubeId,
+        title,
+        thumbnail_url: thumbnailUrl,
+        duration: kind === "video" ? String(body.duration ?? "").trim().slice(0, 12) || null : null,
+        views: String(body.views ?? "").trim().slice(0, 12) || null,
+        published_at: publishedAt,
+      };
+      const { error } = body.id
+        ? await db.from("videos").update(fields).eq("id", body.id)
+        : await db.from("videos").insert(fields);
+      if (error) return fail(error.code === "42P01" || /relation|does not exist|schema cache/i.test(error.message) ? MISSING_VIDEOS_TABLE : error.message, 500);
+      return Response.json({ ok: true });
+    }
+
+    case "deleteVideo": {
+      const { error } = await db.from("videos").delete().eq("id", body.id);
       if (error) return fail(error.message, 500);
       return Response.json({ ok: true });
     }

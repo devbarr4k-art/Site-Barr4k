@@ -10,6 +10,8 @@ import ClosedStamp from "@/components/ui/ClosedStamp";
 import { avatarFor } from "@/lib/daily";
 import { dataVersionQuery, useRefreshOnReturn } from "@/lib/freshData";
 import { DEFAULT_PARTNERS, type Partner } from "@/lib/partners";
+import VideosSection from "@/components/home/VideosSection";
+import type { Video } from "@/lib/videos";
 
 const useCountdown = (targetDateString: string | null) => {
   const [timeLeft, setTimeLeft] = useState({
@@ -56,6 +58,7 @@ export default function Home() {
   const [isLoadingGiveaways, setIsLoadingGiveaways] = useState(true);
   const [winners, setWinners] = useState<any[]>([]);
   const [partners, setPartners] = useState<Partner[]>(DEFAULT_PARTNERS);
+  const [videos, setVideos] = useState<Video[]>([]);
   const rawGiveaways = useRef<any[]>([]);
 
   const timeLeft = useCountdown(featuredGiveaway?.draw_date || null);
@@ -83,6 +86,7 @@ export default function Home() {
         giveaways = json.giveaways;
         hall = json.winners;
         if (Array.isArray(json.partners)) setPartners(json.partners);
+        if (Array.isArray(json.videos)) setVideos(json.videos);
       }
     } catch {
       // cai para a reserva abaixo
@@ -494,6 +498,9 @@ export default function Home() {
           )}
         </div>
       </section>
+
+      {/* Vídeos do YouTube (depois do Hall da Fama) */}
+      <VideosSection videos={videos} />
 
       {/* Parceiros Section */}
       <section id="parceiros" className="py-20 bg-black border-t border-white/5 relative">

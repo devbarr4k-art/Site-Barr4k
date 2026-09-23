@@ -9,6 +9,9 @@
 
 
 -- 0. Limpa o que existe hoje ------------------------------------------
+drop table if exists public.videos cascade;
+drop table if exists public.partners cascade;
+drop table if exists public.site_users cascade;
 drop table if exists public.winners cascade;
 drop table if exists public.participants cascade;
 drop table if exists public.giveaways cascade;
@@ -114,3 +117,65 @@ insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 values ('proofs', 'proofs', false, 5242880,
         array['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/avif'])
 on conflict (id) do nothing;
+
+
+-- 6. Vídeos do YouTube (seção "Vídeos Recentes" da home) ---------------
+create table public.videos (
+  id            uuid primary key default gen_random_uuid(),
+  kind          text not null default 'video' check (kind in ('video', 'short')),
+  youtube_id    text not null,
+  title         text not null,
+  thumbnail_url text not null,
+  duration      text,
+  views         text,
+  published_at  date not null default current_date,
+  created_at    timestamptz not null default now()
+);
+create index videos_recent on public.videos (kind, published_at desc, created_at desc);
+alter table public.videos enable row level security;
+create policy "leitura publica de videos" on public.videos
+  for select to anon, authenticated using (true);
+
+
+-- 7. Usuários cadastrados e parceiros ---------------------------------
+-- 1. Cadastro de quem entra no site com a Twitch (painel > Usuários)
+--    Dados pessoais: sem leitura pública, só o servidor (service role) acessa.
+create table if not exists public.site_users (
+  twitch_username text primary key check (twitch_username = lower(twitch_username)),
+  whatsapp        text not null,
+  email           text not null,
+  avatar_url      text,
+  created_at      timestamptz not null default now(),
+  last_seen_at    timestamptz not null default now(), -- último acesso logado
+  visits          integer not null default 1          -- quantas vezes entrou (uma por sessão)
+);
+
+create index if not exists site_users_created on public.site_users (created_at desc);
+alter table public.site_users enable row level security;
+
+
+-- 2. Parceiros (cards da seção "Nossos Parceiros", editáveis no painel)
+create table if not exists public.partners (
+  id         uuid primary key default gen_random_uuid(),
+  name       text not null,
+  image_url  text not null,
+  link_url   text not null,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists partners_order on public.partners (sort_order, created_at);
+alter table public.partners enable row level security;
+
+drop policy if exists "leitura publica de parceiros" on public.partners;
+create policy "leitura publica de parceiros" on public.partners
+  for select to anon, authenticated using (true);
+
+-- Começa com os três parceiros que já estão no site
+insert into public.partners (name, image_url, link_url, sort_order)
+select * from (values
+  ('CSGOROLL',     '/parceiro1.png', 'https://www.csgoroll.com/r/BARRAK', 1),
+  ('CSGOBIG',      '/parceiro2.png', 'https://csgobig.com/#!/r/barr4k',  2),
+  ('Fallen Store', '/parceiro3.png', 'https://www.fallenstore.com.br/',  3)
+) as v(name, image_url, link_url, sort_order)
+where not exists (select 1 from public.partners);

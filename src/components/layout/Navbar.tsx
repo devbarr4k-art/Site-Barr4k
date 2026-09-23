@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { FaTwitch, FaHandshake, FaGamepad, FaHome, FaTicketAlt } from "react-icons/fa";
+import { FaTwitch, FaHandshake, FaGamepad, FaHome, FaTicketAlt, FaYoutube } from "react-icons/fa";
 import { ShieldAlert, Ticket, LogOut, ChevronDown, Menu, X, Gift, UserRound } from "lucide-react";
 import { GiAk47 } from "react-icons/gi";
 import { signIn, signOut, useSession } from "next-auth/react";
@@ -28,6 +28,7 @@ export default function Navbar() {
     { name: "HOME", href: "/", icon: <FaHome className="w-4 h-4" /> },
     { name: "SORTEIO", href: "/#active-giveaways", icon: <FaTicketAlt className="w-4 h-4" />, children: giveawayLinks },
     { name: "VENDAS", href: "/skins", icon: <GiAk47 className="w-5 h-5" /> },
+    { name: "VÍDEOS", href: "/#videos", icon: <FaYoutube className="w-4 h-4" /> },
     { name: "BIOGRAFIA", href: "/sobre", icon: <UserRound className="w-4 h-4" /> },
     { name: "PARCEIROS", href: "/#parceiros", icon: <FaHandshake className="w-4 h-4" /> },
   ];
