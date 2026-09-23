@@ -43,7 +43,8 @@ export default function NumberInput({
         value={value}
         min={min}
         max={max}
-        step={step}
+        // O "step" só vale para as setas; o navegador aceita qualquer número inteiro digitado
+        step={1}
         placeholder={placeholder}
         required={required}
         onChange={(e) => onChange(e.target.value === "" ? "" : Number(e.target.value))}

@@ -108,3 +108,9 @@ insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 values ('giveaways', 'giveaways', true, 20971520,
         array['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/avif'])
 on conflict (id) do nothing;
+
+-- Bucket PRIVADO "proofs": comprovantes das inscrições (o painel vê por link temporário)
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('proofs', 'proofs', false, 5242880,
+        array['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/avif'])
+on conflict (id) do nothing;
