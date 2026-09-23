@@ -29,7 +29,7 @@ export const authOptions: NextAuthOptions = {
       clientSecret: process.env.TWITCH_CLIENT_SECRET || "",
       authorization: {
         params: {
-          scope: "openid user:read:email",
+          scope: "openid user:read:email user:read:chat user:bot channel:bot channel:read:subscriptions",
           // Sempre mostra a tela da Twitch com a conta atual e o link "Não é você?",
           // senão quem já autorizou entra direto e não consegue trocar de conta
           force_verify: "true",
@@ -40,6 +40,7 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, account, profile }) {
       if (account) {
+        token.accessToken = account.access_token;
         token.providerAccountId = account.providerAccountId;
         const login = account.access_token ? await fetchTwitchLogin(account.access_token) : null;
         const displayName = (profile as any)?.preferred_username as string | undefined;
@@ -54,6 +55,7 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         (session.user as any).username = token.username;
         (session.user as any).providerAccountId = token.providerAccountId;
+        (session.user as any).accessToken = token.accessToken;
         (session.user as any).isAdmin = isAdmin(token.username as string | undefined);
       }
       return session;
@@ -68,3 +70,10 @@ export async function getSessionUsername(): Promise<string | null> {
   const username = (session?.user as any)?.username || session?.user?.name;
   return username ? String(username).toLowerCase() : null;
 }
+
+/** Token de acesso da Twitch do usuário logado na sessão, ou null. */
+export async function getSessionAccessToken(): Promise<string | null> {
+  const session = await getServerSession(authOptions);
+  return ((session?.user as any)?.accessToken as string) || null;
+}
+

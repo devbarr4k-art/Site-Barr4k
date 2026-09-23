@@ -1,8 +1,9 @@
-import { getSessionUsername } from "@/lib/auth";
+import { getSessionUsername, getSessionAccessToken } from "@/lib/auth";
 import { isAdmin } from "@/lib/admins";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { fetchTwitchAvatar, fetchTwitchAvatars } from "@/lib/twitch";
+import { fetchTwitchAvatar, fetchTwitchAvatars, checkTwitchSubscriptions } from "@/lib/twitch";
 import { addChatEntry } from "@/lib/dailyEntry";
+import { chancesFor } from "@/lib/daily";
 import { removeProofs, signProofs } from "@/lib/proofs";
 import { isValidEmail, normalizeWhatsapp } from "@/lib/siteUsers";
 import { isShortsLink, parseYouTubeId } from "@/lib/videos";
@@ -21,7 +22,8 @@ const DAILY_LIVE_FIELDS = ["response_seconds", "capture_open", "chance_t1", "cha
 const DAILY_COLUMNS =
   "id, title, image_url, status, capture_open, bot_command, twitch_channel, response_seconds, chance_t1, chance_t2, chance_t3, created_at";
 
-const PARTICIPANT_FIELDS = ["status", "twitch_username", "coins_used"] as const;
+const PARTICIPANT_FIELDS = ["status", "twitch_username", "coins_used", "sub_tier"] as const;
+
 
 const MISSING_TABLE = "Falta rodar o SQL supabase/migracao-usuarios-e-parceiros.sql no Supabase.";
 const MISSING_VIDEOS_ORDER = "Para salvar a ordem, rode no Supabase: alter table public.videos add column if not exists sort_order integer;";
@@ -111,10 +113,18 @@ export async function POST(request: Request) {
       if (typeof fields.twitch_username === "string") {
         fields.twitch_username = fields.twitch_username.trim().replace(/^@/, "").toLowerCase();
       }
+      if (typeof fields.sub_tier === "number" && fields.sub_tier >= 0 && fields.sub_tier <= 3 && !("coins_used" in fields)) {
+        const { data: part } = await db.from("participants").select("giveaway_id").eq("id", body.id).maybeSingle();
+        if (part?.giveaway_id) {
+          const { data: g } = await db.from("giveaways").select("chance_t1, chance_t2, chance_t3").eq("id", part.giveaway_id).maybeSingle();
+          if (g) fields.coins_used = chancesFor(fields.sub_tier, g);
+        }
+      }
       const { error } = await db.from("participants").update(fields).eq("id", body.id);
       if (error) return fail(error.message, 500);
       return Response.json({ ok: true });
     }
+
 
     case "deleteParticipant": {
       const { data: removed, error } = await db.from("participants").delete().eq("id", body.id).select("proof_url");
@@ -381,6 +391,79 @@ export async function POST(request: Request) {
       const result = await addChatEntry(String(body.giveawayId || ""), chatUser, Number(body.tier) || 0);
       if (!result.ok && result.reason === "error") return fail(result.message || "Erro ao registrar entrada.", 500);
       return Response.json(result);
+    }
+
+    case "refreshDailySubs": {
+      const giveawayId = String(body.giveawayId || "");
+      if (!giveawayId) return fail("ID do sorteio inválido.");
+
+      const { data: daily } = await db
+        .from("giveaways")
+        .select("id, twitch_channel, chance_t1, chance_t2, chance_t3")
+        .eq("id", giveawayId)
+        .maybeSingle();
+      if (!daily || !daily.twitch_channel) return fail("Sorteio ou canal não encontrado.");
+
+      const { data: participants, error: pErr } = await db
+        .from("participants")
+        .select("id, twitch_username, sub_tier")
+        .eq("giveaway_id", daily.id);
+      if (pErr) return fail(pErr.message, 500);
+      if (!participants || participants.length === 0) {
+        return Response.json({ ok: true, updatedCount: 0, participants: [] });
+      }
+
+      const token = await getSessionAccessToken();
+      if (!token) {
+        return Response.json(
+          {
+            ok: false,
+            needsAuth: true,
+            error: "Conecte o canal da Twitch para autorizar a consulta automática de subs pela API.",
+          },
+          { status: 400 }
+        );
+      }
+
+      const result = await checkTwitchSubscriptions(
+        daily.twitch_channel,
+        participants.map((p) => p.twitch_username),
+        token
+      );
+      if (!result.ok) {
+        return Response.json(
+          {
+            ok: false,
+            needsAuth: !!result.needsAuth,
+            error: result.message || "Erro ao consultar subs na Twitch.",
+          },
+          { status: 400 }
+        );
+      }
+
+      const subMap = result.subs;
+      let updatedCount = 0;
+      await Promise.all(
+        participants.map(async (p) => {
+          const newTier = subMap[p.twitch_username.toLowerCase()] ?? 0;
+          if (newTier !== p.sub_tier) {
+            const newChances = chancesFor(newTier, daily);
+            await db
+              .from("participants")
+              .update({ sub_tier: newTier, coins_used: newChances })
+              .eq("id", p.id);
+            updatedCount++;
+          }
+        })
+      );
+
+      const { data: updatedList } = await db
+        .from("participants")
+        .select("id, giveaway_id, twitch_username, coins_used, sub_tier, avatar_url, status, created_at")
+        .eq("giveaway_id", daily.id)
+        .order("created_at", { ascending: true });
+
+      return Response.json({ ok: true, updatedCount, participants: updatedList ?? [] });
     }
 
     case "finishDaily": {

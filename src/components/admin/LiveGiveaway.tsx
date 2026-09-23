@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import tmi from "tmi.js";
 import {
-  Bot, Clock, Gift, Pause, Play, Radio, Search, Star, Trophy, Upload, User, Users, Volume2, VolumeX, X, CheckCircle2, RotateCcw, Cloud, CloudOff,
+  Bot, Clock, Gift, Pause, Play, Radio, Search, Star, Trophy, Upload, User, Users, Volume2, VolumeX, X, CheckCircle2, RotateCcw, Cloud, CloudOff, Trash2, RefreshCw,
 } from "lucide-react";
 import { adminApi } from "@/lib/adminApi";
 import { uploadGiveawayImage } from "@/lib/image";
@@ -32,6 +32,7 @@ interface Participant {
   id: string;
   twitch_username: string;
   sub_tier: number;
+  coins_used?: number;
   avatar_url: string | null;
   status: string;
   created_at: string;
@@ -78,6 +79,7 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
   const [botStatus, setBotStatus] = useState<BotStatus>("disconnected");
   const [serverCapture, setServerCapture] = useState<ServerCapture>("checking");
   const [busy, setBusy] = useState(false);
+  const [refreshingSubs, setRefreshingSubs] = useState(false);
 
   // Formulário de configuração
   const [title, setTitle] = useState("");
@@ -108,11 +110,16 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
   const trackRef = useRef<HTMLDivElement>(null);
   const clientRef = useRef<tmi.Client | null>(null);
   const seenRef = useRef<Set<string>>(new Set());
+  const participantsRef = useRef<Participant[]>([]);
   // Refs lidos pelo handler do chat, que é registrado uma vez só
   const dailyRef = useRef<Daily | null>(null);
   const awaitingRef = useRef<string | null>(null);
   const sounds = useSounds();
   const dialog = useDialog();
+
+  useEffect(() => {
+    participantsRef.current = participants;
+  }, [participants]);
 
   useEffect(() => {
     dailyRef.current = daily;
@@ -201,10 +208,32 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
 
       if (!current.capture_open) return;
       if (!isCommand(message, current.bot_command || "!sorteio")) return;
+
+      const tier = getSubTier(tags);
+      const existing = participantsRef.current.find(
+        (p) => p.twitch_username.toLowerCase() === username.toLowerCase()
+      );
+
+      if (existing) {
+        // Se o usuário deu sub ou mudou para um tier maior depois de entrar
+        if (tier > existing.sub_tier) {
+          adminApi<{ data?: Participant; updated?: boolean }>("chatEntry", { giveawayId: current.id, username, tier })
+            .then(({ data }) => {
+              if (data) {
+                setParticipants((prev) =>
+                  prev.map((p) => (p.twitch_username.toLowerCase() === username.toLowerCase() ? data : p))
+                );
+              }
+            })
+            .catch(() => {});
+        }
+        return;
+      }
+
       if (seenRef.current.has(username)) return;
       seenRef.current.add(username);
 
-      adminApi<{ data?: Participant }>("chatEntry", { giveawayId: current.id, username, tier: getSubTier(tags) })
+      adminApi<{ data?: Participant }>("chatEntry", { giveawayId: current.id, username, tier })
         .then(({ data }) => {
           if (data) setParticipants((prev) => (prev.some((p) => p.twitch_username === data.twitch_username) ? prev : [...prev, data]));
         })
@@ -251,11 +280,10 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
     return () => clearInterval(interval);
   }, [phase, daily?.id]);
 
-  // Autoriza o site a ler o chat (escopo user:read:chat) e volta para esta aba
+  // Autoriza o site a ler o chat e subs e volta para esta aba
   const connectChat = () =>
-    // A Twitch exige user:read:chat + user:bot (quem lê) e channel:bot (dono do canal)
-    // para a escuta pelo servidor com token de app
-    signIn("twitch", { callbackUrl: "/admin?tab=twitch" }, { scope: "openid user:read:email user:read:chat user:bot channel:bot" });
+    signIn("twitch", { callbackUrl: "/admin?tab=twitch" }, { scope: "openid user:read:email user:read:chat user:bot channel:bot channel:read:subscriptions" });
+
 
   const updateDaily = async (fields: Partial<Daily>) => {
     if (!daily) return;
@@ -436,6 +464,82 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
     awaitingRef.current = null;
     setShowPopup(false);
   };
+
+  const handleDeleteParticipant = async (p: Participant) => {
+    const ok = await dialog.confirm({
+      title: "Excluir participante?",
+      message: `Tem certeza que deseja remover @${p.twitch_username} do sorteio?`,
+      confirmText: "Excluir",
+      tone: "danger",
+    });
+    if (!ok) return;
+
+    try {
+      await adminApi("deleteParticipant", { id: p.id });
+      setParticipants((prev) => prev.filter((item) => item.id !== p.id));
+      seenRef.current.delete(p.twitch_username.toLowerCase());
+    } catch (err) {
+      dialog.error(err, "Não foi possível remover o participante");
+    }
+  };
+
+  const handleRefreshSubs = async () => {
+    if (!daily || refreshingSubs) return;
+    setRefreshingSubs(true);
+    try {
+      const res = await adminApi<{ ok: boolean; updatedCount: number; participants?: Participant[]; needsAuth?: boolean }>(
+        "refreshDailySubs",
+        { giveawayId: daily.id }
+      );
+      if (res.participants) {
+        setParticipants(res.participants);
+      }
+      if (res.updatedCount > 0) {
+        dialog.alert({
+          title: "Subs atualizados!",
+          message: `${res.updatedCount} participante(s) tiveram o status de sub atualizado com sucesso.`,
+          tone: "info",
+        });
+      } else {
+        dialog.alert({
+          title: "Lista atualizada",
+          message: "Nenhum novo sub encontrado na Twitch para os participantes atuais.",
+          tone: "info",
+        });
+      }
+    } catch (err: any) {
+      if (err?.message?.includes("Conecte o canal") || err?.message?.includes("Autorização") || err?.message?.includes("Permissão")) {
+        const ok = await dialog.confirm({
+          title: "Autorização da Twitch necessária",
+          message: "Para consultar e sincronizar automaticamente os subs dos participantes pela API da Twitch, conecte a conta do canal.",
+          confirmText: "Conectar Twitch",
+          tone: "info",
+        });
+        if (ok) connectChat();
+      } else {
+        dialog.error(err, "Não foi possível atualizar os subs");
+      }
+    }
+    setRefreshingSubs(false);
+  };
+
+  const handleToggleSubTier = async (p: Participant) => {
+    if (!daily) return;
+    const nextTier = p.sub_tier >= 3 ? 0 : p.sub_tier + 1;
+    const newChances = chancesFor(nextTier, daily);
+    setParticipants((prev) =>
+      prev.map((item) => (item.id === p.id ? { ...item, sub_tier: nextTier, coins_used: newChances } : item))
+    );
+    try {
+      await adminApi("updateParticipant", { id: p.id, fields: { sub_tier: nextTier, coins_used: newChances } });
+    } catch (err) {
+      dialog.error(err, "Não foi possível alterar o tier");
+      setParticipants((prev) =>
+        prev.map((item) => (item.id === p.id ? { ...item, sub_tier: p.sub_tier, coins_used: p.coins_used } : item))
+      );
+    }
+  };
+
 
   if (phase === "loading") {
     return <div className="flex justify-center py-20"><div className="uiverse-loader"></div></div>;
@@ -672,11 +776,23 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
         {/* Lista ao vivo */}
         <div className="glass-panel rounded-xl border border-gray-800 flex flex-col h-[calc(100vh-220px)] min-h-[500px]">
           <div className="p-5 border-b border-gray-800 space-y-4">
-            <div className="flex items-center justify-between gap-4">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <Users className="w-5 h-5 text-purple-500" /> Participantes
-              </h2>
-              <div className="flex gap-2 text-xs font-bold">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                  <Users className="w-5 h-5 text-purple-500" /> Participantes
+                </h2>
+                <button
+                  type="button"
+                  onClick={handleRefreshSubs}
+                  disabled={refreshingSubs || eligible.length === 0}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-600/20 text-purple-300 border border-purple-500/40 hover:bg-purple-600/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Consultar e sincronizar subs dos participantes na Twitch"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${refreshingSubs ? "animate-spin" : ""}`} />
+                  {refreshingSubs ? "Atualizando..." : "Atualizar Subs"}
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2 text-xs font-bold">
                 <span className="rounded-full bg-purple-500/15 text-purple-300 px-3 py-1">{eligible.length} pessoas</span>
                 <span className="rounded-full bg-gray-800 text-gray-300 px-3 py-1">{subsCount} subs</span>
                 <span className="rounded-full bg-gray-800 text-gray-300 px-3 py-1">{totalTickets} chances</span>
@@ -698,15 +814,30 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
               </div>
             ) : (
               visibleList.map((p) => (
-                <div key={p.id} className="flex items-center gap-3 rounded-lg border border-white/5 bg-black/40 p-2.5 animate-fade-in">
-                  <img src={avatarFor(p.twitch_username, p.avatar_url)} alt="" className="w-10 h-10 rounded-full border border-gray-700 object-cover" />
+                <div key={p.id} className="group flex items-center gap-3 rounded-lg border border-white/5 bg-black/40 p-2.5 hover:border-white/10 transition-colors animate-fade-in">
+                  <img src={avatarFor(p.twitch_username, p.avatar_url)} alt="" className="w-10 h-10 rounded-full border border-gray-700 object-cover shrink-0" />
                   <div className="min-w-0 flex-1">
                     <p className="font-bold text-white truncate">@{p.twitch_username}</p>
-                    <SubBadge tier={p.sub_tier} />
+                    <button
+                      type="button"
+                      onClick={() => handleToggleSubTier(p)}
+                      title="Clique para alternar o tier de sub (Não sub, T1, T2, T3)"
+                      className="cursor-pointer hover:opacity-80 transition-opacity text-left inline-block mt-0.5"
+                    >
+                      <SubBadge tier={p.sub_tier} />
+                    </button>
                   </div>
                   <span className="shrink-0 text-xs font-black text-purple-300 bg-purple-500/10 border border-purple-500/20 rounded px-2 py-1">
                     {chancesFor(p.sub_tier, daily)}x
                   </span>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteParticipant(p)}
+                    title={`Excluir @${p.twitch_username} do sorteio`}
+                    className="p-2 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               ))
             )}
