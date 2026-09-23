@@ -6,12 +6,22 @@ export type ChatEntryResult =
   | { ok: true; duplicate?: boolean; data?: Record<string, unknown> }
   | { ok: false; reason: "no-daily" | "closed" | "error"; message?: string };
 
+const globalForCache = global as unknown as { chatEntryCache: Map<string, number> };
+const lockCache = globalForCache.chatEntryCache || (globalForCache.chatEntryCache = new Map());
+
 // Registra quem digitou o comando no chat. Usado pelo painel (tmi.js no navegador)
 // e pelo webhook da Twitch; o unique (giveaway_id, twitch_username) evita duplicar.
 export async function addChatEntry(giveawayId: string, username: string, tier: number): Promise<ChatEntryResult> {
   const db = supabaseAdmin;
   const chatUser = username.toLowerCase();
   const safeTier = [0, 1, 2, 3].includes(tier) ? tier : 0;
+
+  const lockKey = `${giveawayId}:${chatUser}`;
+  const now = Date.now();
+  if (lockCache.has(lockKey) && now - lockCache.get(lockKey)! < 15000) {
+    return { ok: true, duplicate: true };
+  }
+  lockCache.set(lockKey, now);
 
   const { data: daily } = await db
     .from("giveaways")

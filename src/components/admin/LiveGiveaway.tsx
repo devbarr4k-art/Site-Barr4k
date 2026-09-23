@@ -154,8 +154,13 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
   const loadParticipants = useCallback(async (giveawayId: string) => {
     try {
       const { data } = await adminApi<{ data: Participant[] }>("listParticipants", { giveawayId });
-      setParticipants(data);
-      data.forEach((p) => seenRef.current.add(p.twitch_username));
+      // Remove possíveis duplicatas do banco causadas por race condition (webhooks simultâneos)
+      const unique = data.reduce((acc: Participant[], p: Participant) => {
+        if (!acc.some((x) => x.twitch_username === p.twitch_username)) acc.push(p);
+        return acc;
+      }, []);
+      setParticipants(unique);
+      unique.forEach((p) => seenRef.current.add(p.twitch_username));
     } catch {
       // mantém a lista atual; tenta de novo no próximo ciclo
     }
@@ -201,7 +206,7 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
 
       adminApi<{ data?: Participant }>("chatEntry", { giveawayId: current.id, username, tier: getSubTier(tags) })
         .then(({ data }) => {
-          if (data) setParticipants((prev) => (prev.some((p) => p.id === data.id) ? prev : [...prev, data]));
+          if (data) setParticipants((prev) => (prev.some((p) => p.twitch_username === data.twitch_username) ? prev : [...prev, data]));
         })
         .catch(() => seenRef.current.delete(username));
     });
