@@ -97,7 +97,7 @@ export default function SignupPrompt() {
                 <UserPlus className="w-6 h-6 text-purple-300" />
               </div>
               <h2 className="font-title text-2xl text-white leading-tight">
-                Notamos que você não tem conta criada no site, <span className="text-purple-400">bora criar?</span>
+                Notei que você não tem conta criada no site, <span className="text-purple-400">bora criar?</span>
               </h2>
             </div>
 

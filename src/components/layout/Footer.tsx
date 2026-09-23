@@ -40,6 +40,9 @@ export default function Footer() {
               <Link href="/" onClick={(e) => handleSectionLink(e, "/", pathname)} className="text-gray-400 hover:text-purple-400 hover:translate-x-1 transition-all text-sm flex items-center gap-2">
                 <span className="w-1 h-1 bg-purple-500 rounded-full"></span> Home
               </Link>
+              <Link href="/#active-giveaways" onClick={(e) => handleSectionLink(e, "/#active-giveaways", pathname)} className="text-gray-400 hover:text-purple-400 hover:translate-x-1 transition-all text-sm flex items-center gap-2">
+                <span className="w-1 h-1 bg-purple-500 rounded-full"></span> Sorteios Ativos
+              </Link>
               <Link href="/diario" onClick={(e) => handleSectionLink(e, "/diario", pathname)} className="text-gray-400 hover:text-purple-400 hover:translate-x-1 transition-all text-sm flex items-center gap-2">
                 <span className="w-1 h-1 bg-purple-500 rounded-full"></span> Sorteio Diário
               </Link>
