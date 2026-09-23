@@ -16,6 +16,29 @@ async function getAppToken(): Promise<string | null> {
   return appToken.value;
 }
 
+/** Fotos de perfil de vários logins de uma vez (a Helix aceita até 100 por chamada). */
+export async function fetchTwitchAvatars(logins: string[]): Promise<Record<string, string>> {
+  const result: Record<string, string> = {};
+  const unique = [...new Set(logins.map((l) => l.toLowerCase()))];
+  try {
+    const token = await getAppToken();
+    if (!token) return result;
+    for (let i = 0; i < unique.length; i += 100) {
+      const query = unique.slice(i, i + 100).map((l) => `login=${encodeURIComponent(l)}`).join("&");
+      const res = await fetch(`https://api.twitch.tv/helix/users?${query}`, {
+        headers: { "Client-Id": process.env.TWITCH_CLIENT_ID || "", Authorization: `Bearer ${token}` },
+      });
+      if (res.status === 401) appToken = null;
+      if (!res.ok) continue;
+      const json = await res.json();
+      for (const u of json?.data ?? []) result[u.login] = u.profile_image_url;
+    }
+  } catch {
+    // sem foto não impede nada: o site usa o avatar com a inicial
+  }
+  return result;
+}
+
 /** Foto de perfil da Twitch pelo login, ou null se não achar. */
 export async function fetchTwitchAvatar(login: string): Promise<string | null> {
   try {

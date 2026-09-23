@@ -1,5 +1,6 @@
 import { getSessionUsername } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { fetchTwitchAvatar } from "@/lib/twitch";
 
 const MAX_PROOF_LENGTH = 3_000_000; // ~2 MB de imagem em base64
 
@@ -47,6 +48,7 @@ export async function POST(request: Request) {
     twitch_username: username,
     coins_used: coins,
     casa_id: casaId || null,
+    avatar_url: await fetchTwitchAvatar(username),
     proof_url: proof,
     status: "pending",
   });

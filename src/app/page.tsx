@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Trophy, Gift, Users, ArrowDown, Zap, X, ArrowRight, Clock } from "lucide-react";
+import { Trophy, Gift, ArrowDown, Zap, X, ArrowRight, Clock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { isGiveawayClosed } from "@/lib/giveaway";
 import ClosedStamp from "@/components/ui/ClosedStamp";
+import { avatarFor } from "@/lib/daily";
 
 const useCountdown = (targetDateString: string | null) => {
   const [timeLeft, setTimeLeft] = useState({
@@ -396,9 +397,7 @@ export default function Home() {
                   <div className="p-5">
                     <h3 className="font-bold text-white mb-1 truncate">{winner.prize}</h3>
                     <div className="flex items-center gap-3 mt-4">
-                      <div className="w-8 h-8 rounded-full bg-purple-900 flex items-center justify-center">
-                        <Users className="w-4 h-4 text-purple-300" />
-                      </div>
+                      <img src={avatarFor(winner.twitch_username, winner.avatar_url)} alt="" className="w-9 h-9 rounded-full object-cover border border-purple-500/50" />
                       <div>
                         <p className="text-xs text-gray-500 uppercase font-bold tracking-wider">Vencedor</p>
                         <p className="text-purple-400 font-medium text-sm">@{winner.twitch_username}</p>

@@ -10,6 +10,7 @@ import { isAdmin } from "@/lib/admins";
 import { adminApi } from "@/lib/adminApi";
 import { compressImage } from "@/lib/image";
 import { useDialog } from "@/components/ui/Dialog";
+import { avatarFor } from "@/lib/daily";
 import LiveGiveaway from "@/components/admin/LiveGiveaway";
 
 const TooltipIcon = ({ text }: { text: string }) => (
@@ -268,6 +269,7 @@ export default function AdminDashboard() {
     const res = await run("insertWinner", {
       giveawayId: managingParticipants,
       twitchUsername: drawnWinner.twitch_username,
+      avatarUrl: drawnWinner.avatar_url ?? null,
       prize: sorteio ? sorteio.title : "Prêmio Sorteado",
     });
 
@@ -774,7 +776,7 @@ export default function AdminDashboard() {
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md animate-fade-in">
           <div className="w-full max-w-5xl flex flex-col items-center">
 
-            <h2 className="text-4xl font-black text-white uppercase italic tracking-wider mb-12 animate-pulse">Sorteando...</h2>
+            <h2 className={`text-4xl font-black text-white uppercase italic tracking-wider mb-12 ${showWinner ? "" : "animate-pulse"}`}>{showWinner ? "Ganhador!" : "Sorteando..."}</h2>
 
             {/* A linha de centro (mirador) */}
             <div className="relative w-full h-48 bg-[#121214] border-y-4 border-purple-500/30 overflow-hidden shadow-[0_0_50px_rgba(168,85,247,0.1)] flex items-center">
@@ -794,7 +796,7 @@ export default function AdminDashboard() {
               >
                 {rouletteItems.map((item, index) => (
                   <div key={index} className="w-[144px] h-[144px] flex-shrink-0 bg-black border border-gray-800 rounded-xl flex flex-col items-center justify-center relative overflow-hidden opacity-80">
-                    <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(item.twitch_username)}&background=random&color=fff&size=128`} alt="" className="w-16 h-16 rounded-full mb-3 shadow-[0_0_10px_rgba(0,0,0,0.5)]" />
+                    <img src={avatarFor(item.twitch_username, item.avatar_url)} alt="" className="w-16 h-16 rounded-full mb-3 object-cover border-2 border-gray-700 shadow-[0_0_10px_rgba(0,0,0,0.5)]" />
                     <span className="text-white font-bold text-xs uppercase tracking-widest truncate w-full text-center px-2">@{item.twitch_username}</span>
                   </div>
                 ))}
@@ -815,7 +817,11 @@ export default function AdminDashboard() {
               <div className="mt-12 bg-[#121214] border border-purple-500/50 rounded-2xl w-full max-w-md shadow-[0_0_50px_rgba(168,85,247,0.3)] p-8 text-center animate-fade-in relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-purple-600 to-pink-600"></div>
 
-                <Trophy className="w-16 h-16 text-yellow-500 mx-auto mb-4 drop-shadow-[0_0_15px_rgba(234,179,8,0.5)]" />
+                <img
+                  src={avatarFor(drawnWinner?.twitch_username || "", drawnWinner?.avatar_url)}
+                  alt=""
+                  className="w-24 h-24 rounded-full mx-auto mb-4 object-cover border-4 border-yellow-400 shadow-[0_0_30px_rgba(234,179,8,0.45)]"
+                />
 
                 <h3 className="text-3xl font-black text-white uppercase italic tracking-wider mb-2 truncate">@{drawnWinner?.twitch_username}</h3>
                 <p className="text-gray-400 mb-6 font-medium text-xs uppercase tracking-widest">Vencedor do sorteio</p>

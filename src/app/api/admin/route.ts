@@ -1,7 +1,7 @@
 import { getSessionUsername } from "@/lib/auth";
 import { isAdmin } from "@/lib/admins";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { fetchTwitchAvatar } from "@/lib/twitch";
+import { fetchTwitchAvatar, fetchTwitchAvatars } from "@/lib/twitch";
 import { chancesFor } from "@/lib/daily";
 
 const GIVEAWAY_FIELDS = [
@@ -47,6 +47,20 @@ export async function POST(request: Request) {
         .eq("giveaway_id", body.giveawayId)
         .order("created_at", { ascending: true });
       if (error) return fail(error.message, 500);
+
+      // Quem entrou sem foto (inscrições antigas): busca na Twitch e guarda
+      const missing = (data ?? []).filter((p) => !p.avatar_url);
+      if (missing.length > 0) {
+        const avatars = await fetchTwitchAvatars(missing.map((p) => p.twitch_username));
+        await Promise.all(
+          missing
+            .filter((p) => avatars[p.twitch_username])
+            .map((p) => {
+              p.avatar_url = avatars[p.twitch_username];
+              return db.from("participants").update({ avatar_url: p.avatar_url }).eq("id", p.id);
+            })
+        );
+      }
       return Response.json({ data });
     }
 
@@ -121,6 +135,7 @@ export async function POST(request: Request) {
         .insert({
           giveaway_id: body.giveawayId ?? null,
           twitch_username: body.twitchUsername,
+          avatar_url: body.avatarUrl ?? null,
           prize: String(body.prize ?? "").replace(/\s*\|\s*/g, " "),
           in_hall_of_fame: false,
         })
