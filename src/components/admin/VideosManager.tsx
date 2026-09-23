@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Clock, Edit, Eye, GripVertical, ImagePlus, Loader2, Plus, Trash2, X } from "lucide-react";
 import { FaYoutube } from "react-icons/fa";
 import { supabase } from "@/lib/supabase";
@@ -43,6 +43,10 @@ export default function VideosManager() {
   const [loading, setLoading] = useState(true);
   const [missingTable, setMissingTable] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
+  // Cópias sempre atuais para o "soltar": o evento pode chegar antes da tela redesenhar
+  const videosRef = useRef<Video[]>([]);
+  const dragRef = useRef<string | null>(null);
+  useEffect(() => { videosRef.current = videos; }, [videos]);
   const [savingOrder, setSavingOrder] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [fetching, setFetching] = useState(false);
@@ -63,26 +67,31 @@ export default function VideosManager() {
 
   // Arrastando: o card vai para a posição de quem está embaixo do mouse (só entre o mesmo tipo)
   const moveOver = (over: Video) => {
+    const dragId = dragRef.current;
     if (!dragId || dragId === over.id) return;
-    setVideos((prev) => {
-      const dragged = prev.find((v) => v.id === dragId);
-      if (!dragged || dragged.kind !== over.kind) return prev;
-      const list = mostViewed(prev, over.kind, Infinity).filter((v) => v.id !== dragId);
-      list.splice(list.findIndex((v) => v.id === over.id), 0, dragged);
-      const order = new Map(list.map((v, i) => [v.id, i + 1]));
-      return prev.map((v) => (order.has(v.id) ? { ...v, sort_order: order.get(v.id)! } : v));
-    });
+    // Calcula já (e não dentro do setState): o "soltar" pode chegar antes da tela redesenhar
+    const prev = videosRef.current;
+    const dragged = prev.find((v) => v.id === dragId);
+    if (!dragged || dragged.kind !== over.kind) return;
+    const list = mostViewed(prev, over.kind, Infinity).filter((v) => v.id !== dragId);
+    list.splice(list.findIndex((v) => v.id === over.id), 0, dragged);
+    const order = new Map(list.map((v, i) => [v.id, i + 1]));
+    const next = prev.map((v) => (order.has(v.id) ? { ...v, sort_order: order.get(v.id)! } : v));
+    videosRef.current = next;
+    setVideos(next);
   };
 
   // Soltou: grava a ordem nova no banco
   const finishDrag = async () => {
-    if (!dragId) return;
-    const kind = videos.find((v) => v.id === dragId)?.kind;
+    const id = dragRef.current;
+    if (!id) return;
+    dragRef.current = null;
     setDragId(null);
+    const kind = videosRef.current.find((v) => v.id === id)?.kind;
     if (!kind) return;
     setSavingOrder(true);
     try {
-      await adminApi("reorderVideos", { ids: mostViewed(videos, kind, Infinity).map((v) => v.id) });
+      await adminApi("reorderVideos", { ids: mostViewed(videosRef.current, kind, Infinity).map((v) => v.id) });
     } catch (err) {
       dialog.error(err, "Não foi possível salvar a ordem");
       load();
@@ -239,7 +248,7 @@ export default function VideosManager() {
                       <div
                         key={v.id}
                         draggable
-                        onDragStart={(e) => { setDragId(v.id); e.dataTransfer.effectAllowed = "move"; }}
+                        onDragStart={(e) => { dragRef.current = v.id; setDragId(v.id); e.dataTransfer.effectAllowed = "move"; }}
                         onDragOver={(e) => { e.preventDefault(); moveOver(v); }}
                         onDrop={(e) => e.preventDefault()}
                         onDragEnd={finishDrag}
