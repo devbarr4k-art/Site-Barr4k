@@ -172,15 +172,12 @@ export default function Home() {
             <span>Inscritos têm até 5x mais chances de ganhar!</span>
           </div>
 
-          <h1 className="font-graffiti text-4xl sm:text-5xl md:text-7xl tracking-normal mb-6 text-white drop-shadow-md leading-[1.15]">
+          <h1 className="font-title text-4xl sm:text-5xl md:text-7xl tracking-normal mb-10 text-white drop-shadow-md leading-[1.15]">
             Sorteios Exclusivos para <br className="hidden md:block" />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-500 to-blue-500 animate-pulse-glow">
               APOIADORES!
             </span>
           </h1>
-          <p className="max-w-2xl mx-auto text-sm sm:text-base md:text-xl text-gray-400 mb-10 font-light px-4">
-            Participe dos melhores sorteios da Twitch. Apoie o canal, interaja no chat e multiplique suas chances de ganhar prêmios incríveis todos os meses.
-          </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Link
               href="#active-giveaways"
@@ -259,7 +256,7 @@ export default function Home() {
                 </span>
               </div>
 
-              <h1 className="font-graffiti text-4xl sm:text-[2.5rem] text-white uppercase leading-[1]">
+              <h1 className="font-title text-4xl sm:text-[2.5rem] text-white uppercase leading-[1]">
                 SORTEIO {featuredGiveaway.title.split('|')[0]} <br/>
                 {featuredGiveaway.title.includes('|') && (
                   <span className="text-purple-500 inline-block mt-1">{featuredGiveaway.title.split('|')[1]}</span>
@@ -316,7 +313,7 @@ export default function Home() {
 
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
             <div>
-              <h2 className="font-graffiti text-4xl md:text-5xl text-white uppercase">
+              <h2 className="font-title text-4xl md:text-5xl text-white uppercase">
                 SORTEIOS <span className="text-purple-500">ATIVOS</span>
               </h2>
               <p className="text-gray-400 text-xs tracking-widest uppercase font-bold mt-3">
@@ -409,7 +406,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
             <div>
-              <h2 className="font-graffiti text-3xl md:text-4xl text-white mb-4 flex items-center gap-3">
+              <h2 className="font-title text-3xl md:text-4xl text-white mb-4 flex items-center gap-3">
                 <Trophy className="w-8 h-8 text-purple-500" /> Hall da Fama
               </h2>
               <p className="text-gray-400 max-w-xl">Os sortudos que já levaram prêmios para casa recentemente. O próximo pode ser você!</p>
@@ -473,7 +470,7 @@ export default function Home() {
       <section id="parceiros" className="py-20 bg-black border-t border-white/5 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="font-graffiti text-3xl md:text-4xl text-white mb-4">
+            <h2 className="font-title text-3xl md:text-4xl text-white mb-4">
               Nossos <span className="text-purple-500">Parceiros</span>
             </h2>
             <p className="text-gray-400">Apoie o canal utilizando nossos cupons e links de afiliado!</p>

@@ -40,7 +40,7 @@ export default function MeusTicketsPage() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
 
         <div className="mb-10">
-          <h1 className="font-graffiti text-4xl md:text-5xl text-white mb-4">
+          <h1 className="font-title text-4xl md:text-5xl text-white mb-4">
             Meus <span className="text-purple-500">Tickets</span>
           </h1>
           <p className="text-gray-400 text-lg">

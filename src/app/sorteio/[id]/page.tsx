@@ -159,7 +159,7 @@ export default function SorteioPage() {
           </div>
 
           <h2 className="text-[#a0a0a0] font-bold text-sm tracking-[0.4em] mb-2 uppercase">SORTEIO</h2>
-          <h1 className="font-graffiti text-4xl sm:text-5xl md:text-[4rem] text-white uppercase leading-[1]">
+          <h1 className="font-title text-4xl sm:text-5xl md:text-[4rem] text-white uppercase leading-[1]">
             {giveaway.title.split('|')[0] || giveaway.title} <br/>
             {giveaway.title.includes('|') && (
               <span className="text-purple-500 block mt-1">{giveaway.title.split('|')[1]}</span>

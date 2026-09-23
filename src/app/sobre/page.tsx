@@ -23,7 +23,7 @@ export default function SobrePage() {
 
             {/* Intro Content */}
             <div className="text-center md:text-left pt-4 flex flex-col justify-center">
-              <h1 className="font-graffiti text-5xl md:text-7xl text-white mb-2 uppercase drop-shadow-md">
+              <h1 className="font-title text-5xl md:text-7xl text-white mb-2 uppercase drop-shadow-md">
                 BARR4K
               </h1>
               <p className="text-xl text-purple-400 font-bold mb-8 tracking-widest uppercase">Streamer & Criador de Conteúdo</p>

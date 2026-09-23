@@ -103,3 +103,22 @@ insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 values ('giveaways', 'giveaways', true, 20971520,
         array['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/avif'])
 on conflict (id) do nothing;
+
+
+-- 6. Loja de skins -----------------------------------------------------
+create table public.skins (
+  id          uuid primary key default gen_random_uuid(),
+  name        text not null,
+  wear        text,
+  tag         text,
+  float_value text,
+  price       text,
+  image_url   text,
+  buy_url     text,
+  status      text not null default 'available' check (status in ('available', 'sold')),
+  created_at  timestamptz not null default now()
+);
+create index skins_status_created on public.skins (status, created_at desc);
+alter table public.skins enable row level security;
+create policy "leitura publica de skins" on public.skins
+  for select to anon, authenticated using (true);

@@ -21,7 +21,7 @@ export default function Footer() {
                   className="object-cover"
                 />
               </div>
-              <span className="font-graffiti text-2xl tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-500 to-blue-500 animate-pulse-glow flex items-center">
+              <span className="font-title text-2xl tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-500 to-blue-500 animate-pulse-glow flex items-center">
                 BARR4K
               </span>
             </Link>

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { FaTwitch, FaHandshake, FaGamepad, FaHome } from "react-icons/fa";
-import { ShieldAlert, Ticket, LogOut, ChevronDown, Menu, X } from "lucide-react";
+import { ShieldAlert, Ticket, LogOut, ChevronDown, Menu, X, Crosshair } from "lucide-react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
 
@@ -19,6 +19,7 @@ export default function Navbar() {
   const navLinks = [
     { name: "HOME", href: "/", icon: <FaHome className="w-4 h-4" /> },
     { name: "SORTEIO DIÁRIO", href: "/diario", icon: <FaGamepad className="w-4 h-4" /> },
+    { name: "SKINS", href: "/skins", icon: <Crosshair className="w-4 h-4" /> },
     { name: "BIOGRAFIA", href: "/sobre", icon: <FaTwitch className="w-4 h-4" /> },
     { name: "PARCEIROS", href: "/#parceiros", icon: <FaHandshake className="w-4 h-4" /> },
   ];
@@ -70,7 +71,7 @@ export default function Navbar() {
                   className="object-cover"
                 />
               </div>
-              <span className="font-graffiti text-2xl tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-500 to-blue-500 animate-pulse-glow flex items-center">
+              <span className="font-title text-2xl tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-500 to-blue-500 animate-pulse-glow flex items-center">
                 BARR4K
               </span>
             </Link>

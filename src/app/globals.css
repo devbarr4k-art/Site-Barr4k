@@ -77,12 +77,21 @@
 }
 
 /* Glowing Neon Button */
-/* Botão principal do site: roxo, borda branca arredondada, texto forte em maiúsculas */
+/* Botão principal do site: roxo, borda preta e contorno RGB girando por fora */
+@property --rgb-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+@keyframes rgb-spin {
+  to { --rgb-angle: 360deg; }
+}
 .btn-neon {
   position: relative;
+  isolation: isolate;
   background: #7c3aed;
   color: #fff;
-  border: 2px solid #fff;
+  border: 2px solid #000;
   border-radius: 0.75rem;
   font-weight: 800;
   font-style: normal;
@@ -90,10 +99,30 @@
   letter-spacing: 0.05em;
   transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
+.btn-neon::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  z-index: -1;
+  border-radius: calc(0.75rem + 4px);
+  padding: 3px; /* espessura do anel RGB */
+  background: conic-gradient(from var(--rgb-angle), #ff2d95, #a855f7, #3b82f6, #22d3ee, #22c55e, #facc15, #ff2d95);
+  /* recorta o miolo: sobra só o anel em volta da borda preta */
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  animation: rgb-spin 3s linear infinite;
+  opacity: 0.9;
+  pointer-events: none;
+}
 .btn-neon:hover {
   background: #8b5cf6;
-  box-shadow: 0 0 22px rgba(139, 92, 246, 0.55);
+  box-shadow: 0 0 26px rgba(168, 85, 247, 0.55);
   transform: translateY(-1px);
+}
+.btn-neon:hover::before {
+  opacity: 1;
+  animation-duration: 1.5s;
 }
 .btn-neon:active {
   transform: translateY(0);
@@ -102,12 +131,17 @@
   transform: none;
   box-shadow: none;
 }
+.btn-neon:disabled::before {
+  animation: none;
+  opacity: 0.4;
+}
 
-/* Títulos com a fonte de pichação */
-.font-graffiti {
-  font-family: var(--font-graffiti), "Lato", sans-serif;
+/* Títulos: Lato no peso mais forte, sem itálico */
+.font-title {
+  font-family: var(--font-lato), sans-serif;
+  font-weight: 900;
   font-style: normal;
-  letter-spacing: 0.01em;
+  letter-spacing: -0.01em;
 }
 
 /* Floating Underline Animation for Links */

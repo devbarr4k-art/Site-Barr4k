@@ -56,7 +56,7 @@ export default function DiarioPage() {
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 font-bold text-xs tracking-widest uppercase">
             <Calendar className="w-4 h-4" /> Sorteio Diário
           </div>
-          <h1 className="font-graffiti text-5xl md:text-7xl text-white uppercase">
+          <h1 className="font-title text-5xl md:text-7xl text-white uppercase">
             O SORTEIO DA <span className="text-purple-500">LIVE</span>
           </h1>
           <p className="text-gray-400 max-w-2xl mx-auto font-medium">

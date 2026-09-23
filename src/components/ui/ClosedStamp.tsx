@@ -1,5 +1,5 @@
-// Carimbo "ENCERRADO" por cima da imagem de um sorteio que já fechou.
-export default function ClosedStamp({ size = "md" }: { size?: "md" | "lg" }) {
+// Carimbo por cima da imagem: "ENCERRADO" nos sorteios, "VENDIDA" nas skins.
+export default function ClosedStamp({ size = "md", text = "Encerrado" }: { size?: "md" | "lg"; text?: string }) {
   return (
     <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/35 pointer-events-none">
       <span
@@ -8,7 +8,7 @@ export default function ClosedStamp({ size = "md" }: { size?: "md" | "lg" }) {
         }`}
         style={{ fontFamily: "var(--font-kanit)", textShadow: "0 0 12px rgba(239,68,68,0.6)" }}
       >
-        Encerrado
+        {text}
       </span>
     </div>
   );

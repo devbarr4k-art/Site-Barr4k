@@ -162,6 +162,26 @@ export async function POST(request: Request) {
       return Response.json({ path, token: data.token, publicUrl: pub.publicUrl });
     }
 
+    case "saveSkin": {
+      // Cria ou edita uma skin da loja
+      const fields = pick(body.fields, ["name", "wear", "tag", "float_value", "price", "image_url", "buy_url", "status"]);
+      if (typeof fields.name === "string") fields.name = fields.name.trim();
+      if ("name" in fields && !fields.name) return fail("Informe o nome da skin.");
+      if (fields.status && !["available", "sold"].includes(fields.status as string)) return fail("Status inválido.");
+      const query = body.id
+        ? db.from("skins").update(fields).eq("id", body.id)
+        : db.from("skins").insert(fields);
+      const { error } = await query;
+      if (error) return fail(error.message, 500);
+      return Response.json({ ok: true });
+    }
+
+    case "deleteSkin": {
+      const { error } = await db.from("skins").delete().eq("id", body.id);
+      if (error) return fail(error.message, 500);
+      return Response.json({ ok: true });
+    }
+
     case "reopenGiveaway": {
       // Volta um sorteio encerrado ao ar até a nova data escolhida pelo streamer
       const drawDate = new Date(body.drawDate);

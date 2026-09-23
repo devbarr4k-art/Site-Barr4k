@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Plus, Edit, Trash2, Users, Gift, Star, ArrowRight, Trophy, Sparkles, Radio, X, RotateCcw, Clock, Volume2, VolumeX } from "lucide-react";
+import { Plus, Edit, Trash2, Users, Gift, Star, ArrowRight, Trophy, Sparkles, Radio, X, RotateCcw, Clock, Volume2, VolumeX, Crosshair } from "lucide-react";
 import { FaTwitch } from "react-icons/fa";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -15,6 +15,7 @@ import { useSounds } from "@/lib/useSounds";
 import { avatarFor } from "@/lib/daily";
 import { isGiveawayClosed } from "@/lib/giveaway";
 import LiveGiveaway from "@/components/admin/LiveGiveaway";
+import SkinsAdmin from "@/components/admin/SkinsAdmin";
 
 const TooltipIcon = ({ text }: { text: string }) => (
   <div className="relative flex items-center justify-center group/tooltip">
@@ -100,7 +101,7 @@ export default function AdminDashboard() {
   // Abre direto numa aba (?tab=twitch), usado na volta da autorização do chat
   useEffect(() => {
     const tab = new URLSearchParams(window.location.search).get("tab");
-    if (tab && ["sorteios", "twitch", "users"].includes(tab)) setActiveTab(tab);
+    if (tab && ["sorteios", "twitch", "users", "skins"].includes(tab)) setActiveTab(tab);
   }, []);
 
   const [sorteios, setSorteios] = useState<any[]>([]);
@@ -527,6 +528,12 @@ export default function AdminDashboard() {
         >
           <Trophy className="w-4 h-4 md:w-5 md:h-5" /> Vencedores dos Sorteios
         </button>
+        <button
+          onClick={() => setActiveTab("skins")}
+          className={`flex items-center gap-2 md:gap-3 px-4 py-2 md:py-3 rounded-lg font-medium transition-all flex-shrink-0 ${activeTab === "skins" ? "bg-purple-600/20 text-purple-300 border border-purple-500/50" : "text-gray-400 hover:bg-gray-900 hover:text-white"}`}
+        >
+          <Crosshair className="w-4 h-4 md:w-5 md:h-5" /> Skins à Venda
+        </button>
       </aside>
 
       {/* Main Content */}
@@ -852,6 +859,8 @@ export default function AdminDashboard() {
         )}
 
         {activeTab === "twitch" && <LiveGiveaway defaultChannel={currentUsername || "barr4k"} />}
+
+        {activeTab === "skins" && <SkinsAdmin />}
 
         {activeTab === "users" && (
           <div className="space-y-8 animate-fade-in">
