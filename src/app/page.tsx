@@ -77,12 +77,10 @@ export default function Home() {
       const open = withState.filter((g) => !g.isClosed);
       const closed = withState.filter((g) => g.isClosed).slice(0, 6);
 
-      const featured = withState.find(g => g.type === 'featured');
-      if (featured) {
-        setFeaturedGiveaway(featured);
-        // Aparece toda vez que a pessoa entra ou volta para a home
-        setShowFeaturedPopup(true);
-      }
+      // Destaque só abre enquanto o sorteio está aberto; aparece toda vez que a pessoa volta para a home
+      const featured = open.find(g => g.type === 'featured');
+      setFeaturedGiveaway(featured ?? null);
+      setShowFeaturedPopup(!!featured);
       setActiveGiveaways([...open, ...closed]);
     }
     setIsLoadingGiveaways(false);
@@ -102,6 +100,29 @@ export default function Home() {
     router.push(`/sorteio/${giveaway.id}`);
   };
 
+  // A URL acompanha a seção visível ao rolar (#active-giveaways, #hall-da-fama...);
+  // no topo volta para "/" limpo
+  useEffect(() => {
+    const sections = Array.from(document.querySelectorAll<HTMLElement>("section[id]"));
+    if (sections.length === 0) return;
+    let current = "";
+    const update = () => {
+      const middle = window.innerHeight / 2;
+      const visible = sections.find((s) => {
+        const r = s.getBoundingClientRect();
+        return r.top <= middle && r.bottom > middle;
+      });
+      const id = !visible || visible.id === "home" ? "" : visible.id;
+      if (id === current) return;
+      current = id;
+      const url = window.location.pathname + window.location.search + (id ? `#${id}` : "");
+      window.history.replaceState(window.history.state, "", url);
+    };
+    window.addEventListener("scroll", update, { passive: true });
+    update();
+    return () => window.removeEventListener("scroll", update);
+  }, [isLoadingGiveaways]);
+
   const closeFeaturedPopup = () => {
     setShowFeaturedPopup(false);
   };
@@ -112,14 +133,18 @@ export default function Home() {
       <section id="home" className="relative py-20 lg:py-32 overflow-hidden flex flex-col justify-center min-h-[90vh]">
 
         {/* Background Video */}
+        {/* Vídeo comprimido: 480p no celular, 720p no resto; a capa aparece enquanto carrega */}
         <video
           autoPlay
           loop
           muted
           playsInline
+          preload="auto"
+          poster="/bg-video-poster.jpg"
           className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none"
         >
-          <source src="/bg-video.mp4" type="video/mp4" />
+          <source src="/bg-video-480.mp4" type="video/mp4" media="(max-width: 768px)" />
+          <source src="/bg-video-720.mp4" type="video/mp4" />
         </video>
 
         {/* Gradient Overlays for Readability */}

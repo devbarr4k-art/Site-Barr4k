@@ -105,12 +105,11 @@ export default function MeusTicketsPage() {
                     const statusStyle = STATUS_STYLES[ticket.status] ?? STATUS_STYLES.pending;
                     const giveawayOpen = ticket.giveaways?.status === "active";
                     return (
-                      <Link
+                      <div
                         key={ticket.id}
-                        href={`/sorteio/${ticket.giveaway_id}`}
-                        className="glass-panel border border-gray-800 hover:border-purple-500/50 rounded-xl p-6 transition-all relative overflow-hidden group block"
+                        className="glass-panel border border-gray-800 rounded-xl p-6 relative overflow-hidden"
                       >
-                        <div className="absolute top-0 right-0 w-24 h-24 bg-purple-600/10 blur-[30px] rounded-full group-hover:bg-purple-600/20 transition-all" />
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-purple-600/10 blur-[30px] rounded-full" />
                         <div className="flex justify-between items-start gap-4 mb-4 relative z-10">
                           <div className="min-w-0">
                             <span className={`text-xs px-2 py-1 rounded font-bold border mb-2 inline-block ${statusStyle.className}`}>
@@ -131,7 +130,7 @@ export default function MeusTicketsPage() {
                             {giveawayOpen ? "Sorteio aberto" : "Sorteio encerrado"}
                           </span>
                         </div>
-                      </Link>
+                      </div>
                     );
                   })}
                 </div>

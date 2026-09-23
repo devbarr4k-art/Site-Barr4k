@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Plus, Edit, Trash2, Users, Gift, Star, ArrowRight, Trophy, Sparkles, Radio, X, RotateCcw, Clock } from "lucide-react";
+import { Plus, Edit, Trash2, Users, Gift, Star, ArrowRight, Trophy, Sparkles, Radio, X, RotateCcw, Clock, Volume2, VolumeX } from "lucide-react";
 import { FaTwitch } from "react-icons/fa";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -11,6 +11,7 @@ import { adminApi } from "@/lib/adminApi";
 import { uploadGiveawayImage } from "@/lib/image";
 import { useDialog } from "@/components/ui/Dialog";
 import NumberInput from "@/components/ui/NumberInput";
+import { useSounds } from "@/lib/useSounds";
 import { avatarFor } from "@/lib/daily";
 import { isGiveawayClosed } from "@/lib/giveaway";
 import LiveGiveaway from "@/components/admin/LiveGiveaway";
@@ -116,6 +117,9 @@ export default function AdminDashboard() {
   const [drawnWinner, setDrawnWinner] = useState<any>(null);
   const [localWinners, setLocalWinners] = useState<any[]>([]);
   const rouletteTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const reelRef = useRef<HTMLDivElement>(null);
+  const spinIdRef = useRef(0); // muda a cada giro; o loop de som para quando o giro acaba ou é cancelado
+  const sounds = useSounds();
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedColor, setSelectedColor] = useState("Amarelo");
@@ -262,10 +266,40 @@ export default function AdminDashboard() {
     setIsDrawing(true);
     setShowWinner(false);
 
+    // Mesmo som do sorteio diário: tique a cada card que passa pelo traço e fanfarra no final
+    sounds.unlock();
+    const spinId = ++spinIdRef.current;
+    const startedAt = performance.now() + 100;
+    let lastIndex = -1;
+    const tickLoop = () => {
+      if (spinIdRef.current !== spinId || !reelRef.current) return;
+      const x = -new DOMMatrixReadOnly(getComputedStyle(reelRef.current).transform).m41;
+      const index = Math.round(x / ITEM_STEP);
+      if (index !== lastIndex) {
+        lastIndex = index;
+        sounds.tick(Math.min(1, Math.max(0, (performance.now() - startedAt) / 10000)));
+      }
+      requestAnimationFrame(tickLoop);
+    };
+
     rouletteTimers.current = [
-      setTimeout(() => setRouletteOffset(WINNER_INDEX * ITEM_STEP), 100),
-      setTimeout(() => setShowWinner(true), 10100),
+      setTimeout(() => {
+        setRouletteOffset(WINNER_INDEX * ITEM_STEP);
+        requestAnimationFrame(tickLoop);
+      }, 100),
+      setTimeout(() => {
+        spinIdRef.current++;
+        sounds.win();
+        setShowWinner(true);
+      }, 10100),
     ];
+  };
+
+  const cancelRoulette = () => {
+    spinIdRef.current++;
+    rouletteTimers.current.forEach(clearTimeout);
+    setIsDrawing(false);
+    setShowWinner(false);
   };
 
   const toggleHallOfFame = async (winnerId: string, currentState: boolean) => {
@@ -350,6 +384,8 @@ export default function AdminDashboard() {
     if (ok && (await run("deleteWinner", { id: winner.id, reopen: false }))) {
       fetchWinners();
       fetchSorteios();
+      // Tira da lista deste sorteio: a pessoa volta a poder ser sorteada
+      setLocalWinners((prev) => prev.filter((w) => w.id !== winner.id));
     }
   };
 
@@ -656,19 +692,39 @@ export default function AdminDashboard() {
                             <th className="px-6 py-4">Usuário da Twitch</th>
                             <th className="px-6 py-4">Prêmio Ganho</th>
                             <th className="px-6 py-4">Data do Sorteio</th>
-                            <th className="px-6 py-4 text-center">Status</th>
+                            <th className="px-6 py-4 text-center">Hall da Fama</th>
+                            <th className="px-6 py-4 text-right">Excluir</th>
                           </tr>
                         </thead>
                         <tbody>
                           {localWinners.map(winner => (
                             <tr key={winner.id} className="border-b border-gray-800 hover:bg-white/5 transition-colors">
-                              <td className="px-6 py-4 font-bold text-white">@{winner.twitch_username}</td>
+                              <td className="px-6 py-4 font-bold text-white">
+                                <div className="flex items-center gap-3">
+                                  <img src={avatarFor(winner.twitch_username, winner.avatar_url)} alt="" className="w-8 h-8 rounded-full object-cover border border-gray-700" />
+                                  @{winner.twitch_username}
+                                </div>
+                              </td>
                               <td className="px-6 py-4 text-yellow-500 font-bold">{winner.prize}</td>
-                              <td className="px-6 py-4">{new Date(winner.won_at).toLocaleDateString()}</td>
+                              <td className="px-6 py-4">{new Date(winner.won_at).toLocaleDateString("pt-BR")}</td>
                               <td className="px-6 py-4 text-center">
-                                <span className={winner.in_hall_of_fame ? 'text-purple-400 font-bold' : 'text-gray-500'}>
-                                  {winner.in_hall_of_fame ? 'No Hall da Fama' : 'Comum'}
-                                </span>
+                                <button
+                                  onClick={() => toggleHallOfFame(winner.id, winner.in_hall_of_fame)}
+                                  className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${winner.in_hall_of_fame
+                                    ? "bg-purple-600/20 text-purple-400 border-purple-500/50 hover:bg-purple-600/40"
+                                    : "bg-gray-800/50 text-gray-500 border-gray-700 hover:bg-gray-700"}`}
+                                >
+                                  {winner.in_hall_of_fame ? "No Hall da Fama" : "Colocar no Hall"}
+                                </button>
+                              </td>
+                              <td className="px-6 py-4 text-right">
+                                <button
+                                  onClick={() => handleDeleteWinner(winner)}
+                                  className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded transition-colors"
+                                  title="Excluir vencedor (libera para sortear de novo)"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
                               </td>
                             </tr>
                           ))}
@@ -926,6 +982,7 @@ export default function AdminDashboard() {
 
               {/* A esteira de avatares */}
               <div
+                ref={reelRef}
                 className={`flex gap-4 w-full transition-transform ease-[cubic-bezier(0.15,0.85,0.15,1)]`}
                 style={{
                   /* centraliza o 1º card no traço: metade da faixa menos metade do card (144px) */
@@ -945,12 +1002,21 @@ export default function AdminDashboard() {
 
             {/* Quando terminar, mostrar vencedor e botões */}
             {!showWinner && (
-              <button
-                onClick={() => { rouletteTimers.current.forEach(clearTimeout); setIsDrawing(false); }}
-                className="mt-10 text-gray-500 hover:text-white text-xs underline"
-              >
-                Cancelar sorteio
-              </button>
+              <div className="mt-10 flex items-center gap-3">
+                <button
+                  onClick={cancelRoulette}
+                  className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold uppercase tracking-widest text-sm text-red-300 bg-red-500/10 border border-red-500/40 hover:bg-red-500/20 transition-colors"
+                >
+                  <X className="w-4 h-4" /> Cancelar sorteio
+                </button>
+                <button
+                  onClick={() => sounds.setEnabled(!sounds.enabled)}
+                  title={sounds.enabled ? "Desligar som" : "Ligar som"}
+                  className="p-3 rounded-xl border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500 transition-colors"
+                >
+                  {sounds.enabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                </button>
+              </div>
             )}
 
             {showWinner && (

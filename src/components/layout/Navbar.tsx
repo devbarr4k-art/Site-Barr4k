@@ -6,6 +6,7 @@ import Image from "next/image";
 import { FaTwitch, FaHandshake, FaGamepad, FaHome } from "react-icons/fa";
 import { ShieldAlert, Ticket, LogOut, ChevronDown, Menu, X } from "lucide-react";
 import { signIn, signOut, useSession } from "next-auth/react";
+import { usePathname } from "next/navigation";
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -23,6 +24,19 @@ export default function Navbar() {
   ];
 
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
+
+  // Já na home, HOME e PARCEIROS só rolam a página e acertam a URL
+  const handleNavClick = (e: React.MouseEvent, href: string) => {
+    setIsOpen(false);
+    if (pathname !== "/" || !(href === "/" || href.startsWith("/#"))) return;
+    e.preventDefault();
+    const id = href === "/" ? "" : href.slice(2);
+    const target = id ? document.getElementById(id) : null;
+    if (target) target.scrollIntoView({ behavior: "smooth" });
+    else window.scrollTo({ top: 0, behavior: "smooth" });
+    window.history.replaceState(window.history.state, "", id ? `/#${id}` : "/");
+  };
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -68,6 +82,7 @@ export default function Navbar() {
               <Link
                 key={link.name}
                 href={link.href}
+                onClick={(e) => handleNavClick(e, link.href)}
                 className="flex items-center gap-2 text-gray-300 hover:text-white font-bold text-sm tracking-widest transition-colors duration-200 hover-underline-anim py-2 uppercase"
               >
                 {link.icon}
@@ -164,7 +179,7 @@ export default function Navbar() {
               <Link
                 key={link.name}
                 href={link.href}
-                onClick={() => setIsOpen(false)}
+                onClick={(e) => handleNavClick(e, link.href)}
                 className="flex items-center gap-3 px-4 py-4 text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors uppercase font-bold text-sm tracking-widest"
               >
                 {link.icon}
