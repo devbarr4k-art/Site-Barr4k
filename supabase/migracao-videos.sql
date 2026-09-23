@@ -19,3 +19,6 @@ alter table public.videos enable row level security;
 drop policy if exists "leitura publica de videos" on public.videos;
 create policy "leitura publica de videos" on public.videos
   for select to anon, authenticated using (true);
+
+-- Ordem escolhida no painel (arrastando os cards); vazio = ordem por visualizações
+alter table public.videos add column if not exists sort_order integer;

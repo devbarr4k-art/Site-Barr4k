@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Clock, Edit, Eye, ImagePlus, Loader2, Plus, Trash2, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Clock, Edit, Eye, GripVertical, ImagePlus, Loader2, Plus, Trash2, X } from "lucide-react";
 import { FaYoutube } from "react-icons/fa";
 import { supabase } from "@/lib/supabase";
 import { adminApi } from "@/lib/adminApi";
 import { uploadGiveawayImage } from "@/lib/image";
 import { useDialog } from "@/components/ui/Dialog";
-import { HOME_LIMITS, mostViewed, parseYouTubeId, timeAgo, videoUrl, type Video } from "@/lib/videos";
+import { mostViewed, parseYouTubeId, timeAgo, videoUrl, type Video } from "@/lib/videos";
 
 type Kind = "video" | "short";
 type Draft = {
@@ -35,14 +35,15 @@ const emptyDraft = (): Draft => ({
   thumbnailUrl: "", thumbs: null, customFile: null, customPreview: null,
 });
 
-// Vídeos e Shorts da seção "Vídeos Mais Acessados" da home: todos entram no carrossel,
-// ordenados por visualizações (até HOME_LIMITS de cada tipo).
+// Vídeos e Shorts da seção "Vídeos Mais Acessados" da home. A lista abaixo é a prévia da
+// ordem da home; arrastar grava sort_order (sem ordem = por visualizações).
 export default function VideosManager() {
   const dialog = useDialog();
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
   const [missingTable, setMissingTable] = useState(false);
-  const [filter, setFilter] = useState<"all" | Kind>("all");
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [savingOrder, setSavingOrder] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [fetching, setFetching] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -60,14 +61,45 @@ export default function VideosManager() {
 
   useEffect(() => { load(); }, []);
 
-  const shown = useMemo(() => (filter === "all" ? videos : videos.filter((v) => v.kind === filter)), [videos, filter]);
-  // O que aparece hoje no carrossel da home
-  const onHome = useMemo(() => {
-    const ids = new Set<string>();
-    mostViewed(videos, "video", HOME_LIMITS.video).forEach((v) => ids.add(v.id));
-    mostViewed(videos, "short", HOME_LIMITS.short).forEach((v) => ids.add(v.id));
-    return ids;
-  }, [videos]);
+  // Arrastando: o card vai para a posição de quem está embaixo do mouse (só entre o mesmo tipo)
+  const moveOver = (over: Video) => {
+    if (!dragId || dragId === over.id) return;
+    setVideos((prev) => {
+      const dragged = prev.find((v) => v.id === dragId);
+      if (!dragged || dragged.kind !== over.kind) return prev;
+      const list = mostViewed(prev, over.kind, Infinity).filter((v) => v.id !== dragId);
+      list.splice(list.findIndex((v) => v.id === over.id), 0, dragged);
+      const order = new Map(list.map((v, i) => [v.id, i + 1]));
+      return prev.map((v) => (order.has(v.id) ? { ...v, sort_order: order.get(v.id)! } : v));
+    });
+  };
+
+  // Soltou: grava a ordem nova no banco
+  const finishDrag = async () => {
+    if (!dragId) return;
+    const kind = videos.find((v) => v.id === dragId)?.kind;
+    setDragId(null);
+    if (!kind) return;
+    setSavingOrder(true);
+    try {
+      await adminApi("reorderVideos", { ids: mostViewed(videos, kind, Infinity).map((v) => v.id) });
+    } catch (err) {
+      dialog.error(err, "Não foi possível salvar a ordem");
+      load();
+    }
+    setSavingOrder(false);
+  };
+
+  const resetOrder = async (kind: Kind) => {
+    setSavingOrder(true);
+    try {
+      await adminApi("reorderVideos", { ids: videos.filter((v) => v.kind === kind).map((v) => v.id), reset: true });
+      setVideos((prev) => prev.map((v) => (v.kind === kind ? { ...v, sort_order: null } : v)));
+    } catch (err) {
+      dialog.error(err);
+    }
+    setSavingOrder(false);
+  };
 
   const openEdit = (v: Video) =>
     setDraft({
@@ -158,7 +190,7 @@ export default function VideosManager() {
         <div>
           <h1 className="text-3xl font-bold text-white">Vídeos</h1>
           <p className="text-gray-400">
-            Seção &quot;Vídeos Mais Acessados&quot; da home, em carrossel. A ordem é pelas visualizações (mais vistos primeiro), então mantenha esse campo atualizado.
+            Seção &quot;Vídeos Mais Acessados&quot; da home, em carrossel. Sem ordem escolhida, vai do mais visto ao menos visto; arrastando os cards abaixo você define a ordem.
           </p>
         </div>
         {!missingTable && (
@@ -175,65 +207,78 @@ export default function VideosManager() {
         </div>
       ) : (
         <>
-          <div className="flex bg-[#121214] border border-gray-800 rounded-lg overflow-hidden w-fit">
-            {([["all", "Todos"], ["video", "Vídeos"], ["short", "Shorts"]] as const).map(([key, label]) => (
-              <button
-                key={key}
-                onClick={() => setFilter(key)}
-                className={`px-4 py-2 text-xs font-bold uppercase tracking-widest transition-colors ${filter === key ? "bg-purple-600 text-white" : "text-gray-500 hover:text-gray-300"}`}
-              >
-                {label} ({key === "all" ? videos.length : videos.filter((v) => v.kind === key).length})
-              </button>
-            ))}
-          </div>
-
           {loading ? (
             <div className="flex justify-center py-16"><div className="uiverse-loader" /></div>
-          ) : shown.length === 0 ? (
+          ) : videos.length === 0 ? (
             <div className="glass-panel rounded-xl border border-gray-800 p-10 text-center text-gray-500">
               Nenhum vídeo ainda. Clique em &quot;Novo Vídeo&quot; e cole o link do YouTube.
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
-              {shown.map((v) => (
-                <div key={v.id} className="glass-panel rounded-xl border border-purple-500/20 overflow-hidden flex flex-col">
-                  <div className="relative bg-black overflow-hidden aspect-video">
-                    <img src={v.thumbnail_url} alt="" className={`w-full h-full ${v.kind === "short" ? "object-contain" : "object-cover"}`} />
-                    <span className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/75 text-[10px] font-bold uppercase tracking-widest text-white">
-                      {v.kind === "short" ? "Short" : "Vídeo"}
-                    </span>
-                    {onHome.has(v.id) && (
-                      <span className="absolute top-2 right-2 px-2 py-0.5 rounded bg-purple-600 text-[10px] font-bold uppercase tracking-widest text-white">
-                        Na home
-                      </span>
-                    )}
-                    {v.duration && (
-                      <span className="absolute bottom-2 right-2 px-1.5 py-0.5 rounded bg-black/80 text-white text-[11px] font-bold not-italic">{v.duration}</span>
+            (["video", "short"] as const).map((kind) => {
+              const list = mostViewed(videos, kind, Infinity);
+              if (list.length === 0) return null;
+              const manual = list.some((v) => v.sort_order != null);
+              return (
+                <div key={kind} className="glass-panel rounded-xl border border-gray-800 p-5 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h2 className="font-title text-xl text-white">{kind === "video" ? "Vídeos" : "Shorts"} <span className="text-gray-500 text-sm">({list.length})</span></h2>
+                      <p className="text-xs text-gray-500">
+                        Prévia da home, nesta ordem. Arraste os cards para mudar. {manual ? "Ordem escolhida por você." : "Ordem automática: mais visto primeiro."}
+                      </p>
+                    </div>
+                    {manual && (
+                      <button onClick={() => resetOrder(kind)} disabled={savingOrder}
+                        className="px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest text-gray-300 border border-gray-700 hover:border-purple-500 disabled:opacity-50 shrink-0">
+                        Ordenar por visualizações
+                      </button>
                     )}
                   </div>
-                  <div className="p-4 flex-1 flex flex-col gap-3">
-                    <p className="text-white font-bold text-sm leading-snug line-clamp-2">{v.title}</p>
-                    <div className="flex items-center gap-3 text-xs text-gray-500">
-                      {v.views && <span className="flex items-center gap-1"><Eye className="w-3.5 h-3.5" /> {v.views}</span>}
-                      <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {timeAgo(v.published_at)}</span>
-                    </div>
-                    <div className="mt-auto flex items-center gap-2">
-                      <a href={videoUrl(v)} target="_blank" rel="noreferrer" title="Abrir no YouTube"
-                        className="p-2 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-colors">
-                        <FaYoutube className="w-4 h-4" />
-                      </a>
-                      <div className="flex-1" />
-                      <button onClick={() => openEdit(v)} title="Editar" className="p-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded transition-colors">
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button onClick={() => remove(v)} title="Excluir" className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded transition-colors">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
+                  <div className={`grid gap-4 ${kind === "video" ? "grid-cols-1 sm:grid-cols-2 xl:grid-cols-4" : "grid-cols-2 sm:grid-cols-3 xl:grid-cols-6"}`}>
+                    {list.map((v, i) => (
+                      <div
+                        key={v.id}
+                        draggable
+                        onDragStart={(e) => { setDragId(v.id); e.dataTransfer.effectAllowed = "move"; }}
+                        onDragOver={(e) => { e.preventDefault(); moveOver(v); }}
+                        onDrop={(e) => e.preventDefault()}
+                        onDragEnd={finishDrag}
+                        className={`group relative rounded-xl overflow-hidden border bg-[#0c0d10] cursor-grab active:cursor-grabbing transition-all ${dragId === v.id ? "opacity-40 border-purple-500" : "border-white/10 hover:border-purple-500/60"}`}
+                      >
+                        <div className={`relative overflow-hidden bg-black ${kind === "video" ? "aspect-video" : "aspect-[9/16]"}`}>
+                          <img src={v.thumbnail_url} alt="" draggable={false} className="w-full h-full object-cover pointer-events-none" />
+                          <span className="absolute top-2 left-2 w-7 h-7 rounded-full bg-purple-600 text-white text-xs font-bold flex items-center justify-center not-italic shadow">{i + 1}</span>
+                          <span className="absolute top-2 right-2 p-1 rounded bg-black/70 text-gray-300" title="Arraste para mudar a ordem"><GripVertical className="w-4 h-4" /></span>
+                          {kind === "video" && v.duration && (
+                            <span className="absolute bottom-2 right-2 px-1.5 py-0.5 rounded bg-black/80 text-white text-[11px] font-bold not-italic">{v.duration}</span>
+                          )}
+                          {kind === "short" && v.views && (
+                            <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full bg-black/75 text-white text-[11px] font-bold flex items-center gap-1 not-italic"><Eye className="w-3 h-3" /> {v.views}</span>
+                          )}
+                        </div>
+                        <div className="p-3 space-y-2">
+                          <p className="text-white font-bold text-xs leading-snug line-clamp-2 min-h-[2.6em]">{v.title}</p>
+                          {kind === "video" && (
+                            <div className="flex items-center gap-3 text-[11px] text-gray-500">
+                              {v.views && <span className="flex items-center gap-1"><Eye className="w-3 h-3" /> {v.views}</span>}
+                              <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {timeAgo(v.published_at)}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-1.5">
+                            <a href={videoUrl(v)} target="_blank" rel="noreferrer" title="Abrir no YouTube" className="p-1.5 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400">
+                              <FaYoutube className="w-3.5 h-3.5" />
+                            </a>
+                            <div className="flex-1" />
+                            <button onClick={() => openEdit(v)} title="Editar" className="p-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded"><Edit className="w-3.5 h-3.5" /></button>
+                            <button onClick={() => remove(v)} title="Excluir" className="p-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              ))}
-            </div>
+              );
+            })
           )}
         </>
       )}

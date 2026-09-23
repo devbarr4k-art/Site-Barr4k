@@ -23,7 +23,7 @@ export async function GET() {
     supabaseAdmin.from("partners").select("id, name, image_url, link_url").order("sort_order").order("created_at"),
     supabaseAdmin
       .from("videos")
-      .select("id, kind, youtube_id, title, thumbnail_url, duration, views, published_at")
+      .select("*") // inclui sort_order quando a coluna existir
       .order("published_at", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(60),

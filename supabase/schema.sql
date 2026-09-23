@@ -129,6 +129,7 @@ create table public.videos (
   duration      text,
   views         text,
   published_at  date not null default current_date,
+  sort_order    integer,                       -- ordem arrastada no painel
   created_at    timestamptz not null default now()
 );
 create index videos_recent on public.videos (kind, published_at desc, created_at desc);

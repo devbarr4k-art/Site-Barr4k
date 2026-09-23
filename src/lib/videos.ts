@@ -7,6 +7,7 @@ export type Video = {
   duration: string | null;
   views: string | null;
   published_at: string; // AAAA-MM-DD
+  sort_order?: number | null; // ordem escolhida no painel (arrastando); vazio = pelas visualizações
 };
 
 export const YOUTUBE_CHANNEL = "https://www.youtube.com/@barr4k";
@@ -57,11 +58,16 @@ export function viewsToNumber(views: string | null): number {
   return Math.round(unit.startsWith("k") || unit === "mil" ? n * 1e3 : unit.startsWith("m") ? n * 1e6 : n);
 }
 
-/** Os mais vistos de um tipo (empate: o mais novo primeiro). É o que a home mostra. */
+/** Ordem da home: primeiro a ordem arrastada no painel; quem não tem ordem vem depois, do mais visto ao menos visto. */
 export function mostViewed(videos: Video[], kind: Video["kind"], limit: number): Video[] {
+  const pos = (v: Video) => v.sort_order ?? Number.MAX_SAFE_INTEGER;
   return videos
     .filter((v) => v.kind === kind)
-    .sort((a, b) => viewsToNumber(b.views) - viewsToNumber(a.views) || b.published_at.localeCompare(a.published_at))
+    .sort((a, b) =>
+      pos(a) - pos(b) ||
+      viewsToNumber(b.views) - viewsToNumber(a.views) ||
+      b.published_at.localeCompare(a.published_at)
+    )
     .slice(0, limit);
 }
 

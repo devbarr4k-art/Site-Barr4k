@@ -24,6 +24,7 @@ const DAILY_COLUMNS =
 const PARTICIPANT_FIELDS = ["status", "twitch_username", "coins_used"] as const;
 
 const MISSING_TABLE = "Falta rodar o SQL supabase/migracao-usuarios-e-parceiros.sql no Supabase.";
+const MISSING_VIDEOS_ORDER = "Para salvar a ordem, rode no Supabase: alter table public.videos add column if not exists sort_order integer;";
 const MISSING_VIDEOS_TABLE = "Falta rodar o SQL supabase/migracao-videos.sql no Supabase.";
 
 function pick(source: any, fields: readonly string[]) {
@@ -473,6 +474,17 @@ export async function POST(request: Request) {
         ? await db.from("videos").update(fields).eq("id", body.id)
         : await db.from("videos").insert(fields);
       if (error) return fail(error.code === "42P01" || /relation|does not exist|schema cache/i.test(error.message) ? MISSING_VIDEOS_TABLE : error.message, 500);
+      return Response.json({ ok: true });
+    }
+
+    case "reorderVideos": {
+      // ids na ordem nova (de um tipo só); null = volta para a ordem por visualizações
+      const ids: string[] = Array.isArray(body.ids) ? body.ids : [];
+      const results = await Promise.all(
+        ids.map((id, i) => db.from("videos").update({ sort_order: body.reset ? null : i + 1 }).eq("id", id))
+      );
+      const failed = results.find((r) => r.error)?.error;
+      if (failed) return fail(/sort_order/.test(failed.message) ? MISSING_VIDEOS_ORDER : failed.message, 500);
       return Response.json({ ok: true });
     }
 
