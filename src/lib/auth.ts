@@ -30,6 +30,9 @@ export const authOptions: NextAuthOptions = {
       authorization: {
         params: {
           scope: "openid user:read:email",
+          // Sempre mostra a tela da Twitch com a conta atual e o link "Não é você?",
+          // senão quem já autorizou entra direto e não consegue trocar de conta
+          force_verify: "true",
         },
       },
     }),
