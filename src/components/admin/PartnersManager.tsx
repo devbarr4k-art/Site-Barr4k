@@ -117,8 +117,8 @@ export default function PartnersManager() {
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
           {partners.map((p, i) => (
             <div key={p.id} className="glass-panel rounded-xl border border-purple-500/20 overflow-hidden flex flex-col">
-              <div className="h-56 bg-[#0a0a0c] flex items-center justify-center relative">
-                <img src={p.image_url} alt={p.name} className="w-full h-full object-contain p-3" />
+              <div className="aspect-square bg-[#0a0a0c] flex items-center justify-center relative">
+                <img src={p.image_url} alt={p.name} className="w-full h-full object-contain" />
                 <span className="absolute top-3 left-3 w-7 h-7 rounded-full bg-black/70 border border-white/10 text-xs font-bold text-white flex items-center justify-center">
                   {i + 1}
                 </span>
@@ -183,9 +183,9 @@ export default function PartnersManager() {
                 <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer"
                   onChange={(e) => { const f = e.target.files?.[0]; if (f) pickImage(f); e.target.value = ""; }} />
                 {draft.preview ? (
-                  <img src={draft.preview} alt="" className="w-20 h-24 rounded-lg object-contain bg-black border border-gray-800" />
+                  <img src={draft.preview} alt="" className="w-20 h-20 rounded-lg object-contain bg-black border border-gray-800" />
                 ) : (
-                  <div className="w-20 h-24 rounded-lg bg-black border border-gray-800 flex items-center justify-center">
+                  <div className="w-20 h-20 rounded-lg bg-black border border-gray-800 flex items-center justify-center">
                     <ImagePlus className="w-6 h-6 text-purple-400" />
                   </div>
                 )}

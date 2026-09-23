@@ -181,7 +181,7 @@ export default function SorteioPage() {
 
         {/* Bloco 2: Imagem do Prêmio */}
         <div className="overflow-hidden border-t border-b border-white/5">
-          <div className="relative h-[320px] md:h-[450px] w-full bg-black">
+          <div className="relative aspect-[3/2] w-full bg-black">
             {giveaway.detail_image_url || giveaway.image_url ? (
               <img src={giveaway.detail_image_url || giveaway.image_url} alt={giveaway.title} className={`w-full h-full object-cover ${isClosed ? "grayscale opacity-60" : ""}`} />
             ) : (

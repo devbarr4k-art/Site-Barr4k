@@ -221,7 +221,7 @@ export default function Home() {
           <div className="m-auto w-full max-w-[420px] shrink-0 rounded-[24px] overflow-hidden bg-[#101010] flex flex-col relative animate-scale-up border border-purple-500/50 shadow-2xl">
 
             {/* Top Image Area */}
-            <div className="relative h-[300px] sm:h-[380px] w-full bg-black">
+            <div className="relative aspect-[3/2] w-full bg-black">
               {featuredGiveaway.featured_image_url || featuredGiveaway.image_url ? (
                 <img src={featuredGiveaway.featured_image_url || featuredGiveaway.image_url} alt={featuredGiveaway.title} className={`w-full h-full object-cover ${featuredGiveaway.isClosed ? 'grayscale opacity-60' : ''}`} />
               ) : (
@@ -362,7 +362,7 @@ export default function Home() {
                 className={`bg-[#0c0d10] rounded-xl overflow-hidden border cursor-pointer transition-all flex flex-col group ${giveaway.isClosed ? '' : 'hover:scale-[1.02]'} ${giveaway.isClosed ? 'border-white/5 opacity-80 hover:opacity-100' : index === 0 ? 'border-purple-500/50' : 'border-white/5 hover:border-white/20'}`}
               >
                 {/* Imagem e Badges */}
-                <div className="relative h-64 bg-[#0c0d10] p-4 flex flex-col overflow-hidden">
+                <div className="relative aspect-[3/2] bg-[#0c0d10] p-4 flex flex-col overflow-hidden">
                   <div className="flex gap-2 relative z-10">
                     {giveaway.highlight_text && (
                       <span className="px-3 py-1 bg-black/60 backdrop-blur-sm border border-white/10 text-gray-300 rounded-md text-[10px] font-bold uppercase tracking-wider shadow-sm truncate max-w-full">
@@ -514,9 +514,9 @@ export default function Home() {
                 target="_blank"
                 rel="noreferrer"
                 title={partner.name}
-                className="group w-full md:w-[calc(50%-1rem)] lg:w-[calc((100%-4rem)/3)] flex items-center justify-center relative rounded-2xl overflow-hidden border border-purple-500/20 hover:border-purple-500/80 transition-all hover:scale-105 shadow-lg hover:shadow-[0_0_30px_rgba(168,85,247,0.3)] bg-[#0a0a0c] h-[450px]"
+                className="group w-full md:w-[calc(50%-1rem)] lg:w-[calc((100%-4rem)/3)] flex items-center justify-center relative rounded-2xl overflow-hidden border border-purple-500/20 hover:border-purple-500/80 transition-all hover:scale-105 shadow-lg hover:shadow-[0_0_30px_rgba(168,85,247,0.3)] bg-[#0a0a0c] aspect-square"
               >
-                <img src={partner.image_url} alt={partner.name} className="w-full h-full object-contain p-4" />
+                <img src={partner.image_url} alt={partner.name} className="w-full h-full object-contain" />
               </a>
             ))}
           </div>

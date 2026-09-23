@@ -43,9 +43,9 @@ const emptyImage: ImageValue = { file: null, preview: null, changed: false };
 // Tamanho ideal de cada imagem, medido no espaço que ela ocupa no site (a imagem
 // é recortada para preencher; no celular o corte é maior nas laterais)
 const IMAGE_SIZES = {
-  home: { size: "1200 × 800 px", tip: "Deixe o item no centro: no celular as laterais são cortadas." },
-  featured: { size: "1080 × 1000 px", tip: "Deixe o item na parte de cima: embaixo fica o nome do prêmio." },
-  detail: { size: "1350 × 900 px", tip: "Deixe o item no centro: no celular as laterais são cortadas bastante." },
+  home: { size: "1200 × 800 px", tip: "A mesma arte serve para Home, Destaque e Sorteio, sem corte." },
+  featured: { size: "1200 × 800 px", tip: "Mesma arte da Home. Se deixar vazio, o site usa a imagem da Home." },
+  detail: { size: "1200 × 800 px", tip: "Mesma arte da Home. Se deixar vazio, o site usa a imagem da Home." },
 } as const;
 
 // Campo de upload com miniatura: cada tela (Home, Destaque, Sorteio) tem a sua imagem
@@ -1355,7 +1355,7 @@ export default function AdminDashboard() {
                 /* O Card Simulado da Home */
                 <div className="w-full max-w-[320px] rounded-xl overflow-hidden bg-[#0c0d10] border border-white/5 mx-auto group">
                 {/* Imagem e Badges */}
-                <div className="relative h-64 bg-[#0c0d10] p-4 flex flex-col">
+                <div className="relative aspect-[3/2] bg-[#0c0d10] p-4 flex flex-col">
                   <div className="flex gap-2 relative z-10">
                     {newHighlight && (
                       <span className="px-3 py-1 bg-black/60 backdrop-blur-sm border border-white/10 text-gray-300 rounded-md text-[10px] font-bold uppercase tracking-wider shadow-sm truncate max-w-full">
@@ -1405,7 +1405,7 @@ export default function AdminDashboard() {
               ) : previewMode === "destaque" ? (
                 /* O Card Simulado do Anúncio Destaque (Popup Vertical) */
                 <div className="w-full max-w-[320px] rounded-[24px] overflow-hidden bg-[#101010] flex flex-col relative border border-purple-500/50 mx-auto shadow-2xl">
-                  <div className="relative h-[220px] w-full bg-black">
+                  <div className="relative aspect-[3/2] w-full bg-black">
                     {images.featured.preview ? (
                       <img src={images.featured.preview} alt="Preview" className="w-full h-full object-cover" />
                     ) : (
@@ -1473,7 +1473,7 @@ export default function AdminDashboard() {
 
                   {/* Bloco 2: Imagem do Prêmio */}
                   <div className="overflow-hidden border-t border-b border-white/5">
-                    <div className="relative h-[250px] w-full bg-black">
+                    <div className="relative aspect-[3/2] w-full bg-black">
                       {images.detail.preview ? (
                         <img src={images.detail.preview} alt="Preview" className="w-full h-full object-cover" />
                       ) : (

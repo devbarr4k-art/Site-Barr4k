@@ -7,5 +7,5 @@ export const DEFAULT_PARTNERS: Partner[] = [
   { id: "fallen", name: "Fallen Store", image_url: "/parceiro3.png", link_url: "https://www.fallenstore.com.br/" },
 ];
 
-// Tamanho ideal do banner (o card tem ~384 × 450 no computador e a imagem aparece inteira)
-export const PARTNER_IMAGE_SIZE = { size: "700 × 820 px", tip: "Imagem em pé; aparece inteira, sem corte." };
+// Card do parceiro é quadrado
+export const PARTNER_IMAGE_SIZE = { size: "1000 × 1000 px", tip: "Imagem quadrada; aparece inteira, sem corte." };
