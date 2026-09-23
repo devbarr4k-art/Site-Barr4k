@@ -3,7 +3,7 @@ import { getAppToken } from "@/lib/twitch";
 
 // Captação pelo servidor: a Twitch avisa o site (webhook EventSub) a cada
 // mensagem do chat, então o sorteio segue captando mesmo com o painel fechado.
-// Requisito da Twitch: o streamer autoriza o app com o escopo user:read:chat.
+// Requisito da Twitch: o streamer autoriza o app com user:read:chat, user:bot e channel:bot.
 
 const HELIX = "https://api.twitch.tv/helix";
 const CHAT_EVENT = "channel.chat.message";

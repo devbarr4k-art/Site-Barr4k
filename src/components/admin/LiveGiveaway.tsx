@@ -248,7 +248,9 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
 
   // Autoriza o site a ler o chat (escopo user:read:chat) e volta para esta aba
   const connectChat = () =>
-    signIn("twitch", { callbackUrl: "/admin?tab=twitch" }, { scope: "openid user:read:email user:read:chat" });
+    // A Twitch exige user:read:chat + user:bot (quem lê) e channel:bot (dono do canal)
+    // para a escuta pelo servidor com token de app
+    signIn("twitch", { callbackUrl: "/admin?tab=twitch" }, { scope: "openid user:read:email user:read:chat user:bot channel:bot" });
 
   const updateDaily = async (fields: Partial<Daily>) => {
     if (!daily) return;
