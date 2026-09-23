@@ -53,6 +53,14 @@ function getSubTier(tags: tmi.ChatUserstate): number {
   return n >= 3000 ? 3 : n >= 2000 ? 2 : 1;
 }
 
+// A primeira palavra da mensagem precisa ser o comando. Remove os caracteres
+// invisíveis que 7TV/Chatterino colam em mensagens repetidas para driblar o
+// filtro de duplicadas da Twitch, e aceita texto depois ("!sorteio boa sorte").
+function isCommand(message: string, command: string): boolean {
+  const clean = message.replace(/[\u{E0000}-\u{E007F}​-‍⁠﻿]/gu, "").trim().toLowerCase();
+  return clean.split(/\s+/)[0] === command.trim().toLowerCase();
+}
+
 function SubBadge({ tier }: { tier: number }) {
   if (tier > 0) {
     return (
@@ -192,7 +200,7 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
       }
 
       if (!current.capture_open) return;
-      if (message.trim().toLowerCase() !== (current.bot_command || "!sorteio").toLowerCase()) return;
+      if (!isCommand(message, current.bot_command || "!sorteio")) return;
       if (seenRef.current.has(username)) return;
       seenRef.current.add(username);
 
