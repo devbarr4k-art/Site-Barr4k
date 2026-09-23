@@ -35,7 +35,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className="dark scroll-smooth">
       <body
-        className={`${lato.variable} ${kanit.variable} antialiased bg-black text-slate-100 min-h-screen flex flex-col font-sans`}
+        className={`${lato.variable} ${kanit.variable} antialiased bg-black text-slate-100 min-h-screen flex flex-col font-sans italic`}
       >
         <Providers>
           <Navbar />

@@ -62,15 +62,20 @@ export async function POST(request: Request) {
 
   switch (action) {
     case "listParticipants": {
+      // Comprovantes (imagens) só vêm quando pedidos: o painel da live consulta a cada 3s e não usa
+      const columns = body.withProof
+        ? "*"
+        : "id, giveaway_id, twitch_username, coins_used, casa_id, sub_tier, avatar_url, status, created_at";
       const { data, error } = await db
         .from("participants")
-        .select("*")
+        .select(columns)
         .eq("giveaway_id", body.giveawayId)
         .order("created_at", { ascending: true });
       if (error) return fail(error.message, 500);
+      const rows = (data ?? []) as unknown as { id: string; twitch_username: string; avatar_url: string | null }[];
 
       // Quem entrou sem foto (inscrições antigas): busca na Twitch e guarda
-      const missing = (data ?? []).filter((p) => !p.avatar_url);
+      const missing = rows.filter((p) => !p.avatar_url);
       if (missing.length > 0) {
         const avatars = await fetchTwitchAvatars(missing.map((p) => p.twitch_username));
         await Promise.all(
@@ -82,7 +87,7 @@ export async function POST(request: Request) {
             })
         );
       }
-      return Response.json({ data });
+      return Response.json({ data: rows });
     }
 
     case "participantCounts": {
@@ -99,6 +104,12 @@ export async function POST(request: Request) {
         fields.twitch_username = fields.twitch_username.trim().replace(/^@/, "").toLowerCase();
       }
       const { error } = await db.from("participants").update(fields).eq("id", body.id);
+      if (error) return fail(error.message, 500);
+      return Response.json({ ok: true });
+    }
+
+    case "deleteParticipant": {
+      const { error } = await db.from("participants").delete().eq("id", body.id);
       if (error) return fail(error.message, 500);
       return Response.json({ ok: true });
     }

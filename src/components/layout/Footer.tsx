@@ -1,9 +1,15 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { handleSectionLink } from "@/lib/sectionNav";
 import Image from "next/image";
 import { FaTwitch, FaInstagram, FaYoutube } from "react-icons/fa";
 import { FaXTwitter } from "react-icons/fa6";
 
 export default function Footer() {
+  const pathname = usePathname();
+
   return (
     <footer className="bg-[#050505] border-t-2 border-purple-500 pt-16 pb-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -11,7 +17,7 @@ export default function Footer() {
           
           {/* Brand/Logo Area */}
           <div className="flex flex-col items-center md:items-start">
-            <Link href="/" className="flex items-center gap-3 group mb-4">
+            <Link href="/" onClick={(e) => handleSectionLink(e, "/", pathname)} className="flex items-center gap-3 group mb-4">
               <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-purple-500/50 group-hover:border-purple-400 group-hover:shadow-[0_0_15px_rgba(168,85,247,0.5)] transition-all duration-300 relative">
                 <Image 
                   src="/avatar.png" 
@@ -34,10 +40,10 @@ export default function Footer() {
           <div className="flex flex-col items-center md:items-start">
             <h4 className="text-white font-bold tracking-widest uppercase mb-4 text-sm">Navegação</h4>
             <nav className="flex flex-col gap-3">
-              <Link href="/" className="text-gray-400 hover:text-purple-400 hover:translate-x-1 transition-all text-sm flex items-center gap-2">
+              <Link href="/" onClick={(e) => handleSectionLink(e, "/", pathname)} className="text-gray-400 hover:text-purple-400 hover:translate-x-1 transition-all text-sm flex items-center gap-2">
                 <span className="w-1 h-1 bg-purple-500 rounded-full"></span> Início
               </Link>
-              <Link href="/#parceiros" className="text-gray-400 hover:text-purple-400 hover:translate-x-1 transition-all text-sm flex items-center gap-2">
+              <Link href="/#parceiros" onClick={(e) => handleSectionLink(e, "/#parceiros", pathname)} className="text-gray-400 hover:text-purple-400 hover:translate-x-1 transition-all text-sm flex items-center gap-2">
                 <span className="w-1 h-1 bg-purple-500 rounded-full"></span> Parceiros
               </Link>
               <Link href="/meus-tickets" className="text-gray-400 hover:text-purple-400 hover:translate-x-1 transition-all text-sm flex items-center gap-2">

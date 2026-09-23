@@ -26,7 +26,7 @@ export default function DiarioPage() {
 
   useEffect(() => {
     const load = () =>
-      fetch("/api/diario", { cache: "no-store" })
+      fetch("/api/diario")
         .then((res) => (res.ok ? res.json() : null))
         .then((json) => json && setData(json))
         .catch(() => {});

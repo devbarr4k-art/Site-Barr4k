@@ -7,6 +7,7 @@ import { FaTwitch, FaHandshake, FaGamepad, FaHome } from "react-icons/fa";
 import { ShieldAlert, Ticket, LogOut, ChevronDown, Menu, X, Crosshair } from "lucide-react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
+import { handleSectionLink } from "@/lib/sectionNav";
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -27,16 +28,9 @@ export default function Navbar() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
 
-  // Já na home, HOME e PARCEIROS só rolam a página e acertam a URL
   const handleNavClick = (e: React.MouseEvent, href: string) => {
     setIsOpen(false);
-    if (pathname !== "/" || !(href === "/" || href.startsWith("/#"))) return;
-    e.preventDefault();
-    const id = href === "/" ? "" : href.slice(2);
-    const target = id ? document.getElementById(id) : null;
-    if (target) target.scrollIntoView({ behavior: "smooth" });
-    else window.scrollTo({ top: 0, behavior: "smooth" });
-    window.history.replaceState(window.history.state, "", id ? `/#${id}` : "/");
+    handleSectionLink(e, href, pathname);
   };
 
   useEffect(() => {
@@ -84,7 +78,7 @@ export default function Navbar() {
                 key={link.name}
                 href={link.href}
                 onClick={(e) => handleNavClick(e, link.href)}
-                className="flex items-center gap-2 text-gray-300 hover:text-white font-bold text-sm tracking-widest transition-colors duration-200 hover-underline-anim py-2 uppercase"
+                className="flex items-center gap-2 text-gray-300 hover:text-white font-black text-sm tracking-widest transition-colors duration-200 hover-underline-anim py-2 uppercase"
               >
                 {link.icon}
                 {link.name}

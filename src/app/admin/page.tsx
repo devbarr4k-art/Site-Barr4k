@@ -204,13 +204,27 @@ export default function AdminDashboard() {
   };
 
   const fetchParticipants = async (giveawayId: string) => {
-    const res = await run("listParticipants", { giveawayId });
+    const res = await run("listParticipants", { giveawayId, withProof: true });
     if (res) setParticipants(res.data);
   };
 
   const handleUpdateParticipantStatus = async (id: string, newStatus: string) => {
     if (await run("updateParticipant", { id, fields: { status: newStatus } })) {
       if (managingParticipants) fetchParticipants(managingParticipants);
+    }
+  };
+
+  const handleDeleteParticipant = async (p: any) => {
+    const ok = await dialog.confirm({
+      title: `Excluir @${p.twitch_username} da lista?`,
+      message: "A inscrição e o comprovante são apagados e a pessoa sai da roleta. Ela pode se inscrever de novo se o sorteio estiver aberto.",
+      confirmText: "Excluir participante",
+      tone: "danger",
+    });
+    if (!ok) return;
+    if (await run("deleteParticipant", { id: p.id })) {
+      setParticipants((prev) => prev.filter((x) => x.id !== p.id));
+      setParticipantCounts((prev) => ({ ...prev, [p.giveaway_id]: Math.max(0, (prev[p.giveaway_id] || 1) - 1) }));
     }
   };
 
@@ -672,6 +686,13 @@ export default function AdminDashboard() {
                                       title="Editar Usuário/Coins"
                                     >
                                       <Edit className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteParticipant(p)}
+                                      className="p-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded transition-colors"
+                                      title="Excluir da lista"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
                                     </button>
                                   </div>
                                 </td>

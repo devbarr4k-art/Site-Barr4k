@@ -1,5 +1,7 @@
 import { FaInstagram, FaSteam, FaYoutube } from "react-icons/fa";
 import { FaXTwitter } from "react-icons/fa6";
+import Link from "next/link";
+import { Crosshair } from "lucide-react";
 
 export const metadata = {
   title: "BARR4K",
@@ -23,6 +25,12 @@ export default function SobrePage() {
 
             {/* Intro Content */}
             <div className="text-center md:text-left pt-4 flex flex-col justify-center">
+              <Link
+                href="/skins"
+                className="self-center md:self-start inline-flex items-center gap-2 px-4 py-2 mb-6 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-300 hover:bg-purple-500/20 hover:border-purple-400 font-bold text-xs tracking-widest uppercase transition-colors"
+              >
+                <Crosshair className="w-4 h-4" /> O BARR4K compra suas skins
+              </Link>
               <h1 className="font-title text-5xl md:text-7xl text-white mb-2 uppercase drop-shadow-md">
                 BARR4K
               </h1>

@@ -5,6 +5,7 @@ import { Trophy, Gift, ArrowDown, Zap, X, ArrowRight, Clock } from "lucide-react
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { isGiveawayClosed } from "@/lib/giveaway";
+import { handleSectionLink, scrollToSectionId } from "@/lib/sectionNav";
 import ClosedStamp from "@/components/ui/ClosedStamp";
 import { avatarFor } from "@/lib/daily";
 
@@ -57,23 +58,41 @@ export default function Home() {
   const timeLeft = useCountdown(featuredGiveaway?.draw_date || null);
 
   useEffect(() => {
-    fetchActiveGiveaways();
-    fetchHallOfFame();
+    loadHome();
   }, []);
 
-  const fetchActiveGiveaways = async () => {
+  // Home e Hall da Fama numa chamada só, pela rota com cache da Vercel (/api/home).
+  // Se ela falhar, busca direto no banco como reserva.
+  const loadHome = async () => {
     setIsLoadingGiveaways(true);
-    const { data } = await supabase
-      .from('giveaways')
-      .select('*')
-      .in('status', ['active', 'completed'])
-      .neq('type', 'daily') // o sorteio da live tem página própria (/diario)
-      .order('created_at', { ascending: false })
-      .limit(40);
-    if (data) {
-      rawGiveaways.current = data;
-      classifyGiveaways(true);
+    let giveaways: any[] | null = null;
+    let hall: any[] | null = null;
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 10000);
+      const res = await fetch("/api/home", { signal: controller.signal });
+      clearTimeout(timer);
+      if (res.ok) {
+        const json = await res.json();
+        giveaways = json.giveaways;
+        hall = json.winners;
+      }
+    } catch {
+      // cai para a reserva abaixo
     }
+    if (!giveaways) {
+      const [g, w] = await Promise.all([
+        supabase.from('giveaways').select('*').in('status', ['active', 'completed']).neq('type', 'daily')
+          .order('created_at', { ascending: false }).limit(40),
+        supabase.from('winners').select('*, giveaways(image_url)').eq('in_hall_of_fame', true)
+          .order('won_at', { ascending: false }),
+      ]);
+      giveaways = g.data ?? [];
+      hall = w.data ?? [];
+    }
+    rawGiveaways.current = giveaways;
+    classifyGiveaways(true);
+    setWinners(hall ?? []);
     setIsLoadingGiveaways(false);
   };
 
@@ -98,16 +117,6 @@ export default function Home() {
     return () => clearInterval(interval);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const fetchHallOfFame = async () => {
-    const { data } = await supabase
-      .from('winners')
-      .select('*, giveaways(image_url)')
-      .eq('in_hall_of_fame', true)
-      .order('won_at', { ascending: false });
-
-    if (data) setWinners(data);
-  };
-
   const handleOpenModal = (giveaway: any) => {
     router.push(`/sorteio/${giveaway.id}`);
   };
@@ -131,20 +140,26 @@ export default function Home() {
       window.history.replaceState(window.history.state, "", url);
     };
     window.addEventListener("scroll", update, { passive: true });
-    update();
+    if (!window.location.hash) update();
     return () => window.removeEventListener("scroll", update);
   }, [isLoadingGiveaways]);
 
-  // Rola até a seção descontando o menu fixo (o # do Next não rolava depois
-  // que a URL passou a acompanhar a rolagem)
-  const scrollToSection = (e: React.MouseEvent, id: string) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    e.preventDefault();
-    const top = el.getBoundingClientRect().top + window.scrollY - 80;
-    window.scrollTo({ top, behavior: "smooth" });
-    window.history.replaceState(window.history.state, "", `#${id}`);
-  };
+  const scrollToSection = (e: React.MouseEvent, id: string) => handleSectionLink(e, `/#${id}`, "/");
+
+  // Chegou com #secao (ex.: /#parceiros vindo de outra página): rola quando o conteúdo carregar
+  // (lê o # só depois do carregamento: na montagem o Next ainda não gravou a URL nova)
+  const didInitialScroll = useRef(false);
+  useEffect(() => {
+    if (isLoadingGiveaways || didInitialScroll.current) return;
+    didInitialScroll.current = true;
+    const id = window.location.hash.slice(1);
+    if (!id) return;
+    // segunda passada acerta a posição depois que imagens e o Hall da Fama terminam de montar
+    const t1 = setTimeout(() => scrollToSectionId(id, "instant"), 50);
+    const t2 = setTimeout(() => scrollToSectionId(id, "instant"), 700);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [isLoadingGiveaways]);
+
 
   const closeFeaturedPopup = () => {
     setShowFeaturedPopup(false);
@@ -156,7 +171,7 @@ export default function Home() {
       <section id="home" className="relative py-20 lg:py-32 overflow-hidden flex flex-col justify-center min-h-[90vh]">
 
         {/* Background Video */}
-        {/* Vídeo comprimido: 480p no celular, 720p no resto; a capa aparece enquanto carrega */}
+        {/* Vídeo em 1080p no computador e 720p no celular; a capa aparece enquanto carrega */}
         <video
           autoPlay
           loop
@@ -166,8 +181,8 @@ export default function Home() {
           poster="/bg-video-poster.jpg"
           className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none"
         >
-          <source src="/bg-video-480.mp4" type="video/mp4" media="(max-width: 768px)" />
-          <source src="/bg-video-720.mp4" type="video/mp4" />
+          <source src="/bg-video-720.mp4" type="video/mp4" media="(max-width: 768px)" />
+          <source src="/bg-video-1080.mp4" type="video/mp4" />
         </video>
 
         {/* Gradient Overlays for Readability */}
