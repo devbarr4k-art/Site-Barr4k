@@ -815,6 +815,26 @@ export default function AdminDashboard() {
 
                 {/* Campos Condicionais baseados na Aba Selecionada */}
                 <div className="pt-4 border-t border-white/5 space-y-5 animate-fade-in relative min-h-[300px]">
+                  {/* No celular a prévia fica escondida, então as abas aparecem aqui também */}
+                  <div className="md:hidden flex bg-[#121214] border border-gray-800 rounded-lg overflow-hidden">
+                    {(["home", "destaque", "sorteio"] as const).map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => setPreviewMode(mode)}
+                        className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-widest transition-colors ${previewMode === mode ? "bg-purple-600 text-white" : "text-gray-500"}`}
+                      >
+                        {mode}
+                      </button>
+                    ))}
+                  </div>
+
+                  <h3 className="text-[10px] font-bold text-purple-500 tracking-widest uppercase flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse"></span>
+                    Preenchendo: {previewMode === "home" ? "Card da Home" : previewMode === "destaque" ? "Popup de Destaque" : "Página do Sorteio"}
+                  </h3>
+
+                  {(previewMode === "home" || previewMode === "destaque") && (
                   <>
                       <div className="space-y-2 animate-fade-in">
                         <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
@@ -862,7 +882,9 @@ export default function AdminDashboard() {
                         </label>
                       </div>
                   </>
+                  )}
 
+                  {(previewMode === "destaque" || previewMode === "sorteio") && (
                     <div className="space-y-2 animate-fade-in">
                       <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
                         Descrição
@@ -870,8 +892,11 @@ export default function AdminDashboard() {
                       </label>
                       <textarea rows={3} value={newDesc} onChange={(e) => setNewDesc(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors resize-none" placeholder="Ex: Respostas aceitas de 20/01 até 28/02. Regras, cupom, etc." />
                     </div>
+                  )}
 
+                  {(previewMode === "destaque" || previewMode === "sorteio") && (
                     <>
+                      {previewMode === "sorteio" && (
                       <div className="space-y-2 animate-fade-in">
                         <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
                           Texto de Envio
@@ -879,6 +904,7 @@ export default function AdminDashboard() {
                         </label>
                         <input type="text" value={newShippingText} onChange={(e) => setNewShippingText(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: 100% grátis · Enviado direto via Steam Trade" />
                       </div>
+                      )}
 
                       <div className="space-y-2 animate-fade-in">
                         <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
@@ -909,6 +935,7 @@ export default function AdminDashboard() {
                         </label>
                       </div>
                     </>
+                  )}
                 </div>
 
 
