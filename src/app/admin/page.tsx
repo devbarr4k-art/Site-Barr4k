@@ -1439,12 +1439,6 @@ export default function AdminDashboard() {
                       </div>
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-[#101010] via-black/20 to-transparent z-10" />
-                    <div className="absolute top-3 left-3 z-20 flex gap-2">
-                      <div className="bg-purple-600 rounded-full px-2 py-1 flex items-center gap-1 shadow-lg">
-                        <Gift className="w-3 h-3 text-white" />
-                        <span className="text-[9px] font-bold text-white tracking-widest uppercase">100% GRÁTIS</span>
-                      </div>
-                    </div>
                   </div>
                   <div className="p-5 bg-[#101010] flex flex-col items-start w-full relative z-30">
                     <div className="flex items-center gap-1.5 mb-2">
@@ -1462,7 +1456,7 @@ export default function AdminDashboard() {
                     <p className="text-[#a0a0a0] mt-3 mb-5 text-[11px] leading-relaxed font-medium line-clamp-3">
                       {newDesc || "Respostas aceitas até a data estipulada. Siga as regras para participar!"}
                     </p>
-                    <button type="button" className="w-full bg-purple-600 text-white font-black uppercase tracking-widest py-3 rounded-xl text-xs flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(147,51,234,0.3)] mb-3">
+                    <button type="button" className="w-full btn-neon py-3 text-xs flex items-center justify-center gap-2 mb-3">
                       QUERO PARTICIPAR <ArrowRight className="w-3 h-3" />
                     </button>
                     <p className="w-full text-center text-[#606060] text-[9px] font-bold uppercase tracking-widest">
