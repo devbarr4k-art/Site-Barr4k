@@ -52,7 +52,7 @@ export default function Navbar() {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-[#050505] border-b border-purple-900/50 shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl 2xl:max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
 
           {/* Logo (Avatar BARR4K) */}
@@ -74,13 +74,13 @@ export default function Navbar() {
           </div>
 
           {/* Desktop Navigation (Center) */}
-          <nav className="hidden xl:flex items-center gap-4 ml-8 mr-4 2xl:gap-6 2xl:ml-10">
+          <nav className="hidden xl:flex items-center gap-5 ml-10 mr-auto pr-4 shrink-0">
             {navLinks.map((link) => (
               <Link
                 key={link.name}
                 href={link.href}
                 onClick={(e) => handleNavClick(e, link.href)}
-                className="flex items-center gap-2 text-gray-300 hover:text-white font-black text-sm tracking-widest transition-colors duration-200 hover-underline-anim py-2 uppercase"
+                className="flex items-center gap-2 text-gray-300 hover:text-white font-black text-sm tracking-wider 2xl:tracking-widest whitespace-nowrap transition-colors duration-200 hover-underline-anim py-2 uppercase"
               >
                 {link.icon}
                 {link.name}
@@ -106,7 +106,7 @@ export default function Navbar() {
                   <div className="w-10 h-10 rounded-full bg-purple-900 border border-purple-500 flex items-center justify-center font-bold text-white overflow-hidden relative">
                     <Image src={session?.user?.image || "/avatar.png"} alt="" fill sizes="40px" className="object-cover" />
                   </div>
-                  <div className="text-left hidden xl:block">
+                  <div className="text-left hidden 2xl:block">
                     <p className="text-sm font-bold text-white uppercase">{session?.user?.name || "Usuário"}</p>
                     <p className="text-xs text-gray-400">Minha Conta</p>
                   </div>
