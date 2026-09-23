@@ -11,6 +11,7 @@ import { adminApi } from "@/lib/adminApi";
 import { uploadGiveawayImage } from "@/lib/image";
 import { useDialog } from "@/components/ui/Dialog";
 import WinnerPrizeEditor from "@/components/admin/WinnerPrizeEditor";
+import AddWinnerModal from "@/components/admin/AddWinnerModal";
 import SiteUsers from "@/components/admin/SiteUsers";
 import PartnersManager from "@/components/admin/PartnersManager";
 import { Handshake, UserRound } from "lucide-react";
@@ -114,6 +115,7 @@ export default function AdminDashboard() {
   const allowed = isAdmin(currentUsername);
 
   const [activeTab, setActiveTab] = useState("sorteios");
+  const [isAddWinnerOpen, setIsAddWinnerOpen] = useState(false);
 
   // Abre direto numa aba (?tab=twitch), usado na volta da autorização do chat
   useEffect(() => {
@@ -917,10 +919,22 @@ export default function AdminDashboard() {
 
         {activeTab === "users" && (
           <div className="space-y-8 animate-fade-in">
-            <div>
-              <h1 className="text-3xl font-bold text-white">Vencedores dos Sorteios</h1>
-              <p className="text-gray-400">Todos os vencedores ficam salvos aqui, mesmo depois que o sorteio é excluído. Controle quem aparece no Hall da Fama.</p>
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+              <div>
+                <h1 className="text-3xl font-bold text-white">Vencedores dos Sorteios</h1>
+                <p className="text-gray-400">Todos os vencedores ficam salvos aqui, mesmo depois que o sorteio é excluído. Controle quem aparece no Hall da Fama.</p>
+              </div>
+              <button onClick={() => setIsAddWinnerOpen(true)} className="btn-neon px-6 py-3 rounded-lg font-bold flex items-center gap-2 shrink-0">
+                <Plus className="w-5 h-5" /> Adicionar Vencedor
+              </button>
             </div>
+
+            {isAddWinnerOpen && (
+              <AddWinnerModal
+                onClose={() => setIsAddWinnerOpen(false)}
+                onAdded={(w) => setWinners((prev) => [w, ...prev].sort((a, b) => +new Date(b.won_at) - +new Date(a.won_at)))}
+              />
+            )}
 
             <div className="glass-panel rounded-xl overflow-hidden border border-gray-800">
               <div className="overflow-x-auto">

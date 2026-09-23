@@ -1,7 +1,7 @@
 import { getSessionUsername } from "@/lib/auth";
 import { isAdmin } from "@/lib/admins";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { fetchTwitchAvatars } from "@/lib/twitch";
+import { fetchTwitchAvatar, fetchTwitchAvatars } from "@/lib/twitch";
 import { addChatEntry } from "@/lib/dailyEntry";
 import { removeProofs, signProofs } from "@/lib/proofs";
 import { isValidEmail, normalizeWhatsapp } from "@/lib/siteUsers";
@@ -206,6 +206,30 @@ export async function POST(request: Request) {
           avatar_url: body.avatarUrl ?? null,
           prize: String(body.prize ?? "").replace(/\s*\|\s*/g, " "),
           in_hall_of_fame: false,
+        })
+        .select()
+        .single();
+      if (error) return fail(error.message, 500);
+      return Response.json({ data });
+    }
+
+    case "addWinnerManual": {
+      // Vencedor lançado à mão pelo painel (sem passar pela roleta)
+      const username = String(body.twitchUsername ?? "").trim().replace(/^@/, "").toLowerCase();
+      const prize = String(body.prize ?? "").trim().replace(/\s*\|\s*/g, " ");
+      if (!/^[a-z0-9_]{3,25}$/.test(username)) return fail("Nick da Twitch inválido (só letras, números e _).");
+      if (!prize) return fail("Preencha o prêmio.");
+      const wonAt = body.wonAt ? new Date(body.wonAt) : new Date();
+      if (Number.isNaN(wonAt.getTime())) return fail("Data inválida.");
+      const { data, error } = await db
+        .from("winners")
+        .insert({
+          twitch_username: username,
+          prize,
+          avatar_url: await fetchTwitchAvatar(username),
+          image_url: typeof body.imageUrl === "string" && body.imageUrl ? body.imageUrl : null,
+          in_hall_of_fame: !!body.inHall,
+          won_at: wonAt.toISOString(),
         })
         .select()
         .single();
