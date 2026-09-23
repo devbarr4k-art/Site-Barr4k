@@ -136,6 +136,48 @@ export async function POST(request: Request) {
       return Response.json({ ok: true });
     }
 
+    case "listDailyWinners": {
+      const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const { data, error } = await db
+        .from("winners")
+        .select("id, giveaway_id, twitch_username, prize, avatar_url, won_at, giveaways!inner(type)")
+        .eq("giveaways.type", "daily")
+        .gte("won_at", since)
+        .order("won_at", { ascending: false });
+      if (error) return fail(error.message, 500);
+      return Response.json({ data });
+    }
+
+    case "deleteWinner": {
+      // Remove um ganhador confirmado por engano; opcionalmente reabre o sorteio do dia
+      const { data: winner } = await db.from("winners").select("id, giveaway_id").eq("id", body.id).maybeSingle();
+      if (!winner) return fail("Ganhador não encontrado.", 404);
+
+      if (body.reopen && winner.giveaway_id) {
+        const { data: otherActive } = await db
+          .from("giveaways")
+          .select("id")
+          .eq("type", "daily")
+          .eq("status", "active")
+          .neq("id", winner.giveaway_id)
+          .limit(1)
+          .maybeSingle();
+        if (otherActive) return fail("Já existe um sorteio diário aberto. Encerre ele antes de reabrir este.");
+      }
+
+      const { error } = await db.from("winners").delete().eq("id", winner.id);
+      if (error) return fail(error.message, 500);
+
+      if (body.reopen && winner.giveaway_id) {
+        const { error: reopenError } = await db
+          .from("giveaways")
+          .update({ status: "active", is_daily_highlight: true, capture_open: false })
+          .eq("id", winner.giveaway_id);
+        if (reopenError) return fail(reopenError.message, 500);
+      }
+      return Response.json({ ok: true, reopened: !!(body.reopen && winner.giveaway_id) });
+    }
+
     case "getActiveDaily": {
       const { data, error } = await db
         .from("giveaways")

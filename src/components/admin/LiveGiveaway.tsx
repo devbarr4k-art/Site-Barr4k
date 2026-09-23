@@ -9,6 +9,7 @@ import {
 import { adminApi } from "@/lib/adminApi";
 import { compressImage } from "@/lib/image";
 import { avatarFor, chancesFor } from "@/lib/daily";
+import DailyHistory from "@/components/admin/DailyHistory";
 
 interface Daily {
   id: string;
@@ -131,6 +132,7 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
   const [timeLeft, setTimeLeft] = useState(0);
   const [winnerReply, setWinnerReply] = useState<string | null>(null);
   const [confirmedWinner, setConfirmedWinner] = useState<Participant | null>(null);
+  const [historyKey, setHistoryKey] = useState(0);
 
   const reelRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
@@ -145,11 +147,13 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
 
   const eligible = participants.filter((p) => p.status !== "rejected");
 
-  // Carrega o sorteio da live que estiver aberto (se o painel for recarregado no meio)
-  useEffect(() => {
+  // Carrega o sorteio da live que estiver aberto (painel recarregado no meio ou sorteio reaberto)
+  const loadActiveDaily = useCallback(() => {
     adminApi<{ data: Daily | null }>("getActiveDaily")
       .then(({ data }) => {
         if (data) {
+          seenRef.current = new Set();
+          setParticipants([]);
           setDaily(data);
           setPhase("live");
         } else {
@@ -161,6 +165,10 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
         setPhase("setup");
       });
   }, []);
+
+  useEffect(() => {
+    loadActiveDaily();
+  }, [loadActiveDaily]);
 
   const loadParticipants = useCallback(async (giveawayId: string) => {
     try {
@@ -384,6 +392,7 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
       awaitingRef.current = null;
       setShowPopup(false);
       setConfirmedWinner(drawn);
+      setHistoryKey((k) => k + 1);
       clientRef.current?.disconnect().catch(() => {});
     } catch (err: any) {
       alert("Erro ao salvar ganhador: " + err.message);
@@ -473,6 +482,10 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
             <Radio className="w-5 h-5" /> {busy ? "Abrindo..." : "Iniciar Captação"}
           </button>
         </form>
+
+        <div className="max-w-3xl">
+          <DailyHistory refreshKey={historyKey} canReopen onReopened={loadActiveDaily} />
+        </div>
       </div>
     );
   }
@@ -628,6 +641,8 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
           </div>
         </div>
       </div>
+
+      <DailyHistory refreshKey={historyKey} canReopen={false} onReopened={loadActiveDaily} />
 
       {/* Overlays vão direto no body para ficar acima do menu fixo do site */}
       {typeof document !== "undefined" && createPortal(<>
