@@ -468,16 +468,15 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
   const handleDeleteParticipant = async (p: Participant) => {
     const ok = await dialog.confirm({
       title: "Excluir participante?",
-      message: `Tem certeza que deseja remover @${p.twitch_username} do sorteio?`,
+      message: `Tem certeza que deseja remover @${p.twitch_username} do sorteio? Ele não poderá entrar novamente.`,
       confirmText: "Excluir",
       tone: "danger",
     });
     if (!ok) return;
 
     try {
-      await adminApi("deleteParticipant", { id: p.id });
-      setParticipants((prev) => prev.filter((item) => item.id !== p.id));
-      seenRef.current.delete(p.twitch_username.toLowerCase());
+      await adminApi("updateParticipant", { id: p.id, fields: { status: "rejected" } });
+      setParticipants((prev) => prev.map((item) => item.id === p.id ? { ...item, status: "rejected" } : item));
     } catch (err) {
       dialog.error(err, "Não foi possível remover o participante");
     }
