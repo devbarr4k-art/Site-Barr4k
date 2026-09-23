@@ -9,6 +9,7 @@ import { handleSectionLink, scrollToSectionId } from "@/lib/sectionNav";
 import ClosedStamp from "@/components/ui/ClosedStamp";
 import { avatarFor } from "@/lib/daily";
 import { dataVersionQuery, useRefreshOnReturn } from "@/lib/freshData";
+import { DEFAULT_PARTNERS, type Partner } from "@/lib/partners";
 
 const useCountdown = (targetDateString: string | null) => {
   const [timeLeft, setTimeLeft] = useState({
@@ -54,6 +55,7 @@ export default function Home() {
   const [activeGiveaways, setActiveGiveaways] = useState<any[]>([]);
   const [isLoadingGiveaways, setIsLoadingGiveaways] = useState(true);
   const [winners, setWinners] = useState<any[]>([]);
+  const [partners, setPartners] = useState<Partner[]>(DEFAULT_PARTNERS);
   const rawGiveaways = useRef<any[]>([]);
 
   const timeLeft = useCountdown(featuredGiveaway?.draw_date || null);
@@ -80,6 +82,7 @@ export default function Home() {
         const json = await res.json();
         giveaways = json.giveaways;
         hall = json.winners;
+        if (Array.isArray(json.partners)) setPartners(json.partners);
       }
     } catch {
       // cai para a reserva abaixo
@@ -256,7 +259,7 @@ export default function Home() {
                   <Trophy className="w-3 h-3" />
                   <span className="text-[10px] font-bold tracking-widest uppercase">PRÊMIO</span>
                 </div>
-                <h3 className="text-2xl font-bold text-white leading-tight">
+                <h3 className="font-title text-2xl text-white">
                   <span className="text-white mr-1.5">★</span> {featuredGiveaway.title.split('|')[0] || featuredGiveaway.title}
                 </h3>
                 {featuredGiveaway.prize_value && (
@@ -277,7 +280,7 @@ export default function Home() {
               </div>
 
               <h1 className="font-title text-4xl sm:text-[2.5rem] text-white uppercase leading-[1]">
-                SORTEIO {featuredGiveaway.title.split('|')[0]} <br/>
+                {featuredGiveaway.title.split('|')[0]} <br/>
                 {featuredGiveaway.title.includes('|') && (
                   <span className="text-purple-500 inline-block mt-1">{featuredGiveaway.title.split('|')[1]}</span>
                 )}
@@ -299,7 +302,7 @@ export default function Home() {
               <div className="w-full flex items-center justify-between bg-black/50 border border-white/5 rounded-xl p-4 mb-6">
                 <div className="flex flex-col">
                   <span className="text-[9px] text-[#606060] uppercase tracking-widest font-bold mb-1">Encerra em</span>
-                  <div className="flex items-center gap-1.5 text-white font-black text-lg" style={{ fontFamily: 'var(--font-kanit)' }}>
+                  <div className="flex items-center gap-1.5 text-white font-black text-lg">
                     <Clock className="w-4 h-4 text-purple-500 mr-1" />
                     {timeLeft.days}d : {timeLeft.hours}h : {timeLeft.minutes}m : {timeLeft.seconds}s
                   </div>
@@ -384,7 +387,7 @@ export default function Home() {
 
                 {/* Informações */}
                 <div className="p-6 flex flex-col flex-1 bg-[#0c0d10]">
-                  <h3 className="text-xl font-black text-white mb-6 uppercase tracking-tight line-clamp-1" style={{ fontFamily: 'var(--font-kanit)' }}>
+                  <h3 className="font-title text-xl text-white mb-6 line-clamp-1">
                     <span className="text-purple-500 mr-2">★</span>{giveaway.title.replace("|", " ")}
                   </h3>
 
@@ -502,36 +505,20 @@ export default function Home() {
             <p className="text-gray-400">Apoie o canal utilizando os nossos cupons e participe de Sorteios EXCLUSIVOS!</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
-            {/* CSGO ROLL */}
-            <a
-              href="https://www.csgoroll.com/r/BARRAK"
-              target="_blank"
-              rel="noreferrer"
-              className="group flex items-center justify-center relative rounded-2xl overflow-hidden border border-purple-500/20 hover:border-purple-500/80 transition-all hover:scale-105 shadow-lg hover:shadow-[0_0_30px_rgba(168,85,247,0.3)] bg-[#0a0a0c] h-[450px]"
-            >
-              <img src="/parceiro1.png" alt="CSGOROLL" className="w-full h-full object-contain p-4" />
-            </a>
-
-            {/* CSGO BIG */}
-            <a
-              href="https://csgobig.com/#!/r/barr4k"
-              target="_blank"
-              rel="noreferrer"
-              className="group flex items-center justify-center relative rounded-2xl overflow-hidden border border-purple-500/20 hover:border-purple-500/80 transition-all hover:scale-105 shadow-lg hover:shadow-[0_0_30px_rgba(168,85,247,0.3)] bg-[#0a0a0c] h-[450px]"
-            >
-              <img src="/parceiro2.png" alt="CSGOBIG" className="w-full h-full object-contain p-4" />
-            </a>
-
-            {/* FALLEN STORE */}
-            <a
-              href="https://www.fallenstore.com.br/"
-              target="_blank"
-              rel="noreferrer"
-              className="group flex items-center justify-center relative rounded-2xl overflow-hidden border border-purple-500/20 hover:border-purple-500/80 transition-all hover:scale-105 shadow-lg hover:shadow-[0_0_30px_rgba(168,85,247,0.3)] bg-[#0a0a0c] h-[450px]"
-            >
-              <img src="/parceiro3.png" alt="Fallen Store" className="w-full h-full object-contain p-4" />
-            </a>
+          {/* Cards cadastrados no painel (aba Parceiros); centraliza quando sobram menos de 3 na linha */}
+          <div className="flex flex-wrap justify-center gap-8">
+            {partners.map((partner) => (
+              <a
+                key={partner.id}
+                href={partner.link_url}
+                target="_blank"
+                rel="noreferrer"
+                title={partner.name}
+                className="group w-full md:w-[calc(50%-1rem)] lg:w-[calc((100%-4rem)/3)] flex items-center justify-center relative rounded-2xl overflow-hidden border border-purple-500/20 hover:border-purple-500/80 transition-all hover:scale-105 shadow-lg hover:shadow-[0_0_30px_rgba(168,85,247,0.3)] bg-[#0a0a0c] h-[450px]"
+              >
+                <img src={partner.image_url} alt={partner.name} className="w-full h-full object-contain p-4" />
+              </a>
+            ))}
           </div>
         </div>
       </section>

@@ -3,7 +3,7 @@ import { FaXTwitter } from "react-icons/fa6";
 import { UserRound } from "lucide-react";
 
 export const metadata = {
-  title: "BARR4K",
+  title: "barr4k",
   description: "Conheça a história do BARR4K e sua jornada como criador de conteúdo.",
 };
 

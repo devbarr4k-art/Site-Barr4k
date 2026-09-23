@@ -1,10 +1,11 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { DEFAULT_PARTNERS } from "@/lib/partners";
 
 // Dados da home servidos pelo cache da Vercel: o visitante recebe na hora a última
 // versão boa e a atualização acontece por trás (stale-while-revalidate). Se o banco
 // travar, ninguém fica preso no "carregando".
 export async function GET() {
-  const [giveaways, winners] = await Promise.all([
+  const [giveaways, winners, partners] = await Promise.all([
     supabaseAdmin
       .from("giveaways")
       .select(
@@ -19,6 +20,7 @@ export async function GET() {
       .select("*, giveaways(image_url)") // inclui image_url do vencedor quando a coluna existir
       .eq("in_hall_of_fame", true)
       .order("won_at", { ascending: false }),
+    supabaseAdmin.from("partners").select("id, name, image_url, link_url").order("sort_order").order("created_at"),
   ]);
 
   if (giveaways.error || winners.error) {
@@ -26,7 +28,12 @@ export async function GET() {
   }
 
   return Response.json(
-    { giveaways: giveaways.data ?? [], winners: winners.data ?? [] },
+    {
+      giveaways: giveaways.data ?? [],
+      winners: winners.data ?? [],
+      // Sem a tabela de parceiros ainda (SQL não rodado): mantém os cards de sempre
+      partners: partners.error ? DEFAULT_PARTNERS : partners.data ?? [],
+    },
     { headers: { "Cache-Control": "public, s-maxage=10, stale-while-revalidate=600" } }
   );
 }

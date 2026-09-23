@@ -163,7 +163,10 @@ export default function SorteioPage() {
             <div className="h-[1px] flex-1 bg-purple-600" />
           </div>
 
-          <h2 className="text-[#a0a0a0] font-bold text-sm tracking-[0.4em] mb-2 uppercase">SORTEIO</h2>
+          {/* Se o nome já começa com "Sorteio", não repete a palavra em cima */}
+          {!/^\s*sorteio\b/i.test(giveaway.title) && (
+            <h2 className="text-[#a0a0a0] font-bold text-sm tracking-[0.4em] mb-2 uppercase">SORTEIO</h2>
+          )}
           <h1 className="font-title text-4xl sm:text-5xl md:text-[4rem] text-white uppercase leading-[1]">
             {giveaway.title.split('|')[0] || giveaway.title} <br/>
             {giveaway.title.includes('|') && (

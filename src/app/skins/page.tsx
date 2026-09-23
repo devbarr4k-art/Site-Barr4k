@@ -3,7 +3,7 @@ import { MessageCircle, Package, BadgeDollarSign } from "lucide-react";
 import { GiAk47 } from "react-icons/gi";
 
 export const metadata = {
-  title: "BARR4K",
+  title: "barr4k",
   description: "Venda suas skins de CS2 para o BARR4K. Chame no WhatsApp ou na Steam e receba uma proposta.",
 };
 

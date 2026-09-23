@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { FaTwitch, FaHandshake, FaGamepad, FaHome } from "react-icons/fa";
+import { FaTwitch, FaHandshake, FaGamepad, FaHome, FaTicketAlt } from "react-icons/fa";
 import { ShieldAlert, Ticket, LogOut, ChevronDown, Menu, X, Gift, UserRound } from "lucide-react";
 import { GiAk47 } from "react-icons/gi";
 import { signIn, signOut, useSession } from "next-auth/react";
@@ -18,22 +18,40 @@ export default function Navbar() {
   const isLoggedIn = !!session;
   const isAdmin = !!(session?.user as any)?.isAdmin;
 
-  const navLinks = [
-    { name: "HOME", href: "/", icon: <FaHome className="w-4 h-4" /> },
+  // "SORTEIO" abre um menu com os ativos e o diário
+  const giveawayLinks = [
     { name: "SORTEIOS ATIVOS", href: "/#active-giveaways", icon: <Gift className="w-4 h-4" /> },
     { name: "SORTEIO DIÁRIO", href: "/diario", icon: <FaGamepad className="w-4 h-4" /> },
+  ];
+
+  const navLinks: { name: string; href: string; icon: React.ReactNode; children?: typeof giveawayLinks }[] = [
+    { name: "HOME", href: "/", icon: <FaHome className="w-4 h-4" /> },
+    { name: "SORTEIO", href: "/#active-giveaways", icon: <FaTicketAlt className="w-4 h-4" />, children: giveawayLinks },
     { name: "VENDAS", href: "/skins", icon: <GiAk47 className="w-5 h-5" /> },
     { name: "BIOGRAFIA", href: "/sobre", icon: <UserRound className="w-4 h-4" /> },
     { name: "PARCEIROS", href: "/#parceiros", icon: <FaHandshake className="w-4 h-4" /> },
   ];
 
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [isGiveawayMenuOpen, setIsGiveawayMenuOpen] = useState(false);
+  const [isMobileGiveawayOpen, setIsMobileGiveawayOpen] = useState(false);
+  const giveawayMenuRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
 
   const handleNavClick = (e: React.MouseEvent, href: string) => {
     setIsOpen(false);
+    setIsGiveawayMenuOpen(false);
     handleSectionLink(e, href, pathname);
   };
+
+  useEffect(() => {
+    if (!isGiveawayMenuOpen) return;
+    const close = (event: MouseEvent) => {
+      if (!giveawayMenuRef.current?.contains(event.target as Node)) setIsGiveawayMenuOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [isGiveawayMenuOpen]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -76,7 +94,35 @@ export default function Navbar() {
 
           {/* Desktop Navigation (Center) */}
           <nav className="hidden xl:flex items-center gap-5 ml-10 mr-8 shrink-0">
-            {navLinks.map((link) => (
+            {navLinks.map((link) => link.children ? (
+              <div key={link.name} className="relative" ref={giveawayMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsGiveawayMenuOpen((v) => !v)}
+                  aria-expanded={isGiveawayMenuOpen}
+                  className={`flex items-center gap-2 font-black text-sm tracking-wider 2xl:tracking-widest whitespace-nowrap transition-colors duration-200 py-2 uppercase italic ${isGiveawayMenuOpen ? "text-white" : "text-gray-300 hover:text-white"}`}
+                >
+                  {link.icon}
+                  {link.name}
+                  <ChevronDown className={`w-4 h-4 transition-transform ${isGiveawayMenuOpen ? "rotate-180" : ""}`} />
+                </button>
+                {isGiveawayMenuOpen && (
+                  <div className="absolute left-1/2 -translate-x-1/2 top-full mt-3 w-60 bg-[#0a0a0c] border border-purple-500/30 rounded-xl shadow-2xl py-2 animate-fade-in z-50">
+                    {link.children.map((child) => (
+                      <Link
+                        key={child.name}
+                        href={child.href}
+                        onClick={(e) => handleNavClick(e, child.href)}
+                        className="flex items-center gap-3 px-4 py-3 text-sm font-black tracking-wider text-gray-300 hover:text-white hover:bg-purple-600/15 transition-colors"
+                      >
+                        <span className="text-purple-400">{child.icon}</span>
+                        {child.name}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
               <Link
                 key={link.name}
                 href={link.href}
@@ -173,7 +219,35 @@ export default function Navbar() {
       >
         <div className="px-4 pt-4 flex flex-col h-full">
           <nav className="flex flex-col gap-2">
-            {navLinks.map((link) => (
+            {navLinks.map((link) => link.children ? (
+              <div key={link.name}>
+                <button
+                  type="button"
+                  onClick={() => setIsMobileGiveawayOpen((v) => !v)}
+                  aria-expanded={isMobileGiveawayOpen}
+                  className="w-full flex items-center gap-3 px-4 py-4 text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors uppercase font-bold text-sm tracking-widest italic"
+                >
+                  {link.icon}
+                  {link.name}
+                  <ChevronDown className={`w-4 h-4 ml-auto transition-transform ${isMobileGiveawayOpen ? "rotate-180" : ""}`} />
+                </button>
+                {isMobileGiveawayOpen && (
+                  <div className="ml-6 pl-3 border-l border-purple-500/30 flex flex-col gap-1 animate-fade-in">
+                    {link.children.map((child) => (
+                      <Link
+                        key={child.name}
+                        href={child.href}
+                        onClick={(e) => handleNavClick(e, child.href)}
+                        className="flex items-center gap-3 px-4 py-3 text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors uppercase font-bold text-sm tracking-widest"
+                      >
+                        <span className="text-purple-400">{child.icon}</span>
+                        {child.name}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
               <Link
                 key={link.name}
                 href={link.href}

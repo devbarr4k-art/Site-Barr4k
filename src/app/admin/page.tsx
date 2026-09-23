@@ -10,6 +10,10 @@ import { isAdmin } from "@/lib/admins";
 import { adminApi } from "@/lib/adminApi";
 import { uploadGiveawayImage } from "@/lib/image";
 import { useDialog } from "@/components/ui/Dialog";
+import WinnerPrizeEditor from "@/components/admin/WinnerPrizeEditor";
+import SiteUsers from "@/components/admin/SiteUsers";
+import PartnersManager from "@/components/admin/PartnersManager";
+import { Handshake, UserRound } from "lucide-react";
 import NumberInput from "@/components/ui/NumberInput";
 import { useSounds } from "@/lib/useSounds";
 import { avatarFor } from "@/lib/daily";
@@ -35,10 +39,19 @@ interface ImageValue {
 }
 const emptyImage: ImageValue = { file: null, preview: null, changed: false };
 
+// Tamanho ideal de cada imagem, medido no espaço que ela ocupa no site (a imagem
+// é recortada para preencher; no celular o corte é maior nas laterais)
+const IMAGE_SIZES = {
+  home: { size: "1200 × 800 px", tip: "Deixe o item no centro: no celular as laterais são cortadas." },
+  featured: { size: "1080 × 1000 px", tip: "Deixe o item na parte de cima: embaixo fica o nome do prêmio." },
+  detail: { size: "1350 × 900 px", tip: "Deixe o item no centro: no celular as laterais são cortadas bastante." },
+} as const;
+
 // Campo de upload com miniatura: cada tela (Home, Destaque, Sorteio) tem a sua imagem
-const ImageField = ({ label, tooltip, value, onPick, onClear }: {
+const ImageField = ({ label, tooltip, value, onPick, onClear, hint }: {
   label: string;
   tooltip: string;
+  hint?: { size: string; tip: string };
   value: ImageValue;
   onPick: (file: File) => void;
   onClear: () => void;
@@ -48,6 +61,11 @@ const ImageField = ({ label, tooltip, value, onPick, onClear }: {
       {label}
       <TooltipIcon text={tooltip} />
     </label>
+    {hint && (
+      <p className="text-[11px] text-gray-500 leading-snug">
+        Tamanho ideal: <span className="text-purple-400 font-bold not-italic">{hint.size}</span> (JPG ou PNG). {hint.tip}
+      </p>
+    )}
     <div className="relative w-full border-2 border-dashed border-gray-700 hover:border-purple-500 rounded-xl bg-[#0a0a0b] transition-colors overflow-hidden">
       <input
         type="file"
@@ -100,7 +118,7 @@ export default function AdminDashboard() {
   // Abre direto numa aba (?tab=twitch), usado na volta da autorização do chat
   useEffect(() => {
     const tab = new URLSearchParams(window.location.search).get("tab");
-    if (tab && ["sorteios", "twitch", "users"].includes(tab)) setActiveTab(tab);
+    if (tab && ["sorteios", "twitch", "users", "cadastros", "parceiros"].includes(tab)) setActiveTab(tab);
   }, []);
 
   const [sorteios, setSorteios] = useState<any[]>([]);
@@ -155,10 +173,6 @@ export default function AdminDashboard() {
 
   const [editingGiveaway, setEditingGiveaway] = useState<string | null>(null);
 
-  // Edição do vencedor (texto do prêmio e imagem que aparecem no Hall da Fama)
-  const [editingPrizeId, setEditingPrizeId] = useState<string | null>(null);
-  const [prizeDraft, setPrizeDraft] = useState("");
-  const [uploadingWinnerId, setUploadingWinnerId] = useState<string | null>(null);
 
   // Reabrir sorteio encerrado (popup com a nova data de encerramento)
   const [reopenTarget, setReopenTarget] = useState<{ id: string; title: string } | null>(null);
@@ -403,26 +417,11 @@ export default function AdminDashboard() {
     }
   };
 
-  const saveWinnerPrize = async (winner: any) => {
-    const prize = prizeDraft.trim();
-    if (!prize || prize === winner.prize) { setEditingPrizeId(null); return; }
-    if (await run("updateWinner", { id: winner.id, prize })) {
-      setWinners((prev) => prev.map((w) => (w.id === winner.id ? { ...w, prize } : w)));
-      setEditingPrizeId(null);
-    }
-  };
-
-  const changeWinnerImage = async (winner: any, file: File | null) => {
-    setUploadingWinnerId(winner.id);
-    try {
-      const imageUrl = file ? await uploadGiveawayImage(file) : null;
-      if (await run("updateWinner", { id: winner.id, imageUrl })) {
-        setWinners((prev) => prev.map((w) => (w.id === winner.id ? { ...w, image_url: imageUrl } : w)));
-      }
-    } catch (err) {
-      dialog.error(err, "Não foi possível enviar a imagem");
-    }
-    setUploadingWinnerId(null);
+  // Edição de foto/prêmio vale nas duas listas (vencedores deste sorteio e aba de vencedores)
+  const patchWinner = (id: string, fields: Record<string, unknown>) => {
+    const apply = (list: any[]) => list.map((w) => (w.id === id ? { ...w, ...fields } : w));
+    setWinners(apply);
+    setLocalWinners(apply);
   };
 
   const handleDeleteWinner = async (winner: any) => {
@@ -548,7 +547,7 @@ export default function AdminDashboard() {
 
       {/* Sidebar Admin */}
       <aside className="w-full md:w-64 glass-panel md:border-r border-b md:border-b-0 border-gray-800 p-4 md:p-6 flex md:flex-col gap-2 overflow-x-auto hide-scrollbar z-10 sticky top-0 md:static bg-black/80 md:bg-transparent backdrop-blur-md">
-        <h2 className="font-playfair text-xl md:text-2xl font-bold text-white mb-0 md:mb-6 flex-shrink-0 flex items-center md:block mr-4 md:mr-0">Painel <span className="text-purple-500 ml-1 md:ml-0">Admin</span></h2>
+        <h2 className="font-title text-xl md:text-2xl text-white mb-0 md:mb-6 flex-shrink-0 flex items-center md:block mr-4 md:mr-0">Painel <span className="text-purple-500 ml-1 md:ml-0">Admin</span></h2>
 
         <button
           onClick={() => setActiveTab("sorteios")}
@@ -567,6 +566,18 @@ export default function AdminDashboard() {
           className={`flex items-center gap-2 md:gap-3 px-4 py-2 md:py-3 rounded-lg font-medium transition-all flex-shrink-0 ${activeTab === "users" ? "bg-purple-600/20 text-purple-300 border border-purple-500/50" : "text-gray-400 hover:bg-gray-900 hover:text-white"}`}
         >
           <Trophy className="w-4 h-4 md:w-5 md:h-5" /> Vencedores dos Sorteios
+        </button>
+        <button
+          onClick={() => setActiveTab("cadastros")}
+          className={`flex items-center gap-2 md:gap-3 px-4 py-2 md:py-3 rounded-lg font-medium transition-all flex-shrink-0 ${activeTab === "cadastros" ? "bg-purple-600/20 text-purple-300 border border-purple-500/50" : "text-gray-400 hover:bg-gray-900 hover:text-white"}`}
+        >
+          <UserRound className="w-4 h-4 md:w-5 md:h-5" /> Usuários do Site
+        </button>
+        <button
+          onClick={() => setActiveTab("parceiros")}
+          className={`flex items-center gap-2 md:gap-3 px-4 py-2 md:py-3 rounded-lg font-medium transition-all flex-shrink-0 ${activeTab === "parceiros" ? "bg-purple-600/20 text-purple-300 border border-purple-500/50" : "text-gray-400 hover:bg-gray-900 hover:text-white"}`}
+        >
+          <Handshake className="w-4 h-4 md:w-5 md:h-5" /> Parceiros
         </button>
       </aside>
 
@@ -743,12 +754,12 @@ export default function AdminDashboard() {
                     <h2 className="text-xl font-bold text-white flex items-center gap-2">
                       <Trophy className="w-5 h-5 text-yellow-500" /> Vencedores deste Sorteio
                     </h2>
-                    <div className="glass-panel rounded-xl overflow-hidden border border-yellow-500/30">
-                      <table className="w-full text-left text-sm text-gray-400">
+                    <div className="glass-panel rounded-xl overflow-x-auto border border-yellow-500/30">
+                      <table className="w-full min-w-[760px] text-left text-sm text-gray-400">
                         <thead className="bg-yellow-900/20 text-xs uppercase text-gray-300 border-b border-yellow-900/50">
                           <tr>
                             <th className="px-6 py-4">Usuário da Twitch</th>
-                            <th className="px-6 py-4">Prêmio Ganho</th>
+                            <th className="px-6 py-4">Foto e Prêmio (Hall da Fama)</th>
                             <th className="px-6 py-4">Data do Sorteio</th>
                             <th className="px-6 py-4 text-center">Hall da Fama</th>
                             <th className="px-6 py-4 text-right">Excluir</th>
@@ -763,7 +774,7 @@ export default function AdminDashboard() {
                                   @{winner.twitch_username}
                                 </div>
                               </td>
-                              <td className="px-6 py-4 text-yellow-500 font-bold">{winner.prize}</td>
+                              <td className="px-6 py-4"><WinnerPrizeEditor winner={winner} onChange={patchWinner} /></td>
                               <td className="px-6 py-4">{new Date(winner.won_at).toLocaleDateString("pt-BR")}</td>
                               <td className="px-6 py-4 text-center">
                                 <button
@@ -899,6 +910,9 @@ export default function AdminDashboard() {
           </div>
         )}
 
+        {activeTab === "cadastros" && <SiteUsers />}
+        {activeTab === "parceiros" && <PartnersManager />}
+
         {activeTab === "twitch" && <LiveGiveaway defaultChannel={currentUsername || "barr4k"} />}
 
         {activeTab === "users" && (
@@ -930,61 +944,7 @@ export default function AdminDashboard() {
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            {/* Imagem do prêmio no Hall da Fama */}
-                            <label
-                              title={winner.image_url ? "Trocar imagem" : "Adicionar imagem"}
-                              className="relative shrink-0 w-12 h-12 rounded-lg border border-dashed border-purple-500/40 bg-black/40 hover:border-purple-400 cursor-pointer overflow-hidden flex items-center justify-center"
-                            >
-                              <input
-                                type="file"
-                                accept="image/*"
-                                className="absolute inset-0 opacity-0 cursor-pointer"
-                                onChange={(e) => { const f = e.target.files?.[0]; if (f) changeWinnerImage(winner, f); e.target.value = ""; }}
-                              />
-                              {uploadingWinnerId === winner.id ? (
-                                <div className="w-5 h-5 rounded-full border-2 border-purple-500/30 border-t-purple-400 animate-spin" />
-                              ) : winner.image_url ? (
-                                <img src={winner.image_url} alt="" className="w-full h-full object-cover" />
-                              ) : (
-                                <ImagePlus className="w-5 h-5 text-purple-400" />
-                              )}
-                            </label>
-
-                            {editingPrizeId === winner.id ? (
-                              <div className="flex items-center gap-2 flex-1">
-                                <input
-                                  autoFocus
-                                  value={prizeDraft}
-                                  onChange={(e) => setPrizeDraft(e.target.value)}
-                                  onKeyDown={(e) => { if (e.key === "Enter") saveWinnerPrize(winner); if (e.key === "Escape") setEditingPrizeId(null); }}
-                                  className="flex-1 min-w-0 bg-black border border-purple-500/50 rounded px-2 py-1 text-white outline-none focus:border-purple-400"
-                                />
-                                <button onClick={() => saveWinnerPrize(winner)} className="px-2 py-1 rounded text-xs font-bold bg-green-600 hover:bg-green-500 text-white">Salvar</button>
-                                <button onClick={() => setEditingPrizeId(null)} className="px-2 py-1 rounded text-xs font-bold bg-gray-700 hover:bg-gray-600 text-white">Cancelar</button>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-2 min-w-0">
-                                <span className="text-purple-400 font-bold truncate">{winner.prize}</span>
-                                <button
-                                  onClick={() => { setPrizeDraft(winner.prize); setEditingPrizeId(winner.id); }}
-                                  title="Editar texto do prêmio"
-                                  className="shrink-0 p-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded transition-colors"
-                                >
-                                  <Edit className="w-3.5 h-3.5" />
-                                </button>
-                                {winner.image_url && (
-                                  <button
-                                    onClick={() => changeWinnerImage(winner, null)}
-                                    title="Remover imagem"
-                                    className="shrink-0 p-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded transition-colors"
-                                  >
-                                    <X className="w-3.5 h-3.5" />
-                                  </button>
-                                )}
-                              </div>
-                            )}
-                          </div>
+                          <WinnerPrizeEditor winner={winner} onChange={patchWinner} />
                         </td>
                         <td className="px-6 py-4">{new Date(winner.won_at).toLocaleDateString("pt-BR")}</td>
                         <td className="px-6 py-4 text-center">
@@ -1272,6 +1232,7 @@ export default function AdminDashboard() {
                         label="Imagem (Card da Home)"
                         tooltip="Imagem do card na lista de sorteios da página inicial."
                         value={images.home}
+                        hint={IMAGE_SIZES.home}
                         onPick={(file) => pickImage("home", file)}
                         onClear={() => clearImage("home")}
                       />
@@ -1314,6 +1275,7 @@ export default function AdminDashboard() {
                           label="Imagem (Popup de Destaque)"
                           tooltip="Imagem do popup que abre na Home quando o sorteio está em destaque. Sem ela, o site usa a imagem da Home."
                           value={images.featured}
+                          hint={IMAGE_SIZES.featured}
                           onPick={(file) => pickImage("featured", file)}
                           onClear={() => clearImage("featured")}
                         />
@@ -1323,6 +1285,7 @@ export default function AdminDashboard() {
                           label="Imagem (Página do Sorteio)"
                           tooltip="Imagem grande da página do sorteio. Sem ela, o site usa a imagem da Home."
                           value={images.detail}
+                          hint={IMAGE_SIZES.detail}
                           onPick={(file) => pickImage("detail", file)}
                           onClear={() => clearImage("detail")}
                         />
@@ -1402,7 +1365,7 @@ export default function AdminDashboard() {
 
                 {/* Informações */}
                 <div className="p-5 flex flex-col bg-[#0c0d10]">
-                  <h3 className="text-xl font-black text-white mb-5 uppercase tracking-tight line-clamp-1" style={{ fontFamily: 'var(--font-kanit)' }}>
+                  <h3 className="font-title text-xl text-white mb-5 line-clamp-1">
                     <span className="text-purple-500 mr-2">★</span>{newTitle || "BAIONETA PHASE 2"}
                   </h3>
 
@@ -1447,8 +1410,8 @@ export default function AdminDashboard() {
                         {newSubtitle || newTitle.split('|')[0] || "SORTEIO ACONTECENDO"}
                       </span>
                     </div>
-                    <h1 className="text-2xl font-black text-white uppercase tracking-tighter leading-tight" style={{ fontFamily: 'var(--font-kanit)' }}>
-                      SORTEIO {newTitle.split('|')[0] || "BAIONETA"} <br/>
+                    <h1 className="font-title text-2xl text-white">
+                      {newTitle.split('|')[0] || "BAIONETA"} <br/>
                       {newTitle.includes('|') && (
                         <span className="text-purple-500 inline-block mt-0.5">{newTitle.split('|')[1]}</span>
                       )}
@@ -1479,8 +1442,10 @@ export default function AdminDashboard() {
                       <div className="h-[1px] flex-1 bg-purple-600" />
                     </div>
 
-                    <h2 className="text-[#a0a0a0] font-bold text-[10px] tracking-[0.4em] mb-1 uppercase">SORTEIO</h2>
-                    <h1 className="text-3xl font-black text-white uppercase tracking-tighter leading-[0.9]" style={{ fontFamily: 'Impact, sans-serif' }}>
+                    {!/^\s*sorteio\b/i.test(newTitle) && (
+                      <h2 className="text-[#a0a0a0] font-bold text-[10px] tracking-[0.4em] mb-1 uppercase">SORTEIO</h2>
+                    )}
+                    <h1 className="font-title text-3xl text-white leading-[0.95]">
                       {(newTitle || "TÍTULO DO SORTEIO").split('|')[0]} <br/>
                       {(newTitle || "").includes('|') && (
                         <span className="text-purple-500 block mt-1">{(newTitle || "").split('|')[1]}</span>
@@ -1512,8 +1477,8 @@ export default function AdminDashboard() {
                           <Trophy className="w-3 h-3" />
                           <span className="text-[9px] font-bold tracking-widest uppercase">PRÊMIO</span>
                         </div>
-                        <h3 className="text-xl font-bold text-white leading-tight">
-                          <span className="text-white">★</span> {newTitle || "TÍTULO DO SORTEIO"}
+                        <h3 className="font-title text-xl text-white">
+                          <span className="text-white">★</span> {(newTitle || "TÍTULO DO SORTEIO").replace("|", " ")}
                         </h3>
                         <p className="text-purple-400 font-bold text-sm mt-0.5">
                           {newPrizeValue ? `R$ ${newPrizeValue}` : ""}
@@ -1526,7 +1491,7 @@ export default function AdminDashboard() {
                   {/* Bloco 3: Formulário de Participação */}
                   <div className="p-6 text-center flex flex-col items-center">
                     <Sparkles className="w-6 h-6 text-purple-500 mb-4" />
-                    <h3 className="text-lg font-black text-white tracking-wider uppercase mb-2">
+                    <h3 className="font-title text-lg text-white mb-2">
                       PARTICIPE AGORA
                     </h3>
                     <button type="button" className="w-full btn-neon font-bold tracking-widest uppercase py-3 rounded-lg mt-2 text-xs flex items-center justify-center gap-2">

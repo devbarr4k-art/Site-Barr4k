@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { fetchTwitchAvatars } from "@/lib/twitch";
 import { addChatEntry } from "@/lib/dailyEntry";
 import { removeProofs, signProofs } from "@/lib/proofs";
+import { isValidEmail, normalizeWhatsapp } from "@/lib/siteUsers";
 import { serverCaptureStatus, startServerCapture, stopServerCapture } from "@/lib/eventsub";
 
 const GIVEAWAY_FIELDS = [
@@ -20,6 +21,8 @@ const DAILY_COLUMNS =
   "id, title, image_url, status, capture_open, bot_command, twitch_channel, response_seconds, chance_t1, chance_t2, chance_t3, created_at";
 
 const PARTICIPANT_FIELDS = ["status", "twitch_username", "coins_used"] as const;
+
+const MISSING_TABLE = "Falta rodar o SQL supabase/migracao-usuarios-e-parceiros.sql no Supabase.";
 
 function pick(source: any, fields: readonly string[]) {
   const out: Record<string, unknown> = {};
@@ -375,6 +378,64 @@ export async function POST(request: Request) {
         .from("giveaways")
         .update({ status: "completed", capture_open: false, is_daily_highlight: false })
         .eq("id", daily.id);
+      return Response.json({ ok: true });
+    }
+
+    // ---- Usuários cadastrados no site ----
+    case "listSiteUsers": {
+      const { data, error } = await db.from("site_users").select("*").order("created_at", { ascending: false });
+      if (error) return fail(MISSING_TABLE, 500);
+      return Response.json({ data: data ?? [] });
+    }
+
+    case "updateSiteUser": {
+      const whatsapp = normalizeWhatsapp(body.whatsapp);
+      const email = String(body.email || "").trim().toLowerCase();
+      if (!whatsapp) return fail("WhatsApp inválido (use DDD + número).");
+      if (!isValidEmail(email)) return fail("E-mail inválido.");
+      const { error } = await db.from("site_users").update({ whatsapp, email }).eq("twitch_username", body.username);
+      if (error) return fail(error.message, 500);
+      return Response.json({ ok: true, whatsapp, email });
+    }
+
+    case "deleteSiteUser": {
+      const { error } = await db.from("site_users").delete().eq("twitch_username", body.username);
+      if (error) return fail(error.message, 500);
+      return Response.json({ ok: true });
+    }
+
+    // ---- Parceiros (cards da home) ----
+    case "savePartner": {
+      const name = String(body.name || "").trim().slice(0, 80);
+      const imageUrl = String(body.imageUrl || "").trim();
+      let linkUrl = String(body.linkUrl || "").trim();
+      if (linkUrl && !/^https?:\/\//i.test(linkUrl)) linkUrl = "https://" + linkUrl;
+      if (!name || !imageUrl || !linkUrl) return fail("Preencha nome, imagem e link do parceiro.");
+      const fields = { name, image_url: imageUrl, link_url: linkUrl };
+      if (body.id) {
+        const { error } = await db.from("partners").update(fields).eq("id", body.id);
+        if (error) return fail(error.message, 500);
+      } else {
+        // Novo parceiro entra no fim da fila
+        const { data: last } = await db.from("partners").select("sort_order").order("sort_order", { ascending: false }).limit(1).maybeSingle();
+        const { error } = await db.from("partners").insert({ ...fields, sort_order: (last?.sort_order ?? 0) + 1 });
+        if (error) return fail(MISSING_TABLE, 500);
+      }
+      return Response.json({ ok: true });
+    }
+
+    case "deletePartner": {
+      const { error } = await db.from("partners").delete().eq("id", body.id);
+      if (error) return fail(error.message, 500);
+      return Response.json({ ok: true });
+    }
+
+    case "reorderPartners": {
+      // Recebe os ids na ordem nova
+      const ids: string[] = Array.isArray(body.ids) ? body.ids : [];
+      const results = await Promise.all(ids.map((id, i) => db.from("partners").update({ sort_order: i + 1 }).eq("id", id)));
+      const failed = results.find((r) => r.error);
+      if (failed?.error) return fail(failed.error.message, 500);
       return Response.json({ ok: true });
     }
 
