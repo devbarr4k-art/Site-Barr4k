@@ -7,6 +7,7 @@ import { FaTwitch } from "react-icons/fa";
 import { supabase } from "@/lib/supabase";
 import { compressImage } from "@/lib/image";
 import ClosedStamp from "@/components/ui/ClosedStamp";
+import NumberInput from "@/components/ui/NumberInput";
 import { useSession, signIn } from "next-auth/react";
 
 const useCountdown = (targetDateString: string | null) => {
@@ -60,7 +61,7 @@ export default function SorteioPage() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [casaId, setCasaId] = useState("");
-  const [coinsSpent, setCoinsSpent] = useState("");
+  const [coinsSpent, setCoinsSpent] = useState<number | "">("");
   const [isParticipating, setIsParticipating] = useState(false);
   const [isExpired, setIsExpired] = useState(false);
 
@@ -102,7 +103,7 @@ export default function SorteioPage() {
     setError("");
     setIsSubmitting(true);
     try {
-      const proof = await compressImage(selectedFile, 1280, 0.75);
+      const proof = await compressImage(selectedFile, 1600, 0.85);
       const res = await fetch("/api/participar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -283,12 +284,12 @@ export default function SorteioPage() {
 
               <div>
                 <label className="block text-[#a0a0a0] text-xs font-bold uppercase tracking-wider mb-2">Valor em Coins</label>
-                <input
-                  type="number"
+                <NumberInput
                   required
                   min={0}
+                  step={100}
                   value={coinsSpent}
-                  onChange={(e) => setCoinsSpent(e.target.value)}
+                  onChange={setCoinsSpent}
                   className="w-full bg-[#050505] border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500 transition-colors"
                   placeholder="Ex: 5000"
                 />

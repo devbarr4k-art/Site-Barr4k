@@ -43,11 +43,17 @@ interface DialogApi {
 
 const DialogContext = createContext<DialogApi | null>(null);
 
+// Todos no roxo do site; o que muda entre os tipos é só o ícone
+const PURPLE = {
+  iconClass: "text-purple-300 bg-purple-500/15 border-purple-500/40",
+  ring: "border-purple-500/40",
+  button: "bg-purple-600 hover:bg-purple-500 shadow-[0_0_20px_rgba(147,51,234,0.35)]",
+};
 const TONES: Record<Tone, { icon: typeof Info; iconClass: string; ring: string; button: string }> = {
-  danger: { icon: Trash2, iconClass: "text-red-400 bg-red-500/10 border-red-500/30", ring: "border-red-500/40", button: "bg-red-600 hover:bg-red-500" },
-  warning: { icon: AlertTriangle, iconClass: "text-yellow-400 bg-yellow-500/10 border-yellow-500/30", ring: "border-yellow-500/30", button: "bg-yellow-600 hover:bg-yellow-500" },
-  info: { icon: Info, iconClass: "text-purple-300 bg-purple-500/10 border-purple-500/30", ring: "border-purple-500/40", button: "bg-purple-600 hover:bg-purple-500" },
-  success: { icon: CheckCircle2, iconClass: "text-green-400 bg-green-500/10 border-green-500/30", ring: "border-green-500/30", button: "bg-green-600 hover:bg-green-500" },
+  danger: { icon: Trash2, ...PURPLE },
+  warning: { icon: AlertTriangle, ...PURPLE },
+  info: { icon: Info, ...PURPLE },
+  success: { icon: CheckCircle2, ...PURPLE },
 };
 
 export function DialogProvider({ children }: { children: React.ReactNode }) {
@@ -123,7 +129,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
               role="alertdialog"
               aria-modal="true"
               aria-labelledby="dialog-title"
-              className={`w-full max-w-md rounded-2xl border ${tone.ring} bg-[#101014] p-6 shadow-[0_0_60px_rgba(0,0,0,0.6)] animate-scale-up not-italic`}
+              className={`w-full max-w-md rounded-2xl border ${tone.ring} bg-[#101014] p-6 shadow-[0_0_60px_rgba(147,51,234,0.25)] animate-scale-up not-italic`}
             >
               <div className="flex items-start gap-4">
                 <div className={`shrink-0 w-11 h-11 rounded-full border flex items-center justify-center ${tone.iconClass}`}>

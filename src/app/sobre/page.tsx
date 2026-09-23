@@ -1,5 +1,5 @@
 export const metadata = {
-  title: "Sobre o BARR4K | Plataforma Oficial",
+  title: "BARR4K",
   description: "Conheça a história do BARR4K e sua jornada como criador de conteúdo.",
 };
 

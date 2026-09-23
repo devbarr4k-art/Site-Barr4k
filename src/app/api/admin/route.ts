@@ -129,6 +129,16 @@ export async function POST(request: Request) {
       return Response.json({ ok: true });
     }
 
+    case "createUploadUrl": {
+      // Link assinado para o painel enviar a imagem direto ao Storage, em qualidade original
+      const ext = String(body.ext || "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5) || "png";
+      const path = `premios/${crypto.randomUUID()}.${ext}`;
+      const { data, error } = await db.storage.from("giveaways").createSignedUploadUrl(path);
+      if (error) return fail(error.message, 500);
+      const { data: pub } = db.storage.from("giveaways").getPublicUrl(path);
+      return Response.json({ path, token: data.token, publicUrl: pub.publicUrl });
+    }
+
     case "reopenGiveaway": {
       // Volta um sorteio encerrado ao ar até a nova data escolhida pelo streamer
       const drawDate = new Date(body.drawDate);

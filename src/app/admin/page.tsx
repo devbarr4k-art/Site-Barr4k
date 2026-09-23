@@ -8,8 +8,9 @@ import { supabase } from "@/lib/supabase";
 import { useSession } from "next-auth/react";
 import { isAdmin } from "@/lib/admins";
 import { adminApi } from "@/lib/adminApi";
-import { compressImage } from "@/lib/image";
+import { uploadGiveawayImage } from "@/lib/image";
 import { useDialog } from "@/components/ui/Dialog";
+import NumberInput from "@/components/ui/NumberInput";
 import { avatarFor } from "@/lib/daily";
 import { isGiveawayClosed } from "@/lib/giveaway";
 import LiveGiveaway from "@/components/admin/LiveGiveaway";
@@ -104,7 +105,7 @@ export default function AdminDashboard() {
   const [managingParticipants, setManagingParticipants] = useState<string | null>(null);
   const [editingParticipant, setEditingParticipant] = useState<string | null>(null);
   const [editTwitchUsername, setEditTwitchUsername] = useState("");
-  const [editCoinsUsed, setEditCoinsUsed] = useState(0);
+  const [editCoinsUsed, setEditCoinsUsed] = useState<number | "">(0);
   const [proofPreview, setProofPreview] = useState<string | null>(null);
 
   // Roleta do sorteio mensal
@@ -206,7 +207,7 @@ export default function AdminDashboard() {
   const handleSaveParticipantEdit = async (id: string) => {
     const ok = await run("updateParticipant", {
       id,
-      fields: { twitch_username: editTwitchUsername, coins_used: editCoinsUsed },
+      fields: { twitch_username: editTwitchUsername, coins_used: Number(editCoinsUsed) || 0 },
     });
     if (ok && managingParticipants) {
       setEditingParticipant(null);
@@ -426,7 +427,7 @@ export default function AdminDashboard() {
       for (const slot of Object.keys(columns) as ImageSlot[]) {
         const img = images[slot];
         if (!img.changed) continue;
-        fields[columns[slot]] = img.file ? await compressImage(img.file) : null;
+        fields[columns[slot]] = img.file ? await uploadGiveawayImage(img.file) : null;
       }
       if (!editingGiveaway) {
         fields.type = "monthly";
@@ -541,12 +542,14 @@ export default function AdminDashboard() {
                                   />
                                 </td>
                                 <td className="px-6 py-4">
-                                  <input
-                                    type="number"
-                                    value={editCoinsUsed}
-                                    onChange={(e) => setEditCoinsUsed(Number(e.target.value))}
-                                    className="bg-black border border-gray-700 rounded px-2 py-1 text-white w-20 outline-none focus:border-purple-500"
-                                  />
+                                  <div className="w-28">
+                                    <NumberInput
+                                      value={editCoinsUsed}
+                                      onChange={setEditCoinsUsed}
+                                      min={0}
+                                      className="w-full bg-black border border-gray-700 rounded px-2 py-1 text-white outline-none focus:border-purple-500"
+                                    />
+                                  </div>
                                 </td>
                                 <td className="px-6 py-4 font-bold text-gray-400">{p.casa_id || "N/A"}</td>
                                 <td className="px-6 py-4">
@@ -856,9 +859,9 @@ export default function AdminDashboard() {
           className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in"
           onClick={(e) => { if (e.target === e.currentTarget) setReopenTarget(null); }}
         >
-          <div className="w-full max-w-md rounded-2xl border border-green-500/30 bg-[#101014] p-6 shadow-2xl animate-scale-up not-italic">
+          <div className="w-full max-w-md rounded-2xl border border-purple-500/40 bg-[#101014] p-6 shadow-[0_0_60px_rgba(147,51,234,0.25)] animate-scale-up not-italic">
             <div className="flex items-start gap-4">
-              <div className="shrink-0 w-11 h-11 rounded-full border border-green-500/30 bg-green-500/10 text-green-400 flex items-center justify-center">
+              <div className="shrink-0 w-11 h-11 rounded-full border border-purple-500/40 bg-purple-500/15 text-purple-300 flex items-center justify-center">
                 <RotateCcw className="w-5 h-5" />
               </div>
               <div className="min-w-0 flex-1 pt-1">
@@ -874,7 +877,7 @@ export default function AdminDashboard() {
               type="datetime-local"
               value={reopenDate}
               onChange={(e) => setReopenDate(e.target.value)}
-              className="mt-2 w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-green-500 outline-none [color-scheme:dark]"
+              className="mt-2 w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none [color-scheme:dark]"
             />
             <div className="mt-3 flex flex-wrap gap-2">
               {[1, 3, 6, 24].map((h) => (
@@ -899,7 +902,7 @@ export default function AdminDashboard() {
               <button
                 onClick={handleReopen}
                 disabled={isReopening}
-                className="px-5 py-2.5 rounded-lg font-bold text-sm text-white bg-green-600 hover:bg-green-500 transition-colors disabled:opacity-50"
+                className="px-5 py-2.5 rounded-lg font-bold text-sm text-white bg-purple-600 hover:bg-purple-500 shadow-[0_0_20px_rgba(147,51,234,0.35)] transition-colors disabled:opacity-50"
               >
                 {isReopening ? "Reabrindo..." : "Voltar ao ar"}
               </button>

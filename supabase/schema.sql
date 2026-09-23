@@ -95,3 +95,11 @@ create policy "leitura publica de sorteios" on public.giveaways
 
 create policy "leitura publica de vencedores" on public.winners
   for select to anon, authenticated using (true);
+
+
+-- 5. Storage: imagens dos prêmios em qualidade original -------------
+-- Bucket público "giveaways"; o painel envia por link assinado gerado no servidor.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('giveaways', 'giveaways', true, 20971520,
+        array['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/avif'])
+on conflict (id) do nothing;

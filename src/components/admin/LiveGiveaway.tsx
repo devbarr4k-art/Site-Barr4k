@@ -7,10 +7,11 @@ import {
   Bot, Clock, Gift, Pause, Play, Radio, Search, Star, Trophy, Upload, User, Users, Volume2, VolumeX, X, CheckCircle2, RotateCcw,
 } from "lucide-react";
 import { adminApi } from "@/lib/adminApi";
-import { compressImage } from "@/lib/image";
+import { uploadGiveawayImage } from "@/lib/image";
 import { avatarFor, chancesFor } from "@/lib/daily";
 import DailyHistory from "@/components/admin/DailyHistory";
 import { useDialog } from "@/components/ui/Dialog";
+import NumberInput from "@/components/ui/NumberInput";
 
 interface Daily {
   id: string;
@@ -120,10 +121,14 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [command, setCommand] = useState("!sorteio");
   const [channel, setChannel] = useState(defaultChannel);
-  const [responseSeconds, setResponseSeconds] = useState(60);
-  const [chanceT1, setChanceT1] = useState(2);
-  const [chanceT2, setChanceT2] = useState(3);
-  const [chanceT3, setChanceT3] = useState(5);
+  const [responseSeconds, setResponseSeconds] = useState<number | "">(60);
+  const [chanceT1, setChanceT1] = useState<number | "">(2);
+  const [chanceT2, setChanceT2] = useState<number | "">(3);
+  const [chanceT3, setChanceT3] = useState<number | "">(5);
+  // Ajustes editáveis durante a live (espelham o sorteio aberto)
+  const [liveSettings, setLiveSettings] = useState<Record<"response_seconds" | "chance_t1" | "chance_t2" | "chance_t3", number | "">>({
+    response_seconds: 60, chance_t1: 2, chance_t2: 3, chance_t3: 5,
+  });
 
   // Roleta e resultado
   const [reel, setReel] = useState<Participant[]>([]);
@@ -145,7 +150,17 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
   const sounds = useSounds();
   const dialog = useDialog();
 
-  useEffect(() => { dailyRef.current = daily; }, [daily]);
+  useEffect(() => {
+    dailyRef.current = daily;
+    if (daily) {
+      setLiveSettings({
+        response_seconds: daily.response_seconds,
+        chance_t1: daily.chance_t1,
+        chance_t2: daily.chance_t2,
+        chance_t3: daily.chance_t3,
+      });
+    }
+  }, [daily]);
 
   const eligible = participants.filter((p) => p.status !== "rejected");
 
@@ -269,7 +284,7 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
     }
     setBusy(true);
     try {
-      const image_url = image ? await compressImage(image) : null;
+      const image_url = image ? await uploadGiveawayImage(image) : null;
       const { data } = await adminApi<{ data: Daily }>("startDaily", {
         fields: {
           title, image_url, bot_command: command, twitch_channel: channel,
@@ -480,16 +495,13 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-gray-800">
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-400 uppercase flex items-center gap-1"><Clock className="w-3 h-3" /> Tempo p/ responder</label>
-              <div className="relative">
-                <input type="number" min={5} value={responseSeconds} onChange={(e) => setResponseSeconds(parseInt(e.target.value) || 60)}
-                  className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-2.5 pr-8 text-white outline-none focus:border-purple-500" />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">s</span>
-              </div>
+              <NumberInput value={responseSeconds} onChange={setResponseSeconds} min={5} suffix="s"
+                className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-2.5 text-white outline-none focus:border-purple-500" />
             </div>
             {([["Tier 1", chanceT1, setChanceT1], ["Tier 2", chanceT2, setChanceT2], ["Tier 3", chanceT3, setChanceT3]] as const).map(([label, value, setter]) => (
               <div key={label} className="space-y-2">
                 <label className="text-xs font-bold text-purple-400 uppercase flex items-center gap-1"><Star className="w-3 h-3" /> Chances Sub {label}</label>
-                <input type="number" min={1} value={value} onChange={(e) => setter(parseInt(e.target.value) || 1)}
+                <NumberInput value={value} onChange={setter} min={1}
                   className="w-full bg-[#0a0a0b] border border-purple-500/30 rounded-lg px-4 py-2.5 text-white outline-none focus:border-purple-500" />
               </div>
             ))}
@@ -591,21 +603,22 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
 
           <div className="glass-panel rounded-xl border border-gray-800 p-4 space-y-3">
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Ajustes (salvam na hora)</p>
-            <div className="grid grid-cols-4 gap-2">
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-400 uppercase">Tempo (s)</label>
-                <input type="number" min={5} defaultValue={daily.response_seconds} key={`rs-${daily.id}`}
-                  onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
-                  onBlur={(e) => { const v = Math.max(5, parseInt(e.target.value) || 60); if (v !== daily.response_seconds) updateDaily({ response_seconds: v }); }}
-                  className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-2 py-2 text-white text-sm outline-none focus:border-purple-500" />
-              </div>
-              {(["chance_t1", "chance_t2", "chance_t3"] as const).map((field, i) => (
+            <div className="grid grid-cols-2 gap-2">
+              {([
+                ["response_seconds", "Tempo (s)", 5],
+                ["chance_t1", "Chances Sub T1", 1],
+                ["chance_t2", "Chances Sub T2", 1],
+                ["chance_t3", "Chances Sub T3", 1],
+              ] as const).map(([field, label, min]) => (
                 <div key={field} className="space-y-1">
-                  <label className="text-[10px] font-bold text-purple-400 uppercase">Sub T{i + 1}</label>
-                  <input type="number" min={1} defaultValue={daily[field]} key={`${field}-${daily.id}`}
-                    onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
-                  onBlur={(e) => { const v = Math.max(1, parseInt(e.target.value) || 1); if (v !== daily[field]) updateDaily({ [field]: v }); }}
-                    className="w-full bg-[#0a0a0b] border border-purple-500/30 rounded-lg px-2 py-2 text-white text-sm outline-none focus:border-purple-500" />
+                  <label className={`text-[10px] font-bold uppercase ${field === "response_seconds" ? "text-gray-400" : "text-purple-400"}`}>{label}</label>
+                  <NumberInput
+                    value={liveSettings[field]}
+                    min={min}
+                    onChange={(v) => setLiveSettings((prev) => ({ ...prev, [field]: v }))}
+                    onCommit={(v) => { if (v !== daily[field]) updateDaily({ [field]: v }); }}
+                    className={`w-full bg-[#0a0a0b] border rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-purple-500 ${field === "response_seconds" ? "border-gray-800" : "border-purple-500/30"}`}
+                  />
                 </div>
               ))}
             </div>

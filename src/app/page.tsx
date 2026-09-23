@@ -80,11 +80,8 @@ export default function Home() {
       const featured = withState.find(g => g.type === 'featured');
       if (featured) {
         setFeaturedGiveaway(featured);
-        let closed = false;
-        try { closed = !!sessionStorage.getItem('featured_closed'); } catch {}
-        if (!closed) {
-          setShowFeaturedPopup(true);
-        }
+        // Aparece toda vez que a pessoa entra ou volta para a home
+        setShowFeaturedPopup(true);
       }
       setActiveGiveaways([...open, ...closed]);
     }
@@ -107,7 +104,6 @@ export default function Home() {
 
   const closeFeaturedPopup = () => {
     setShowFeaturedPopup(false);
-    try { sessionStorage.setItem('featured_closed', 'true'); } catch {}
   };
 
   return (

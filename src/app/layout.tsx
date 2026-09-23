@@ -23,7 +23,7 @@ const kanit = Kanit({
 });
 
 export const metadata: Metadata = {
-  title: "BARR4K | Sorteios & Engajamento",
+  title: "BARR4K",
   description: "Plataforma oficial de sorteios e engajamento da comunidade do BARR4K.",
 };
 
