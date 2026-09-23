@@ -20,7 +20,13 @@ export async function GET() {
       .eq("giveaway_id", giveaway.id)
       .neq("status", "rejected")
       .order("created_at", { ascending: false });
-    participants = data ?? [];
+    const rawData = data ?? [];
+    const seen = new Set<string>();
+    participants = rawData.filter((p) => {
+      if (seen.has(p.twitch_username)) return false;
+      seen.add(p.twitch_username);
+      return true;
+    });
   }
 
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
