@@ -53,7 +53,7 @@ export default function Navbar() {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-[#050505] border-b border-purple-900/50 shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
       <div className="max-w-7xl 2xl:max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20">
+        <div className="flex items-center justify-between xl:justify-center h-20">
 
           {/* Logo (Avatar BARR4K) */}
           <div className="flex-shrink-0">
@@ -74,7 +74,7 @@ export default function Navbar() {
           </div>
 
           {/* Desktop Navigation (Center) */}
-          <nav className="hidden xl:flex items-center gap-5 ml-10 mr-auto pr-4 shrink-0">
+          <nav className="hidden xl:flex items-center gap-5 ml-10 mr-8 shrink-0">
             {navLinks.map((link) => (
               <Link
                 key={link.name}
