@@ -22,6 +22,57 @@ const TooltipIcon = ({ text }: { text: string }) => (
   </div>
 );
 
+type ImageSlot = "home" | "featured" | "detail";
+interface ImageValue {
+  file: File | null;      // arquivo novo escolhido agora
+  preview: string | null; // o que aparece na prévia (novo ou o que já estava salvo)
+  changed: boolean;       // trocou ou removeu nesta edição
+}
+const emptyImage: ImageValue = { file: null, preview: null, changed: false };
+
+// Campo de upload com miniatura: cada tela (Home, Destaque, Sorteio) tem a sua imagem
+const ImageField = ({ label, tooltip, value, onPick, onClear }: {
+  label: string;
+  tooltip: string;
+  value: ImageValue;
+  onPick: (file: File) => void;
+  onClear: () => void;
+}) => (
+  <div className="space-y-2 animate-fade-in">
+    <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
+      {label}
+      <TooltipIcon text={tooltip} />
+    </label>
+    <div className="relative w-full border-2 border-dashed border-gray-700 hover:border-purple-500 rounded-xl bg-[#0a0a0b] transition-colors overflow-hidden">
+      <input
+        type="file"
+        accept="image/*"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) onPick(f); e.target.value = ""; }}
+        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+      />
+      {value.preview ? (
+        <div className="flex items-center gap-4 p-3">
+          <img src={value.preview} alt="" className="w-20 h-20 rounded-lg object-cover border border-gray-800" />
+          <div className="min-w-0 flex-1">
+            <p className="text-white text-xs font-bold truncate">{value.file ? value.file.name : "Imagem atual"}</p>
+            <p className="text-gray-500 text-[10px] uppercase tracking-widest mt-1">Clique para trocar</p>
+          </div>
+        </div>
+      ) : (
+        <div className="p-8 flex flex-col items-center justify-center">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500 mb-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+          <span className="text-gray-400 font-bold text-xs uppercase tracking-widest">Escolher imagem</span>
+        </div>
+      )}
+    </div>
+    {value.preview && (
+      <button type="button" onClick={onClear} className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300">
+        Remover imagem
+      </button>
+    )}
+  </div>
+);
+
 // Converte uma data ISO para o formato do <input type="datetime-local"> no fuso local.
 const toLocalInputValue = (iso: string) => {
   const d = new Date(iso);
@@ -76,11 +127,16 @@ export default function AdminDashboard() {
   const [newShippingText, setNewShippingText] = useState("");
   const [newPrizeValue, setNewPrizeValue] = useState("");
   const [newDrawDate, setNewDrawDate] = useState("");
-  const [newImage, setNewImage] = useState<File | null>(null);
-  const [newDetailImage, setNewDetailImage] = useState<File | null>(null);
   const [newLoginText, setNewLoginText] = useState("");
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
-  const [previewDetailImage, setPreviewDetailImage] = useState<string | null>(null);
+  const [images, setImages] = useState<Record<ImageSlot, ImageValue>>({ home: emptyImage, featured: emptyImage, detail: emptyImage });
+
+  const pickImage = (slot: ImageSlot, file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => setImages((prev) => ({ ...prev, [slot]: { file, preview: e.target?.result as string, changed: true } }));
+    reader.readAsDataURL(file);
+  };
+  const clearImage = (slot: ImageSlot) =>
+    setImages((prev) => ({ ...prev, [slot]: { file: null, preview: null, changed: true } }));
 
   const [editingGiveaway, setEditingGiveaway] = useState<string | null>(null);
 
@@ -240,7 +296,7 @@ export default function AdminDashboard() {
 
   const handleEditGiveaway = async (giveaway: any) => {
     // As imagens são pesadas, então só são buscadas ao editar
-    const { data: imgData } = await supabase.from("giveaways").select("image_url, detail_image_url").eq("id", giveaway.id).single();
+    const { data: imgData } = await supabase.from("giveaways").select("*").eq("id", giveaway.id).single();
 
     setNewTitle(giveaway.title);
     setNewDesc(giveaway.description || "");
@@ -253,10 +309,11 @@ export default function AdminDashboard() {
     setNewPrizeValue(giveaway.prize_value || "");
     setNewDrawDate(giveaway.draw_date ? toLocalInputValue(giveaway.draw_date) : "");
     setNewLoginText(giveaway.login_text || "");
-    setNewImage(null);
-    setNewDetailImage(null);
-    setPreviewImage(imgData?.image_url || null);
-    setPreviewDetailImage(imgData?.detail_image_url || null);
+    setImages({
+      home: { file: null, preview: imgData?.image_url || null, changed: false },
+      featured: { file: null, preview: imgData?.featured_image_url || null, changed: false },
+      detail: { file: null, preview: imgData?.detail_image_url || null, changed: false },
+    });
     setEditingGiveaway(giveaway.id);
     setIsCreateModalOpen(true);
   };
@@ -273,10 +330,8 @@ export default function AdminDashboard() {
     setNewPrizeValue("");
     setNewDrawDate("");
     setNewLoginText("");
-    setNewImage(null);
-    setNewDetailImage(null);
-    setPreviewImage(null);
-    setPreviewDetailImage(null);
+    setImages({ home: emptyImage, featured: emptyImage, detail: emptyImage });
+    setPreviewMode("home");
     setEditingGiveaway(null);
     setIsCreateModalOpen(true);
   };
@@ -300,8 +355,13 @@ export default function AdminDashboard() {
         draw_date: newDrawDate ? new Date(newDrawDate).toISOString() : null,
         login_text: newLoginText,
       };
-      if (newImage) fields.image_url = await compressImage(newImage);
-      if (newDetailImage) fields.detail_image_url = await compressImage(newDetailImage);
+      // Só envia a imagem que foi trocada ou removida nesta edição
+      const columns: Record<ImageSlot, string> = { home: "image_url", featured: "featured_image_url", detail: "detail_image_url" };
+      for (const slot of Object.keys(columns) as ImageSlot[]) {
+        const img = images[slot];
+        if (!img.changed) continue;
+        fields[columns[slot]] = img.file ? await compressImage(img.file) : null;
+      }
       if (!editingGiveaway) {
         fields.type = "monthly";
         fields.status = "active";
@@ -834,7 +894,16 @@ export default function AdminDashboard() {
                     Preenchendo: {previewMode === "home" ? "Card da Home" : previewMode === "destaque" ? "Popup de Destaque" : "Página do Sorteio"}
                   </h3>
 
-                  {(previewMode === "home" || previewMode === "destaque") && (
+                  {/* Linha fina aparece nas três telas */}
+                  <div className="space-y-2 animate-fade-in">
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
+                      Linha Fina (Subtítulo)
+                      <TooltipIcon text="Aparece nas três telas: balão no card da Home, linha com 🔥 no Destaque e faixa no topo da página do sorteio. Ex: FACTORY-NEW." />
+                    </label>
+                    <input type="text" value={newSubtitle} onChange={(e) => setNewSubtitle(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: FACTORY-NEW" />
+                  </div>
+
+                  {previewMode === "home" && (
                   <>
                       <div className="space-y-2 animate-fade-in">
                         <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
@@ -844,14 +913,7 @@ export default function AdminDashboard() {
                         <input type="text" value={newHighlight} onChange={(e) => setNewHighlight(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: CSGO-SKINS" />
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4 animate-fade-in">
-                        <div className="space-y-2">
-                          <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
-                            Linha Fina (Subtítulo)
-                              <TooltipIcon text="Opcional. Outro balão colorido ao lado do destaque, ex: FACTORY-NEW." />
-                          </label>
-                          <input type="text" value={newSubtitle} onChange={(e) => setNewSubtitle(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: FACTORY-NEW" />
-                        </div>
+                      <div className="animate-fade-in">
                         <div className="space-y-2">
                           <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
                             Texto da Entrada
@@ -861,26 +923,13 @@ export default function AdminDashboard() {
                         </div>
                       </div>
 
-                      <div className="space-y-2 animate-fade-in">
-                        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
-                          Imagem (Capa / Home)
-                            <TooltipIcon text="Imagem principal do prêmio para os cards da tela inicial." />
-                        </label>
-                        <label className="w-full border-2 border-dashed border-gray-700 hover:border-purple-500 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition-colors bg-[#0a0a0b] relative">
-                          <input type="file" onChange={(e) => {
-                            if (e.target.files) {
-                              setNewImage(e.target.files[0]);
-                              const reader = new FileReader();
-                              reader.onload = (e) => setPreviewImage(e.target?.result as string);
-                              reader.readAsDataURL(e.target.files[0]);
-                            }
-                          }} accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500 mb-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                          <span className="text-gray-400 font-bold text-xs uppercase tracking-widest text-center truncate px-2 w-full">
-                            {newImage ? newImage.name : "Imagem da Capa"}
-                          </span>
-                        </label>
-                      </div>
+                      <ImageField
+                        label="Imagem (Card da Home)"
+                        tooltip="Imagem do card na lista de sorteios da página inicial."
+                        value={images.home}
+                        onPick={(file) => pickImage("home", file)}
+                        onClear={() => clearImage("home")}
+                      />
                   </>
                   )}
 
@@ -914,26 +963,25 @@ export default function AdminDashboard() {
                         <input type="text" value={newLoginText} onChange={(e) => setNewLoginText(e.target.value)} className="w-full bg-[#0a0a0b] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Ex: Entrada Gratuita . Login com a Twitch" />
                       </div>
 
-                      <div className="space-y-2 animate-fade-in">
-                        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
-                          Imagem (Página Sorteio)
-                            <TooltipIcon text="Imagem grande/fundo para a aba do sorteio." />
-                        </label>
-                        <label className="w-full border-2 border-dashed border-gray-700 hover:border-purple-500 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition-colors bg-[#0a0a0b] relative">
-                          <input type="file" onChange={(e) => {
-                            if (e.target.files) {
-                              setNewDetailImage(e.target.files[0]);
-                              const reader = new FileReader();
-                              reader.onload = (e) => setPreviewDetailImage(e.target?.result as string);
-                              reader.readAsDataURL(e.target.files[0]);
-                            }
-                          }} accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500 mb-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                          <span className="text-gray-400 font-bold text-xs uppercase tracking-widest text-center truncate px-2 w-full">
-                            {newDetailImage ? newDetailImage.name : "Imagem Interna"}
-                          </span>
-                        </label>
-                      </div>
+                      {previewMode === "destaque" ? (
+                        <ImageField
+                          key="featured"
+                          label="Imagem (Popup de Destaque)"
+                          tooltip="Imagem do popup que abre na Home quando o sorteio está em destaque. Sem ela, o site usa a imagem da Home."
+                          value={images.featured}
+                          onPick={(file) => pickImage("featured", file)}
+                          onClear={() => clearImage("featured")}
+                        />
+                      ) : (
+                        <ImageField
+                          key="detail"
+                          label="Imagem (Página do Sorteio)"
+                          tooltip="Imagem grande da página do sorteio. Sem ela, o site usa a imagem da Home."
+                          value={images.detail}
+                          onPick={(file) => pickImage("detail", file)}
+                          onClear={() => clearImage("detail")}
+                        />
+                      )}
                     </>
                   )}
                 </div>
@@ -999,8 +1047,8 @@ export default function AdminDashboard() {
                     )}
                   </div>
                   <div className="absolute inset-0 flex items-center justify-center z-0">
-                    {previewImage ? (
-                      <img src={previewImage} alt="Preview" className="w-full h-full object-cover filter transition-transform duration-500 opacity-90" />
+                    {images.home.preview ? (
+                      <img src={images.home.preview} alt="Preview" className="w-full h-full object-cover filter transition-transform duration-500 opacity-90" />
                     ) : (
                       <Gift className="w-16 h-16 text-gray-700" />
                     )}
@@ -1036,12 +1084,13 @@ export default function AdminDashboard() {
                 /* O Card Simulado do Anúncio Destaque (Popup Vertical) */
                 <div className="w-full max-w-[320px] rounded-[24px] overflow-hidden bg-[#101010] flex flex-col relative border border-purple-500/50 mx-auto shadow-2xl">
                   <div className="relative h-[220px] w-full bg-black">
-                    {previewDetailImage || previewImage ? (
-                      <img src={(previewDetailImage || previewImage) as string} alt="Preview" className="w-full h-full object-cover" />
+                    {images.featured.preview ? (
+                      <img src={images.featured.preview} alt="Preview" className="w-full h-full object-cover" />
                     ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center text-gray-700 bg-black/50">
-                        <Gift className="w-12 h-12 mb-2" />
-                        <span className="text-[10px] font-bold uppercase tracking-widest">Sem Imagem</span>
+                      <div className="w-full h-full flex flex-col items-center justify-center gap-1 text-gray-700 bg-black/50">
+                        <Gift className="w-12 h-12" />
+                        <span className="text-[10px] font-bold uppercase tracking-widest">Sem imagem</span>
+                        <span className="text-[9px] text-gray-600 normal-case tracking-normal">No site, usa a imagem da Home</span>
                       </div>
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-[#101010] via-black/20 to-transparent z-10" />
@@ -1107,10 +1156,14 @@ export default function AdminDashboard() {
                   {/* Bloco 2: Imagem do Prêmio */}
                   <div className="overflow-hidden border-t border-b border-white/5">
                     <div className="relative h-[250px] w-full bg-black">
-                      {previewDetailImage || previewImage ? (
-                        <img src={(previewDetailImage || previewImage) as string} alt="Preview" className="w-full h-full object-cover" />
+                      {images.detail.preview ? (
+                        <img src={images.detail.preview} alt="Preview" className="w-full h-full object-cover" />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-700"><Gift className="w-12 h-12" /></div>
+                        <div className="w-full h-full flex flex-col items-center justify-center gap-1 text-gray-700 bg-black/50">
+                        <Gift className="w-12 h-12" />
+                        <span className="text-[10px] font-bold uppercase tracking-widest">Sem imagem</span>
+                        <span className="text-[9px] text-gray-600 normal-case tracking-normal">No site, usa a imagem da Home</span>
+                      </div>
                       )}
                       <div className="absolute inset-0 bg-gradient-to-t from-[#101010] via-black/20 to-transparent z-10" />
 

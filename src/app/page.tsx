@@ -155,8 +155,8 @@ export default function Home() {
 
             {/* Top Image Area */}
             <div className="relative h-[300px] sm:h-[380px] w-full bg-black">
-              {featuredGiveaway.detail_image_url || featuredGiveaway.image_url ? (
-                <img src={featuredGiveaway.detail_image_url || featuredGiveaway.image_url} alt={featuredGiveaway.title} className="w-full h-full object-cover" />
+              {featuredGiveaway.featured_image_url || featuredGiveaway.image_url ? (
+                <img src={featuredGiveaway.featured_image_url || featuredGiveaway.image_url} alt={featuredGiveaway.title} className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-gray-700"><Gift className="w-20 h-20" /></div>
               )}

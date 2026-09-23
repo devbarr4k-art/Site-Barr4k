@@ -7,7 +7,7 @@ import { chancesFor } from "@/lib/daily";
 const GIVEAWAY_FIELDS = [
   "title", "description", "highlight_text", "highlight_color", "coins_cost", "subtitle",
   "prize_label", "shipping_text", "prize_value", "draw_date", "login_text", "image_url",
-  "detail_image_url", "type", "status", "is_daily_highlight", "response_seconds",
+  "featured_image_url", "detail_image_url", "type", "status", "is_daily_highlight", "response_seconds",
   "capture_open", "bot_command", "twitch_channel", "chance_t1", "chance_t2", "chance_t3",
 ] as const;
 

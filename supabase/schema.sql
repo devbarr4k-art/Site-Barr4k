@@ -28,6 +28,7 @@ create table public.giveaways (
   login_text         text,                        -- texto abaixo do botão QUERO PARTICIPAR
   coins_cost         integer not null default 0 check (coins_cost >= 0),
   image_url          text,                        -- imagem da capa (base64 webp)
+  featured_image_url text,                        -- imagem do popup de destaque (base64 webp)
   detail_image_url   text,                        -- imagem da página do sorteio (base64 webp)
   draw_date          timestamptz,                 -- encerramento / cronômetro
   type               text not null default 'monthly' check (type in ('monthly', 'featured', 'daily')),
