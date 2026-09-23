@@ -85,13 +85,13 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [command, setCommand] = useState("!sorteio");
   const [channel, setChannel] = useState(defaultChannel);
-  const [responseSeconds, setResponseSeconds] = useState<number | "">(60);
-  const [chanceT1, setChanceT1] = useState<number | "">(2);
-  const [chanceT2, setChanceT2] = useState<number | "">(3);
-  const [chanceT3, setChanceT3] = useState<number | "">(5);
+  const [responseSeconds, setResponseSeconds] = useState<number | "">(30);
+  const [chanceT1, setChanceT1] = useState<number | "">(4);
+  const [chanceT2, setChanceT2] = useState<number | "">(6);
+  const [chanceT3, setChanceT3] = useState<number | "">(10);
   // Ajustes editáveis durante a live (espelham o sorteio aberto)
   const [liveSettings, setLiveSettings] = useState<Record<"response_seconds" | "chance_t1" | "chance_t2" | "chance_t3", number | "">>({
-    response_seconds: 60, chance_t1: 2, chance_t2: 3, chance_t3: 5,
+    response_seconds: 30, chance_t1: 4, chance_t2: 6, chance_t3: 10,
   });
 
   // Roleta e resultado

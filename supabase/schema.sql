@@ -34,13 +34,13 @@ create table public.giveaways (
   type               text not null default 'monthly' check (type in ('monthly', 'featured', 'daily')),
   status             text not null default 'active' check (status in ('active', 'completed')),
   is_daily_highlight boolean not null default false, -- sorteio que o bot da live está captando
-  response_seconds   integer not null default 60 check (response_seconds > 0), -- tempo p/ o vencedor do diário responder
+  response_seconds   integer not null default 30 check (response_seconds > 0), -- tempo p/ o vencedor do diário responder
   capture_open       boolean not null default false, -- captação do chat aberta (diário)
   bot_command        text,                           -- ex: !sorteio
   twitch_channel     text,                           -- canal que o bot lê
-  chance_t1          integer not null default 2 check (chance_t1 >= 1), -- chances de sub tier 1
-  chance_t2          integer not null default 3 check (chance_t2 >= 1),
-  chance_t3          integer not null default 5 check (chance_t3 >= 1),
+  chance_t1          integer not null default 4 check (chance_t1 >= 1), -- chances de sub tier 1
+  chance_t2          integer not null default 6 check (chance_t2 >= 1),
+  chance_t3          integer not null default 10 check (chance_t3 >= 1),
   created_at         timestamptz not null default now()
 );
 
