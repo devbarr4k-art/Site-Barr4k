@@ -59,7 +59,6 @@ export default function SkinsPage() {
             <FaSteam className="w-6 h-6" /> Perfil da Steam
           </a>
         </div>
-        <p className="mt-4 text-sm text-gray-500 font-medium">WhatsApp: +55 11 99123-8144</p>
 
         {/* Como funciona */}
         <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
