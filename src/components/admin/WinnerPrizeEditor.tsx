@@ -45,7 +45,7 @@ export default function WinnerPrizeEditor({ winner, onChange }: {
   return (
     <div className="flex items-center gap-3">
       <label
-        title={winner.image_url ? "Trocar imagem" : "Adicionar imagem"}
+        title={`${winner.image_url ? "Trocar imagem" : "Adicionar imagem"} (tamanho ideal: 1200 × 800 px, a mesma arte do sorteio)`}
         className="relative shrink-0 w-12 h-12 rounded-lg border border-dashed border-purple-500/40 bg-black/40 hover:border-purple-400 cursor-pointer overflow-hidden flex items-center justify-center"
       >
         <input

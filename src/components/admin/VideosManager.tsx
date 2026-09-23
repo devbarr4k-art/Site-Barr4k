@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { adminApi } from "@/lib/adminApi";
 import { uploadGiveawayImage } from "@/lib/image";
 import { useDialog } from "@/components/ui/Dialog";
-import { mostViewed, parseYouTubeId, timeAgo, videoUrl, type Video } from "@/lib/videos";
+import { DEFAULT_VIDEOS_VISIBILITY, mostViewed, parseYouTubeId, timeAgo, videoUrl, VIDEOS_VISIBILITY_KEY, type Video, type VideosVisibility } from "@/lib/videos";
 
 type Kind = "video" | "short";
 type Draft = {
@@ -48,6 +48,7 @@ export default function VideosManager() {
   const dragRef = useRef<string | null>(null);
   useEffect(() => { videosRef.current = videos; }, [videos]);
   const [savingOrder, setSavingOrder] = useState(false);
+  const [visibility, setVisibility] = useState<VideosVisibility>(DEFAULT_VIDEOS_VISIBILITY);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [fetching, setFetching] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -60,6 +61,8 @@ export default function VideosManager() {
       .order("created_at", { ascending: false });
     setMissingTable(!!error);
     setVideos((data as Video[]) ?? []);
+    const { data: setting } = await supabase.from("site_settings").select("value").eq("key", VIDEOS_VISIBILITY_KEY).maybeSingle();
+    setVisibility({ ...DEFAULT_VIDEOS_VISIBILITY, ...(setting?.value ?? {}) });
     setLoading(false);
   };
 
@@ -127,6 +130,19 @@ export default function VideosManager() {
       load();
     }
     setSavingOrder(false);
+  };
+
+  // Liga/desliga uma fileira na home (muda na hora e confirma no servidor)
+  const toggleVisibility = async (kind: Kind) => {
+    const previous = visibility;
+    const next = { ...visibility, [kind]: !visibility[kind] };
+    setVisibility(next);
+    try {
+      await adminApi("setVideosVisibility", next);
+    } catch (err) {
+      setVisibility(previous);
+      dialog.error(err, "Não foi possível mudar");
+    }
   };
 
   const resetOrder = async (kind: Kind) => {
@@ -258,13 +274,28 @@ export default function VideosManager() {
               if (list.length === 0) return null;
               const manual = list.some((v) => v.sort_order != null);
               return (
-                <div key={kind} className="glass-panel rounded-xl border border-gray-800 p-5 space-y-4">
+                <div key={kind} className={`glass-panel rounded-xl border p-5 space-y-4 transition-colors ${visibility[kind] ? "border-gray-800" : "border-gray-800/60"}`}>
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div>
+                    <div className="flex items-start gap-4">
+                      {/* Interruptor: mostra ou esconde esta fileira na home */}
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={visibility[kind]}
+                        onClick={() => toggleVisibility(kind)}
+                        title={visibility[kind] ? "Aparece na home. Clique para esconder." : "Escondido da home. Clique para mostrar."}
+                        className={`relative mt-1 w-12 h-7 shrink-0 rounded-full border transition-colors ${visibility[kind] ? "bg-purple-600 border-purple-400" : "bg-gray-800 border-gray-700"}`}
+                      >
+                        <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${visibility[kind] ? "left-6" : "left-0.5"}`} />
+                      </button>
+                      <div>
                       <h2 className="font-title text-xl text-white">{kind === "video" ? "Vídeos" : "Shorts"} <span className="text-gray-500 text-sm">({list.length})</span></h2>
                       <p className="text-xs text-gray-500">
-                        Prévia da home, nesta ordem. Arraste os cards para mudar (no celular, segure o ícone ⋮⋮ do card). {manual ? "Ordem escolhida por você." : "Ordem automática: mais visto primeiro."}
+                        {visibility[kind]
+                          ? <>Aparece na home, nesta ordem. Arraste os cards para mudar (no celular, segure o ícone ⋮⋮ do card). {manual ? "Ordem escolhida por você." : "Ordem automática: mais visto primeiro."}</>
+                          : <span className="text-yellow-400/90 font-bold">Desligado: esta fileira não aparece na home.</span>}
                       </p>
+                      </div>
                     </div>
                     {manual && (
                       <button onClick={() => resetOrder(kind)} disabled={savingOrder}
@@ -273,7 +304,7 @@ export default function VideosManager() {
                       </button>
                     )}
                   </div>
-                  <div className={`grid gap-4 ${kind === "video" ? "grid-cols-1 sm:grid-cols-2 xl:grid-cols-4" : "grid-cols-2 sm:grid-cols-3 xl:grid-cols-6"}`}>
+                  <div className={`grid gap-4 transition-opacity ${visibility[kind] ? "" : "opacity-40"} ${kind === "video" ? "grid-cols-1 sm:grid-cols-2 xl:grid-cols-4" : "grid-cols-2 sm:grid-cols-3 xl:grid-cols-6"}`}>
                     {list.map((v, i) => (
                       <div
                         key={v.id}

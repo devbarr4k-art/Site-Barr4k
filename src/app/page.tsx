@@ -11,7 +11,7 @@ import { avatarFor } from "@/lib/daily";
 import { dataVersionQuery, useRefreshOnReturn } from "@/lib/freshData";
 import { DEFAULT_PARTNERS, type Partner } from "@/lib/partners";
 import VideosSection from "@/components/home/VideosSection";
-import type { Video } from "@/lib/videos";
+import { DEFAULT_VIDEOS_VISIBILITY, type Video, type VideosVisibility } from "@/lib/videos";
 
 const useCountdown = (targetDateString: string | null) => {
   const [timeLeft, setTimeLeft] = useState({
@@ -59,6 +59,7 @@ export default function Home() {
   const [winners, setWinners] = useState<any[]>([]);
   const [partners, setPartners] = useState<Partner[]>(DEFAULT_PARTNERS);
   const [videos, setVideos] = useState<Video[]>([]);
+  const [videosVisibility, setVideosVisibility] = useState<VideosVisibility>(DEFAULT_VIDEOS_VISIBILITY);
   const rawGiveaways = useRef<any[]>([]);
 
   const timeLeft = useCountdown(featuredGiveaway?.draw_date || null);
@@ -87,6 +88,7 @@ export default function Home() {
         hall = json.winners;
         if (Array.isArray(json.partners)) setPartners(json.partners);
         if (Array.isArray(json.videos)) setVideos(json.videos);
+        if (json.videosVisibility) setVideosVisibility(json.videosVisibility);
       }
     } catch {
       // cai para a reserva abaixo
@@ -451,8 +453,9 @@ export default function Home() {
           ) : winners.length > 0 ? (
             <div className="flex overflow-x-auto gap-6 pb-6 snap-x snap-mandatory custom-scrollbar">
               {winners.map((winner, i) => (
-                <div key={winner.id ?? i} className="min-w-[280px] md:min-w-[320px] snap-center shrink-0 glass-panel rounded-xl overflow-hidden group hover:border-purple-500/50 transition-all hover:-translate-y-2 animated-border-card p-1">
-                  <div className="h-48 bg-black/60 rounded-t-lg flex items-center justify-center border-b border-gray-800 relative overflow-hidden">
+                <div key={winner.id ?? i} className="w-[280px] md:w-[320px] snap-center shrink-0 glass-panel rounded-xl overflow-hidden group hover:border-purple-500/50 transition-all hover:-translate-y-2 animated-border-card p-1">
+                  {/* Mesmo formato dos sorteios (3:2, 1200 × 800): a arte do sorteio serve aqui sem corte */}
+                  <div className="aspect-[3/2] bg-black/60 rounded-t-lg flex items-center justify-center border-b border-gray-800 relative overflow-hidden">
                     <div className="absolute inset-0 bg-gradient-to-b from-purple-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                     {winner.image_url || winner.giveaways?.image_url ? (
                       <img src={winner.image_url || winner.giveaways.image_url} alt={winner.prize} className="w-full h-full object-cover relative z-10" />
@@ -463,11 +466,20 @@ export default function Home() {
                   <div className="p-5">
                     <h3 className="font-bold text-white mb-1 truncate">{winner.prize}</h3>
                     <div className="flex items-center gap-3 mt-4">
-                      <img src={avatarFor(winner.twitch_username, winner.avatar_url)} alt="" className="w-9 h-9 rounded-full object-cover border border-purple-500/50" />
-                      <div>
+                      <img src={avatarFor(winner.twitch_username, winner.avatar_url)} alt="" className="w-9 h-9 rounded-full object-cover border border-purple-500/50 shrink-0" />
+                      <div className="min-w-0 flex-1">
                         <p className="text-xs text-gray-500 uppercase font-bold tracking-wider">Vencedor</p>
-                        <p className="text-purple-400 font-medium text-sm">@{winner.twitch_username}</p>
+                        <p className="text-purple-400 font-medium text-sm truncate">@{winner.twitch_username}</p>
                       </div>
+                      {winner.won_at && (
+                        <div className="text-right shrink-0">
+                          <p className="text-xs text-gray-500 uppercase font-bold tracking-wider">Sorteio</p>
+                          <p className="text-gray-300 font-medium text-sm flex items-center gap-1 justify-end">
+                            <Clock className="w-3.5 h-3.5 text-purple-400" />
+                            {new Date(winner.won_at).toLocaleDateString("pt-BR")}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -503,7 +515,7 @@ export default function Home() {
       </section>
 
       {/* Vídeos do YouTube (depois do Hall da Fama) */}
-      <VideosSection videos={videos} />
+      <VideosSection videos={videos} visibility={videosVisibility} />
 
       {/* Parceiros Section */}
       <section id="parceiros" className="py-20 bg-black border-t border-white/5 relative">

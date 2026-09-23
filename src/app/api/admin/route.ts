@@ -6,7 +6,7 @@ import { addChatEntry } from "@/lib/dailyEntry";
 import { chancesFor } from "@/lib/daily";
 import { removeProofs, signProofs } from "@/lib/proofs";
 import { isValidEmail, normalizeWhatsapp } from "@/lib/siteUsers";
-import { isShortsLink, parseYouTubeId } from "@/lib/videos";
+import { isShortsLink, parseYouTubeId, VIDEOS_VISIBILITY_KEY } from "@/lib/videos";
 import { serverCaptureStatus, startServerCapture, stopServerCapture } from "@/lib/eventsub";
 
 const GIVEAWAY_FIELDS = [
@@ -27,6 +27,7 @@ const PARTICIPANT_FIELDS = ["status", "twitch_username", "coins_used", "sub_tier
 
 const MISSING_TABLE = "Falta rodar o SQL supabase/migracao-usuarios-e-parceiros.sql no Supabase.";
 const MISSING_VIDEOS_ORDER = "Para salvar a ordem, rode no Supabase: alter table public.videos add column if not exists sort_order integer;";
+const MISSING_SETTINGS_TABLE = "Falta rodar o SQL supabase/migracao-configuracoes.sql no Supabase.";
 const MISSING_VIDEOS_TABLE = "Falta rodar o SQL supabase/migracao-videos.sql no Supabase.";
 
 function pick(source: any, fields: readonly string[]) {
@@ -569,6 +570,15 @@ export async function POST(request: Request) {
       const failed = results.find((r) => r.error)?.error;
       if (failed) return fail(/sort_order/.test(failed.message) ? MISSING_VIDEOS_ORDER : failed.message, 500);
       return Response.json({ ok: true });
+    }
+
+    case "setVideosVisibility": {
+      const value = { video: body.video !== false, short: body.short !== false };
+      const { error } = await db
+        .from("site_settings")
+        .upsert({ key: VIDEOS_VISIBILITY_KEY, value, updated_at: new Date().toISOString() }, { onConflict: "key" });
+      if (error) return fail(/site_settings|schema cache|does not exist/i.test(error.message) ? MISSING_SETTINGS_TABLE : error.message, 500);
+      return Response.json({ ok: true, value });
     }
 
     case "deleteVideo": {

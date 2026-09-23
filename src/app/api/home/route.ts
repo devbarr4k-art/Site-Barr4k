@@ -1,11 +1,12 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { DEFAULT_PARTNERS } from "@/lib/partners";
+import { DEFAULT_VIDEOS_VISIBILITY, VIDEOS_VISIBILITY_KEY } from "@/lib/videos";
 
 // Dados da home servidos pelo cache da Vercel: o visitante recebe na hora a última
 // versão boa e a atualização acontece por trás (stale-while-revalidate). Se o banco
 // travar, ninguém fica preso no "carregando".
 export async function GET() {
-  const [giveaways, winners, partners, videos] = await Promise.all([
+  const [giveaways, winners, partners, videos, visibility] = await Promise.all([
     supabaseAdmin
       .from("giveaways")
       .select(
@@ -27,6 +28,7 @@ export async function GET() {
       .order("published_at", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(60),
+    supabaseAdmin.from("site_settings").select("value").eq("key", VIDEOS_VISIBILITY_KEY).maybeSingle(),
   ]);
 
   if (giveaways.error || winners.error) {
@@ -41,6 +43,8 @@ export async function GET() {
       partners: partners.error ? DEFAULT_PARTNERS : partners.data ?? [],
       // Sem a tabela de vídeos ainda: a seção simplesmente não aparece
       videos: videos.error ? [] : videos.data ?? [],
+      // Liga/desliga de Vídeos e Shorts do painel (sem a tabela ou sem configuração: os dois ligados)
+      videosVisibility: { ...DEFAULT_VIDEOS_VISIBILITY, ...(visibility.error ? {} : visibility.data?.value ?? {}) },
     },
     {
       headers: {

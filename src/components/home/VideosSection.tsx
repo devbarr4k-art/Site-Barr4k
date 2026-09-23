@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowRight, Clock, Eye, Play } from "lucide-react";
-import { HOME_LIMITS, mostViewed, timeAgo, videoUrl, YOUTUBE_CHANNEL, type Video } from "@/lib/videos";
+import { DEFAULT_VIDEOS_VISIBILITY, HOME_LIMITS, mostViewed, timeAgo, videoUrl, YOUTUBE_CHANNEL, type Video, type VideosVisibility } from "@/lib/videos";
 import VideoCarousel from "@/components/home/VideoCarousel";
 
 // Se a capa grande (maxres/oar2) sumir no YouTube, cai para a padrão, que sempre existe
@@ -25,9 +25,10 @@ function RowHeader({ title, href }: { title: string; href: string }) {
 }
 
 // "Vídeos Mais Acessados": os vídeos e Shorts com mais visualizações entre os cadastrados no painel (aba Vídeos)
-export default function VideosSection({ videos }: { videos: Video[] }) {
-  const longs = mostViewed(videos, "video", HOME_LIMITS.video);
-  const shorts = mostViewed(videos, "short", HOME_LIMITS.short);
+export default function VideosSection({ videos, visibility = DEFAULT_VIDEOS_VISIBILITY }: { videos: Video[]; visibility?: VideosVisibility }) {
+  // Fileira desligada no painel some da home
+  const longs = visibility.video ? mostViewed(videos, "video", HOME_LIMITS.video) : [];
+  const shorts = visibility.short ? mostViewed(videos, "short", HOME_LIMITS.short) : [];
   if (longs.length === 0 && shorts.length === 0) return null;
 
   return (

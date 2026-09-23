@@ -86,6 +86,7 @@ export default function AddWinnerModal({ onClose, onAdded }: {
 
         <div className="space-y-2">
           <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Foto do prêmio (opcional)</label>
+          <p className="text-[11px] text-gray-500">Tamanho ideal: <span className="text-purple-400 font-bold not-italic">1200 × 800 px</span> (a mesma arte do sorteio serve).</p>
           <label className="relative flex items-center gap-4 p-3 border-2 border-dashed border-gray-700 hover:border-purple-500 rounded-xl bg-[#0a0a0b] cursor-pointer transition-colors">
             <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer"
               onChange={(e) => { const f = e.target.files?.[0]; if (f) pickImage(f); e.target.value = ""; }} />

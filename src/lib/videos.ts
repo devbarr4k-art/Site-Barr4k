@@ -73,3 +73,8 @@ export function mostViewed(videos: Video[], kind: Video["kind"], limit: number):
 
 /** Quantos entram no carrossel da home (os mais vistos de cada tipo). */
 export const HOME_LIMITS = { video: 20, short: 30 } as const;
+
+/** Quais fileiras aparecem na home (liga/desliga no painel). Sem configuração salva: as duas. */
+export type VideosVisibility = { video: boolean; short: boolean };
+export const DEFAULT_VIDEOS_VISIBILITY: VideosVisibility = { video: true, short: true };
+export const VIDEOS_VISIBILITY_KEY = "videos_visibility";
