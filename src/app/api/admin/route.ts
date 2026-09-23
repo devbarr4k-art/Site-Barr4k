@@ -1,8 +1,9 @@
 import { getSessionUsername } from "@/lib/auth";
 import { isAdmin } from "@/lib/admins";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { fetchTwitchAvatar, fetchTwitchAvatars } from "@/lib/twitch";
-import { chancesFor } from "@/lib/daily";
+import { fetchTwitchAvatars } from "@/lib/twitch";
+import { addChatEntry } from "@/lib/dailyEntry";
+import { serverCaptureStatus, startServerCapture, stopServerCapture } from "@/lib/eventsub";
 
 const GIVEAWAY_FIELDS = [
   "title", "description", "highlight_text", "highlight_color", "coins_cost", "subtitle",
@@ -38,6 +39,26 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const action = body?.action as string | undefined;
   const db = supabaseAdmin;
+  const origin = new URL(request.url).origin;
+
+  // Desliga a escuta do chat pelo servidor quando um sorteio diário fecha, mas só se
+  // não houver outro sorteio captando no mesmo canal (ex.: excluir ganhador antigo durante a live)
+  const stopCaptureIfIdle = async (id: string | null) => {
+    if (!id) return;
+    const { data } = await db.from("giveaways").select("type, twitch_channel").eq("id", id).maybeSingle();
+    if (data?.type !== "daily" || !data.twitch_channel) return;
+    const { data: other } = await db
+      .from("giveaways")
+      .select("id")
+      .eq("type", "daily")
+      .eq("status", "active")
+      .eq("capture_open", true)
+      .eq("twitch_channel", data.twitch_channel)
+      .neq("id", id)
+      .limit(1)
+      .maybeSingle();
+    if (!other) await stopServerCapture(data.twitch_channel);
+  };
 
   switch (action) {
     case "listParticipants": {
@@ -97,6 +118,7 @@ export async function POST(request: Request) {
     }
 
     case "deleteGiveaway": {
+      await stopCaptureIfIdle(body.id);
       const { error } = await db.from("giveaways").delete().eq("id", body.id);
       if (error) return fail(error.message, 500);
       return Response.json({ ok: true });
@@ -121,6 +143,7 @@ export async function POST(request: Request) {
     }
 
     case "completeGiveaway": {
+      await stopCaptureIfIdle(body.id);
       const { error } = await db
         .from("giveaways")
         .update({ status: "completed", is_daily_highlight: false, capture_open: false })
@@ -216,6 +239,7 @@ export async function POST(request: Request) {
         if (reopenError) return fail(reopenError.message, 500);
       } else if (winner.giveaway_id) {
         // Sorteio diário sem ganhador não fica guardado: apaga ele e a lista de participantes
+        await stopCaptureIfIdle(winner.giveaway_id);
         await db.from("giveaways").delete().eq("id", winner.giveaway_id).eq("type", "daily");
       }
       return Response.json({ ok: true, reopened: !!(body.reopen && winner.giveaway_id) });
@@ -259,54 +283,43 @@ export async function POST(request: Request) {
         .select(DAILY_COLUMNS)
         .single();
       if (error) return fail(error.message, 500);
-      return Response.json({ data });
+      // Liga a escuta do chat pelo servidor (segue captando com o painel fechado)
+      const serverCapture = data.twitch_channel ? await startServerCapture(data.twitch_channel, origin) : "error";
+      return Response.json({ data, serverCapture });
     }
 
     case "updateDaily": {
       const fields = pick(body.fields, DAILY_LIVE_FIELDS);
       const { data, error } = await db.from("giveaways").update(fields).eq("id", body.id).select(DAILY_COLUMNS).single();
       if (error) return fail(error.message, 500);
-      return Response.json({ data });
+      // Pausar/voltar a captação liga e desliga a escuta do chat pelo servidor
+      let serverCapture: string | undefined;
+      if (fields.capture_open === true && data.twitch_channel) {
+        serverCapture = await startServerCapture(data.twitch_channel, origin);
+      } else if (fields.capture_open === false) {
+        await stopServerCapture(data.twitch_channel);
+        serverCapture = "off";
+      }
+      return Response.json({ data, serverCapture });
+    }
+
+    case "serverCapture": {
+      // Situação da captação pelo servidor; com retry=true tenta ligar de novo
+      const { data: daily } = await db.from("giveaways").select(DAILY_COLUMNS).eq("id", body.id).maybeSingle();
+      if (!daily?.twitch_channel) return Response.json({ status: "off" });
+      if (body.retry && daily.capture_open) {
+        return Response.json({ status: await startServerCapture(daily.twitch_channel, origin) });
+      }
+      return Response.json({ status: await serverCaptureStatus(daily.twitch_channel) });
     }
 
     case "chatEntry": {
-      // Entrada vinda do chat da Twitch (!comando) no sorteio da live
-      const chatUser = String(body.username || "").toLowerCase();
-      const tier = [0, 1, 2, 3].includes(Number(body.tier)) ? Number(body.tier) : 0;
+      // Entrada vinda do chat da Twitch (!comando), lida pelo painel aberto
+      const chatUser = String(body.username || "");
       if (!chatUser) return fail("Usuário inválido.");
-
-      const { data: daily } = await db
-        .from("giveaways")
-        .select("id, status, capture_open, chance_t1, chance_t2, chance_t3")
-        .eq("id", body.giveawayId)
-        .maybeSingle();
-      if (!daily || daily.status !== "active") return Response.json({ ok: false, reason: "no-daily" });
-      if (!daily.capture_open) return Response.json({ ok: false, reason: "closed" });
-
-      const { data: existing } = await db
-        .from("participants")
-        .select("id")
-        .eq("giveaway_id", daily.id)
-        .eq("twitch_username", chatUser)
-        .maybeSingle();
-      if (existing) return Response.json({ ok: true, duplicate: true });
-
-      const { data, error } = await db
-        .from("participants")
-        .insert({
-          giveaway_id: daily.id,
-          twitch_username: chatUser,
-          sub_tier: tier,
-          coins_used: chancesFor(tier, daily),
-          avatar_url: await fetchTwitchAvatar(chatUser),
-          status: "approved",
-        })
-        .select()
-        .single();
-      // 23505 = violou o unique (giveaway_id, twitch_username): já estava inscrito
-      if (error?.code === "23505") return Response.json({ ok: true, duplicate: true });
-      if (error) return fail(error.message, 500);
-      return Response.json({ ok: true, data });
+      const result = await addChatEntry(String(body.giveawayId || ""), chatUser, Number(body.tier) || 0);
+      if (!result.ok && result.reason === "error") return fail(result.message || "Erro ao registrar entrada.", 500);
+      return Response.json(result);
     }
 
     case "finishDaily": {
@@ -326,6 +339,7 @@ export async function POST(request: Request) {
         prize: daily.title.replace(/\s*\|\s*/g, " "),
       });
       if (error) return fail(error.message, 500);
+      await stopCaptureIfIdle(daily.id);
       await db
         .from("giveaways")
         .update({ status: "completed", capture_open: false, is_daily_highlight: false })

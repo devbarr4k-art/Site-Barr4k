@@ -97,6 +97,12 @@ export default function AdminDashboard() {
 
   const [activeTab, setActiveTab] = useState("sorteios");
 
+  // Abre direto numa aba (?tab=twitch), usado na volta da autorização do chat
+  useEffect(() => {
+    const tab = new URLSearchParams(window.location.search).get("tab");
+    if (tab && ["sorteios", "twitch", "users"].includes(tab)) setActiveTab(tab);
+  }, []);
+
   const [sorteios, setSorteios] = useState<any[]>([]);
   const [participants, setParticipants] = useState<any[]>([]);
   const [participantCounts, setParticipantCounts] = useState<Record<string, number>>({});

@@ -4,13 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import tmi from "tmi.js";
 import {
-  Bot, Clock, Gift, Pause, Play, Radio, Search, Star, Trophy, Upload, User, Users, Volume2, VolumeX, X, CheckCircle2, RotateCcw,
+  Bot, Clock, Gift, Pause, Play, Radio, Search, Star, Trophy, Upload, User, Users, Volume2, VolumeX, X, CheckCircle2, RotateCcw, Cloud, CloudOff,
 } from "lucide-react";
 import { adminApi } from "@/lib/adminApi";
 import { uploadGiveawayImage } from "@/lib/image";
-import { avatarFor, chancesFor } from "@/lib/daily";
+import { avatarFor, chancesFor, isCommand, tierFromBadgeVersion } from "@/lib/daily";
 import DailyHistory from "@/components/admin/DailyHistory";
 import { useDialog } from "@/components/ui/Dialog";
+import { signIn } from "next-auth/react";
 import { useSounds } from "@/lib/useSounds";
 import NumberInput from "@/components/ui/NumberInput";
 
@@ -37,6 +38,8 @@ interface Participant {
 }
 
 type BotStatus = "disconnected" | "connecting" | "connected";
+// Captação pelo servidor (webhook da Twitch): segue funcionando com o painel fechado
+type ServerCapture = "checking" | "on" | "pending" | "off" | "needs_auth" | "unavailable" | "error";
 
 // Roleta: largura do card + espaço entre eles
 const CARD_W = 128;
@@ -45,20 +48,11 @@ const REEL_SIZE = 64;
 const WIN_INDEX = 56;
 const SPIN_MS = 8500;
 
-// Tier do sub pela versão do badge: 3000+ = T3, 2000+ = T2, demais = T1
+// Tier do sub pelo badge do chat (founder conta como sub)
 function getSubTier(tags: tmi.ChatUserstate): number {
   const version = tags.badges?.subscriber ?? tags.badges?.founder;
   if (version === undefined) return tags.subscriber ? 1 : 0;
-  const n = parseInt(version, 10) || 0;
-  return n >= 3000 ? 3 : n >= 2000 ? 2 : 1;
-}
-
-// A primeira palavra da mensagem precisa ser o comando. Remove os caracteres
-// invisíveis que 7TV/Chatterino colam em mensagens repetidas para driblar o
-// filtro de duplicadas da Twitch, e aceita texto depois ("!sorteio boa sorte").
-function isCommand(message: string, command: string): boolean {
-  const clean = message.replace(/[\u{E0000}-\u{E007F}​-‍⁠﻿]/gu, "").trim().toLowerCase();
-  return clean.split(/\s+/)[0] === command.trim().toLowerCase();
+  return tierFromBadgeVersion(version);
 }
 
 function SubBadge({ tier }: { tier: number }) {
@@ -82,6 +76,7 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [search, setSearch] = useState("");
   const [botStatus, setBotStatus] = useState<BotStatus>("disconnected");
+  const [serverCapture, setServerCapture] = useState<ServerCapture>("checking");
   const [busy, setBusy] = useState(false);
 
   // Formulário de configuração
@@ -230,12 +225,38 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
     return () => clearTimeout(t);
   }, [showPopup, timeLeft, winnerReply]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Confere a captação pelo servidor ao abrir a tela e a cada 30s; se a captação está
+  // aberta mas a escuta do servidor caiu (ou acabou de autorizar), tenta ligar de novo
+  useEffect(() => {
+    if (phase !== "live" || !daily?.id) return;
+    const id = daily.id;
+    const check = async (retry: boolean) => {
+      try {
+        const { status } = await adminApi<{ status: ServerCapture }>("serverCapture", { id, retry });
+        setServerCapture(status);
+        return status;
+      } catch {
+        return "error" as ServerCapture;
+      }
+    };
+    check(false).then((status) => {
+      if (dailyRef.current?.capture_open && status === "off") check(true);
+    });
+    const interval = setInterval(() => check(false), 30000);
+    return () => clearInterval(interval);
+  }, [phase, daily?.id]);
+
+  // Autoriza o site a ler o chat (escopo user:read:chat) e volta para esta aba
+  const connectChat = () =>
+    signIn("twitch", { callbackUrl: "/admin?tab=twitch" }, { scope: "openid user:read:email user:read:chat" });
+
   const updateDaily = async (fields: Partial<Daily>) => {
     if (!daily) return;
     setDaily({ ...daily, ...fields }); // atualiza já na tela; o servidor confirma em seguida
     try {
-      const { data } = await adminApi<{ data: Daily }>("updateDaily", { id: daily.id, fields });
-      setDaily(data);
+      const res = await adminApi<{ data: Daily; serverCapture?: ServerCapture }>("updateDaily", { id: daily.id, fields });
+      setDaily(res.data);
+      if (res.serverCapture) setServerCapture(res.serverCapture);
     } catch (err) {
       dialog.error(err, "Não foi possível salvar o ajuste");
     }
@@ -254,7 +275,7 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
     setBusy(true);
     try {
       const image_url = image ? await uploadGiveawayImage(image) : null;
-      const { data } = await adminApi<{ data: Daily }>("startDaily", {
+      const { data, serverCapture: capture } = await adminApi<{ data: Daily; serverCapture: ServerCapture }>("startDaily", {
         fields: {
           title, image_url, bot_command: command, twitch_channel: channel,
           response_seconds: responseSeconds, chance_t1: chanceT1, chance_t2: chanceT2, chance_t3: chanceT3,
@@ -262,6 +283,7 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
       });
       seenRef.current = new Set();
       setParticipants([]);
+      setServerCapture(capture);
       setDaily(data);
       setPhase("live");
     } catch (err) {
@@ -552,6 +574,45 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
               <p className="text-xs text-gray-500">{daily.capture_open ? "Entradas do chat estão sendo registradas." : "Novos comandos no chat são ignorados."}</p>
             </div>
           </div>
+
+          {/* Captação pelo servidor: independe desta aba ficar aberta */}
+          {daily.capture_open && (
+            serverCapture === "on" ? (
+              <div className="rounded-xl border border-green-500/30 bg-green-500/10 p-4 flex items-start gap-3">
+                <Cloud className="w-5 h-5 text-green-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold text-green-400 text-sm">Captação pelo servidor ativa</p>
+                  <p className="text-xs text-gray-400">Pode fechar esta aba: as entradas do chat continuam sendo registradas. Abra de novo na hora de sortear.</p>
+                </div>
+              </div>
+            ) : serverCapture === "checking" || serverCapture === "pending" ? (
+              <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-4 flex items-center gap-3 text-sm text-gray-400">
+                <Cloud className="w-5 h-5 text-gray-500 animate-pulse" /> Ativando captação pelo servidor...
+              </div>
+            ) : serverCapture === "unavailable" ? (
+              <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-4 flex items-start gap-3 text-xs text-gray-400">
+                <CloudOff className="w-5 h-5 text-gray-500 shrink-0" /> A captação pelo servidor só funciona no site publicado. Aqui, mantenha esta aba aberta.
+              </div>
+            ) : (
+              <div className="rounded-xl border border-purple-500/40 bg-purple-500/10 p-4 space-y-3">
+                <div className="flex items-start gap-3">
+                  <CloudOff className="w-5 h-5 text-purple-300 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold text-purple-200 text-sm">Só captando com esta aba aberta</p>
+                    <p className="text-xs text-gray-400">
+                      Para continuar captando mesmo se a aba fechar, autorize o site a ler o chat. Precisa ser feito uma vez, logado com a conta do canal <b className="text-purple-300">#{daily.twitch_channel}</b>.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={connectChat}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm text-white bg-purple-600 hover:bg-purple-500 shadow-[0_0_20px_rgba(147,51,234,0.35)] transition-colors"
+                >
+                  <Cloud className="w-4 h-4" /> Conectar chat da Twitch
+                </button>
+              </div>
+            )
+          )}
 
           {daily.capture_open ? (
             <button onClick={() => updateDaily({ capture_open: false })}

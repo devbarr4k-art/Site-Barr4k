@@ -2,7 +2,7 @@
 
 let appToken: { value: string; expiresAt: number } | null = null;
 
-async function getAppToken(): Promise<string | null> {
+export async function getAppToken(): Promise<string | null> {
   if (appToken && appToken.expiresAt > Date.now() + 60_000) return appToken.value;
   const params = new URLSearchParams({
     client_id: process.env.TWITCH_CLIENT_ID || "",
