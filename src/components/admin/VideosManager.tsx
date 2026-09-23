@@ -82,6 +82,36 @@ export default function VideosManager() {
   };
 
   // Soltou: grava a ordem nova no banco
+  // Celular/tablet: o arrastar nativo do navegador não funciona com toque, então o ícone
+  // de pegar (⋮⋮) conduz o arraste pelos eventos de ponteiro. No mouse segue o arrastar nativo.
+  const startTouchDrag = (e: React.PointerEvent, v: Video) => {
+    if (e.pointerType === "mouse") return;
+    e.preventDefault();
+    dragRef.current = v.id;
+    setDragId(v.id);
+    navigator.vibrate?.(15);
+
+    const onMove = (ev: PointerEvent) => {
+      ev.preventDefault();
+      // Perto das bordas da tela a página rola sozinha, para levar o card longe
+      const edge = 90;
+      if (ev.clientY < edge) window.scrollBy(0, -14);
+      else if (ev.clientY > window.innerHeight - edge) window.scrollBy(0, 14);
+      const target = document.elementFromPoint(ev.clientX, ev.clientY)?.closest<HTMLElement>("[data-video-id]");
+      const over = target && videosRef.current.find((x) => x.id === target.dataset.videoId);
+      if (over) moveOver(over);
+    };
+    const onEnd = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onEnd);
+      window.removeEventListener("pointercancel", onEnd);
+      finishDrag();
+    };
+    window.addEventListener("pointermove", onMove, { passive: false });
+    window.addEventListener("pointerup", onEnd);
+    window.addEventListener("pointercancel", onEnd);
+  };
+
   const finishDrag = async () => {
     const id = dragRef.current;
     if (!id) return;
@@ -233,7 +263,7 @@ export default function VideosManager() {
                     <div>
                       <h2 className="font-title text-xl text-white">{kind === "video" ? "Vídeos" : "Shorts"} <span className="text-gray-500 text-sm">({list.length})</span></h2>
                       <p className="text-xs text-gray-500">
-                        Prévia da home, nesta ordem. Arraste os cards para mudar. {manual ? "Ordem escolhida por você." : "Ordem automática: mais visto primeiro."}
+                        Prévia da home, nesta ordem. Arraste os cards para mudar (no celular, segure o ícone ⋮⋮ do card). {manual ? "Ordem escolhida por você." : "Ordem automática: mais visto primeiro."}
                       </p>
                     </div>
                     {manual && (
@@ -247,17 +277,24 @@ export default function VideosManager() {
                     {list.map((v, i) => (
                       <div
                         key={v.id}
+                        data-video-id={v.id}
                         draggable
                         onDragStart={(e) => { dragRef.current = v.id; setDragId(v.id); e.dataTransfer.effectAllowed = "move"; }}
                         onDragOver={(e) => { e.preventDefault(); moveOver(v); }}
                         onDrop={(e) => e.preventDefault()}
                         onDragEnd={finishDrag}
-                        className={`group relative rounded-xl overflow-hidden border bg-[#0c0d10] cursor-grab active:cursor-grabbing transition-all ${dragId === v.id ? "opacity-40 border-purple-500" : "border-white/10 hover:border-purple-500/60"}`}
+                        className={`group relative select-none rounded-xl overflow-hidden border bg-[#0c0d10] cursor-grab active:cursor-grabbing transition-all ${dragId === v.id ? "opacity-40 border-purple-500" : "border-white/10 hover:border-purple-500/60"}`}
                       >
                         <div className={`relative overflow-hidden bg-black ${kind === "video" ? "aspect-video" : "aspect-[9/16]"}`}>
                           <img src={v.thumbnail_url} alt="" draggable={false} className="w-full h-full object-cover pointer-events-none" />
                           <span className="absolute top-2 left-2 w-7 h-7 rounded-full bg-purple-600 text-white text-xs font-bold flex items-center justify-center not-italic shadow">{i + 1}</span>
-                          <span className="absolute top-2 right-2 p-1 rounded bg-black/70 text-gray-300" title="Arraste para mudar a ordem"><GripVertical className="w-4 h-4" /></span>
+                          <span
+                            onPointerDown={(e) => startTouchDrag(e, v)}
+                            title="Arraste para mudar a ordem"
+                            className="absolute top-1.5 right-1.5 p-2 lg:p-1 rounded-lg bg-black/75 border border-white/10 text-gray-200 touch-none cursor-grab"
+                          >
+                            <GripVertical className="w-5 h-5 lg:w-4 lg:h-4" />
+                          </span>
                           {kind === "video" && v.duration && (
                             <span className="absolute bottom-2 right-2 px-1.5 py-0.5 rounded bg-black/80 text-white text-[11px] font-bold not-italic">{v.duration}</span>
                           )}
