@@ -1,21 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import { FaTwitch, FaWhatsapp } from "react-icons/fa";
-import { Mail, UserPlus, X } from "lucide-react";
+import { Mail, UserPlus } from "lucide-react";
 import { formatWhatsapp, isValidEmail, normalizeWhatsapp } from "@/lib/siteUsers";
 
-const CHECKED_KEY = "signup_checked";   // já consultou o cadastro nesta sessão
-const DISMISSED_KEY = "signup_dismissed"; // clicou em "Agora não" nesta sessão
+const CHECKED_KEY = "signup_checked"; // já consultou o cadastro nesta sessão
 
 const session_ = {
   get: (k: string) => { try { return sessionStorage.getItem(k); } catch { return null; } },
   set: (k: string, v: string) => { try { sessionStorage.setItem(k, v); } catch {} },
 };
 
-// Quem entra com a Twitch e ainda não tem cadastro recebe o convite para criar
+// Quem entra com a Twitch e ainda não tem cadastro é obrigado a criar (não dá para fechar)
 export default function SignupPrompt() {
   const { data: session, status } = useSession();
   const pathname = usePathname();
@@ -31,7 +30,6 @@ export default function SignupPrompt() {
 
   useEffect(() => {
     if (status !== "authenticated" || !nick || pathname?.startsWith("/admin")) return;
-    if (session_.get(DISMISSED_KEY) === nick) return;
     // O acesso conta uma vez por sessão; as outras páginas só conferem o cadastro
     const firstThisSession = session_.get(CHECKED_KEY) !== nick;
     fetch("/api/perfil" + (firstThisSession ? "?visit=1" : ""))
@@ -44,11 +42,6 @@ export default function SignupPrompt() {
   }, [status, nick, pathname]);
 
   if (!open) return null;
-
-  const dismiss = () => {
-    session_.set(DISMISSED_KEY, nick);
-    setOpen(false);
-  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,10 +71,6 @@ export default function SignupPrompt() {
   return (
     <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-fade-in">
       <div className="relative w-full max-w-md rounded-2xl border border-purple-500/50 bg-[#101012] shadow-[0_0_60px_rgba(147,51,234,0.25)] p-6 sm:p-8 animate-scale-up">
-        <button onClick={dismiss} aria-label="Fechar" className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors">
-          <X className="w-5 h-5" />
-        </button>
-
         {done ? (
           <div className="text-center py-6">
             <div className="mx-auto mb-4 w-14 h-14 rounded-full bg-purple-600/20 border border-purple-500/50 flex items-center justify-center">
@@ -92,7 +81,7 @@ export default function SignupPrompt() {
           </div>
         ) : (
           <>
-            <div className="mb-6 pr-6">
+            <div className="mb-6">
               <div className="mb-4 w-12 h-12 rounded-full bg-purple-600/20 border border-purple-500/50 flex items-center justify-center">
                 <UserPlus className="w-6 h-6 text-purple-300" />
               </div>
@@ -144,8 +133,9 @@ export default function SignupPrompt() {
               <button type="submit" disabled={saving} className="w-full btn-neon py-3.5 rounded-lg font-black uppercase tracking-widest text-sm disabled:opacity-50">
                 {saving ? "Criando..." : "Criar minha conta"}
               </button>
-              <button type="button" onClick={dismiss} className="w-full text-gray-500 hover:text-gray-300 text-xs font-bold uppercase tracking-widest transition-colors">
-                Agora não
+              {/* Única saída sem cadastrar: sair da conta da Twitch no site */}
+              <button type="button" onClick={() => signOut()} className="w-full text-gray-600 hover:text-gray-400 text-[11px] font-bold uppercase tracking-widest transition-colors">
+                Entrou com a conta errada? Sair
               </button>
             </form>
           </>

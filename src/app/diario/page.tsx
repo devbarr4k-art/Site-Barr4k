@@ -61,7 +61,7 @@ export default function DiarioPage() {
           </h1>
           <p className="text-gray-400 max-w-2xl mx-auto font-medium">
             Digite o comando do dia no chat da Twitch e veja seu nome aparecer aqui embaixo! Todos os dias tem sorteio.
-            Subs 4x, Subs Tier 2 6x e Subs Tier 3 10x mais chances.
+            Subs T1 4x, Subs T2 6x e Subs T3 10x mais chances.
           </p>
         </div>
 
