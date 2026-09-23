@@ -7,8 +7,10 @@ export async function GET() {
 
   const { data, error } = await supabaseAdmin
     .from("participants")
-    .select("id, giveaway_id, coins_used, status, created_at, giveaways(id, title, status, draw_date)")
+    .select("id, giveaway_id, coins_used, status, created_at, giveaways!inner(id, title, status, draw_date, type)")
     .eq("twitch_username", username)
+    // Entradas pelo chat da live (sorteio diário) não são tickets do site
+    .neq("giveaways.type", "daily")
     .order("created_at", { ascending: false });
 
   if (error) return Response.json({ error: error.message }, { status: 500 });

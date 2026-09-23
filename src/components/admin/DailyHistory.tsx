@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { History, RotateCcw, Trash2 } from "lucide-react";
 import { adminApi } from "@/lib/adminApi";
 import { avatarFor } from "@/lib/daily";
+import { useDialog } from "@/components/ui/Dialog";
 
 interface Winner {
   id: string;
@@ -24,6 +25,7 @@ interface Props {
 export default function DailyHistory({ refreshKey, canReopen, onReopened }: Props) {
   const [winners, setWinners] = useState<Winner[] | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const dialog = useDialog();
 
   const load = () =>
     adminApi<{ data: Winner[] }>("listDailyWinners")
@@ -35,18 +37,30 @@ export default function DailyHistory({ refreshKey, canReopen, onReopened }: Prop
   }, [refreshKey]);
 
   const remove = async (winner: Winner, reopen: boolean) => {
-    const message = reopen
-      ? `Excluir @${winner.twitch_username} e reabrir o sorteio "${winner.prize}" para sortear de novo?`
-      : `Excluir @${winner.twitch_username} do histórico? Ele some também da página Sorteio Diário.`;
-    if (!confirm(message)) return;
+    const ok = await dialog.confirm(
+      reopen
+        ? {
+            title: `Excluir @${winner.twitch_username} e voltar ao sorteio?`,
+            message: `O sorteio "${winner.prize}" reabre com a mesma lista de participantes para você sortear de novo. A captação volta pausada.`,
+            confirmText: "Excluir e reabrir",
+            tone: "warning",
+          }
+        : {
+            title: `Excluir @${winner.twitch_username}?`,
+            message: `O ganhador e o sorteio "${winner.prize}" são apagados, junto com a lista de participantes. Some também da página Sorteio Diário. Não dá para desfazer.`,
+            confirmText: "Excluir",
+            tone: "danger",
+          }
+    );
+    if (!ok) return;
 
     setBusyId(winner.id);
     try {
       const res = await adminApi<{ reopened: boolean }>("deleteWinner", { id: winner.id, reopen });
       setWinners((prev) => prev?.filter((w) => w.id !== winner.id) ?? null);
       if (res.reopened) onReopened();
-    } catch (err: any) {
-      alert("Erro: " + err.message);
+    } catch (err) {
+      dialog.error(err, "Não foi possível excluir");
     }
     setBusyId(null);
   };

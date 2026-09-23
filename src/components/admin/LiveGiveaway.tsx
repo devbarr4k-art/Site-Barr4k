@@ -10,6 +10,7 @@ import { adminApi } from "@/lib/adminApi";
 import { compressImage } from "@/lib/image";
 import { avatarFor, chancesFor } from "@/lib/daily";
 import DailyHistory from "@/components/admin/DailyHistory";
+import { useDialog } from "@/components/ui/Dialog";
 
 interface Daily {
   id: string;
@@ -142,6 +143,7 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
   const dailyRef = useRef<Daily | null>(null);
   const awaitingRef = useRef<string | null>(null);
   const sounds = useSounds();
+  const dialog = useDialog();
 
   useEffect(() => { dailyRef.current = daily; }, [daily]);
 
@@ -161,7 +163,7 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
         }
       })
       .catch((err) => {
-        alert("Erro ao carregar o sorteio diário: " + err.message);
+        dialog.error(err, "Não foi possível carregar o sorteio diário");
         setPhase("setup");
       });
   }, []);
@@ -250,15 +252,21 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
     try {
       const { data } = await adminApi<{ data: Daily }>("updateDaily", { id: daily.id, fields });
       setDaily(data);
-    } catch (err: any) {
-      alert("Erro ao salvar: " + err.message);
+    } catch (err) {
+      dialog.error(err, "Não foi possível salvar o ajuste");
     }
   };
 
   const handleStart = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) return alert("Informe o prêmio do sorteio.");
-    if (!channel.trim()) return alert("Informe o canal da Twitch.");
+    if (!title.trim() || !channel.trim()) {
+      dialog.alert({
+        title: !title.trim() ? "Falta o prêmio do sorteio" : "Falta o canal da Twitch",
+        message: !title.trim() ? "Escreva qual é o prêmio de hoje." : "Informe o canal que o bot vai ler, ex: barr4k.",
+        tone: "warning",
+      });
+      return;
+    }
     setBusy(true);
     try {
       const image_url = image ? await compressImage(image) : null;
@@ -272,19 +280,27 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
       setParticipants([]);
       setDaily(data);
       setPhase("live");
-    } catch (err: any) {
-      alert("Erro ao iniciar: " + err.message);
+    } catch (err) {
+      dialog.error(err, "Não foi possível iniciar a captação");
     }
     setBusy(false);
   };
 
   const handleEndWithoutWinner = async () => {
-    if (!daily || !confirm("Encerrar o sorteio de hoje sem ganhador?")) return;
+    if (!daily) return;
+    const ok = await dialog.confirm({
+      title: "Encerrar sem ganhador?",
+      message: `O sorteio "${daily.title.replace("|", " ")}" e a lista de ${eligible.length} participante(s) serão apagados. Não dá para desfazer.`,
+      confirmText: "Encerrar e apagar",
+      tone: "danger",
+    });
+    if (!ok) return;
     try {
-      await adminApi("completeGiveaway", { id: daily.id });
+      // Sem ganhador não há o que guardar no histórico: apaga sorteio e participantes
+      await adminApi("deleteGiveaway", { id: daily.id });
       resetToSetup();
-    } catch (err: any) {
-      alert("Erro: " + err.message);
+    } catch (err) {
+      dialog.error(err);
     }
   };
 
@@ -303,7 +319,10 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
   // Sorteio ponderado: cada participante entra na roleta tantas vezes quanto suas chances
   const startDraw = (pool: Participant[] = eligible) => {
     if (!daily || isSpinning) return;
-    if (pool.length === 0) return alert("Ninguém na lista para sortear.");
+    if (pool.length === 0) {
+      dialog.alert({ title: "Ninguém na lista", message: "Espere alguém digitar o comando no chat antes de sortear.", tone: "warning" });
+      return;
+    }
     sounds.unlock();
 
     const tickets: Participant[] = [];
@@ -375,8 +394,8 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
     setShowPopup(false);
     try {
       await adminApi("updateParticipant", { id: drawn.id, fields: { status: "rejected" } });
-    } catch (err: any) {
-      alert("Erro ao remover: " + err.message);
+    } catch (err) {
+      dialog.error(err, "Não foi possível tirar da lista");
       return;
     }
     const remaining = eligible.filter((p) => p.id !== drawn.id);
@@ -394,8 +413,8 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
       setConfirmedWinner(drawn);
       setHistoryKey((k) => k + 1);
       clientRef.current?.disconnect().catch(() => {});
-    } catch (err: any) {
-      alert("Erro ao salvar ganhador: " + err.message);
+    } catch (err) {
+      dialog.error(err, "Não foi possível salvar o ganhador");
     }
     setBusy(false);
   };

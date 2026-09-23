@@ -174,6 +174,9 @@ export async function POST(request: Request) {
           .update({ status: "active", is_daily_highlight: true, capture_open: false })
           .eq("id", winner.giveaway_id);
         if (reopenError) return fail(reopenError.message, 500);
+      } else if (winner.giveaway_id) {
+        // Sorteio diário sem ganhador não fica guardado: apaga ele e a lista de participantes
+        await db.from("giveaways").delete().eq("id", winner.giveaway_id).eq("type", "daily");
       }
       return Response.json({ ok: true, reopened: !!(body.reopen && winner.giveaway_id) });
     }

@@ -20,7 +20,7 @@ export default function MeusTicketsPage() {
   const [myTickets, setMyTickets] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const currentUser = (session?.user as any)?.username || session?.user?.name;
+  const currentUser = String((session?.user as any)?.username || session?.user?.name || "").toLowerCase();
 
   useEffect(() => {
     if (status !== "authenticated") return;

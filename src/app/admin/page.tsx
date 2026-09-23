@@ -9,6 +9,7 @@ import { useSession } from "next-auth/react";
 import { isAdmin } from "@/lib/admins";
 import { adminApi } from "@/lib/adminApi";
 import { compressImage } from "@/lib/image";
+import { useDialog } from "@/components/ui/Dialog";
 import LiveGiveaway from "@/components/admin/LiveGiveaway";
 
 const TooltipIcon = ({ text }: { text: string }) => (
@@ -86,6 +87,7 @@ const WINNER_INDEX = 40;
 export default function AdminDashboard() {
   const router = useRouter();
   const { data: session, status } = useSession();
+  const dialog = useDialog();
   const currentUsername = ((session?.user as any)?.username || session?.user?.name || "").toLowerCase();
   const allowed = isAdmin(currentUsername);
 
@@ -173,8 +175,8 @@ export default function AdminDashboard() {
   const run = async (action: string, payload: Record<string, unknown> = {}) => {
     try {
       return await adminApi(action, payload);
-    } catch (err: any) {
-      alert("Erro: " + err.message);
+    } catch (err) {
+      dialog.error(err);
       return null;
     }
   };
@@ -224,7 +226,11 @@ export default function AdminDashboard() {
     const approved = participants.filter((p) => p.status === "approved" && !excludeNames.includes(p.twitch_username));
 
     if (approved.length === 0) {
-      alert("Não há mais participantes aprovados e não-sorteados disponíveis.");
+      dialog.alert({
+        title: "Ninguém disponível para sortear",
+        message: "Não há mais participantes aprovados que ainda não foram sorteados. Aprove participantes na tabela para sortear.",
+        tone: "warning",
+      });
       setIsDrawing(false);
       setShowWinner(false);
       return;
@@ -277,16 +283,26 @@ export default function AdminDashboard() {
     }
   };
 
+  const giveawayName = (id: string) => sorteios.find((s) => s.id === id)?.title?.replace("|", " ") || "este sorteio";
+
   const handleDeleteGiveaway = async (id: string) => {
-    if (confirm("Tem certeza que deseja excluir este sorteio?")) {
-      if (await run("deleteGiveaway", { id })) fetchSorteios();
-    }
+    const ok = await dialog.confirm({
+      title: `Excluir "${giveawayName(id)}"?`,
+      message: "O sorteio some do site junto com todos os participantes e tickets dele. Os vencedores continuam no histórico. Não dá para desfazer.",
+      confirmText: "Excluir sorteio",
+      tone: "danger",
+    });
+    if (ok && (await run("deleteGiveaway", { id }))) fetchSorteios();
   };
 
   const handleCompleteGiveaway = async (id: string) => {
-    if (confirm("Deseja encerrar este sorteio (fechar captação)?")) {
-      if (await run("completeGiveaway", { id })) fetchSorteios();
-    }
+    const ok = await dialog.confirm({
+      title: `Encerrar "${giveawayName(id)}"?`,
+      message: "As inscrições fecham e o sorteio sai da página inicial. Os participantes continuam salvos para você sortear.",
+      confirmText: "Encerrar",
+      tone: "warning",
+    });
+    if (ok && (await run("completeGiveaway", { id }))) fetchSorteios();
   };
 
   const handleSetFeatured = async (id: string, currentType: string) => {
@@ -338,7 +354,10 @@ export default function AdminDashboard() {
 
   const handleCreateSorteio = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTitle.trim()) return alert("Título é obrigatório!");
+    if (!newTitle.trim()) {
+      dialog.alert({ title: "Falta o nome do sorteio", message: "Preencha o campo Nome antes de salvar.", tone: "warning" });
+      return;
+    }
     setIsSaving(true);
 
     try {
@@ -372,8 +391,8 @@ export default function AdminDashboard() {
         setEditingGiveaway(null);
         fetchSorteios();
       }
-    } catch (err: any) {
-      alert("Erro: " + err.message);
+    } catch (err) {
+      dialog.error(err, "Não foi possível salvar o sorteio");
     }
     setIsSaving(false);
   };
