@@ -441,14 +441,14 @@ export async function POST(request: Request) {
         fetch(`https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(`https://www.youtube.com/watch?v=${id}`)}`)
           .then((r) => (r.ok ? r.json() : null))
           .catch(() => null),
-        exists(`https://i.ytimg.com/vi/${id}/oar2.jpg`),
+        exists(`https://i.ytimg.com/vi/${id}/oardefault.jpg`),
         exists(`https://i.ytimg.com/vi/${id}/maxresdefault.jpg`),
       ]);
       if (!oembed) return fail("Não achei esse vídeo no YouTube (ele é privado ou foi apagado?).");
       const kind = body.kind === "short" || body.kind === "video" ? body.kind : isShortsLink(link) ? "short" : "video";
       const thumb = (k: string) =>
         k === "short"
-          ? `https://i.ytimg.com/vi/${id}/${hasVertical ? "oar2" : "hqdefault"}.jpg`
+          ? `https://i.ytimg.com/vi/${id}/${hasVertical ? "oardefault" : "hqdefault"}.jpg`
           : `https://i.ytimg.com/vi/${id}/${hasMaxres ? "maxresdefault" : "hqdefault"}.jpg`;
       return Response.json({ youtubeId: id, title: oembed.title as string, kind, thumbnails: { video: thumb("video"), short: thumb("short") } });
     }

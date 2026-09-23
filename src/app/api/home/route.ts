@@ -42,6 +42,13 @@ export async function GET() {
       // Sem a tabela de vídeos ainda: a seção simplesmente não aparece
       videos: videos.error ? [] : videos.data ?? [],
     },
-    { headers: { "Cache-Control": "public, s-maxage=10, stale-while-revalidate=600" } }
+    {
+      headers: {
+        // Cache só na Vercel (protege o banco). O navegador sempre pergunta de novo: com
+        // stale-while-revalidate no Cache-Control ele mostrava a resposta da visita anterior.
+        "Vercel-CDN-Cache-Control": "max-age=10, stale-while-revalidate=600",
+        "Cache-Control": "public, max-age=0, must-revalidate",
+      },
+    }
   );
 }

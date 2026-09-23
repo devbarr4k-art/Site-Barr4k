@@ -103,7 +103,7 @@ export default function MeusTicketsPage() {
               ) : currentTickets.length === 0 ? (
                 <div className="text-center py-10 space-y-4">
                   <p className="text-gray-400">Você ainda não participou de nenhum sorteio.</p>
-                  <Link href="/#active-giveaways" className="inline-flex items-center gap-2 text-purple-400 hover:text-purple-300 font-bold text-sm">
+                  <Link href="/#sorteios" className="inline-flex items-center gap-2 text-purple-400 hover:text-purple-300 font-bold text-sm">
                     Ver sorteios ativos <ArrowRight className="w-4 h-4" />
                   </Link>
                 </div>

@@ -33,6 +33,12 @@ export async function GET() {
 
   return Response.json(
     { giveaway, participants, history: history ?? [] },
-    { headers: { "Cache-Control": "public, max-age=0, s-maxage=2, stale-while-revalidate=60" } }
+    {
+      headers: {
+        // Cache curto só na Vercel; o navegador sempre busca a lista nova
+        "Vercel-CDN-Cache-Control": "max-age=2, stale-while-revalidate=60",
+        "Cache-Control": "public, max-age=0, must-revalidate",
+      },
+    }
   );
 }

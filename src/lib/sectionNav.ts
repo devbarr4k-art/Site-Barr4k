@@ -3,8 +3,12 @@
 
 const MENU_HEIGHT = 80;
 
+// Âncoras antigas que ainda podem estar em links compartilhados
+const RENAMED_SECTIONS: Record<string, string> = { "active-giveaways": "sorteios" };
+export const currentSectionId = (id: string) => RENAMED_SECTIONS[id] ?? id;
+
 export function scrollToSectionId(id: string, behavior: ScrollBehavior = "smooth") {
-  const el = id ? document.getElementById(id) : null;
+  const el = id ? document.getElementById(currentSectionId(id)) : null;
   const top = el ? el.getBoundingClientRect().top + window.scrollY - MENU_HEIGHT : 0;
   window.scrollTo({ top, behavior });
 }
