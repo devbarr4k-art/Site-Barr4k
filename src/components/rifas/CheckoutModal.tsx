@@ -221,7 +221,7 @@ export default function CheckoutModal({ raffle, numbers, resume, onReserve, onPa
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Comprovantes do PIX</p>
               <div className="grid grid-cols-4 gap-2">
                 {proofs.map((p, i) => (
-                  <div key={i} className="relative aspect-[3/4] rounded-lg overflow-hidden border border-gray-800 bg-white">
+                  <div key={i} className="relative aspect-[3/4] rounded-lg overflow-hidden border border-gray-800 bg-checker">
                     <img src={p} alt="" className="w-full h-full object-contain" />
                     <button onClick={() => setProofs((prev) => prev.filter((_, j) => j !== i))} aria-label="Tirar"
                       className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/80 text-gray-200 hover:text-red-400 flex items-center justify-center">

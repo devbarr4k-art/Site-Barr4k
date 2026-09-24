@@ -204,7 +204,8 @@
   to { transform: rotate(360deg); }
 }
 
-.animate-fade-in { animation: fade-in 0.25s ease-out both; }
+/* sem "both": depois de terminar a animação não prende popups (position: fixed) embaixo da barra do topo */
+.animate-fade-in { animation: fade-in 0.25s ease-out; }
 .animate-scale-up { animation: scale-up 0.3s ease-out both; }
 .animate-pulse-glow { animation: text-glow 3s ease-in-out infinite; }
 
@@ -249,3 +250,10 @@ input[type="number"] {
 
 /* Rifa: número reservado (aguardando aprovação do pagamento) */
 .stripes { background-image: repeating-linear-gradient(45deg, rgba(255,255,255,0.05) 0 4px, transparent 4px 8px); }
+
+/* Fundo xadrez para comprovantes: imagem branca, preta ou transparente sempre aparece */
+.bg-checker {
+  background-color: #6b7280;
+  background-image: conic-gradient(#9ca3af 25%, transparent 0 50%, #9ca3af 0 75%, transparent 0);
+  background-size: 14px 14px;
+}

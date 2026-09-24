@@ -350,7 +350,7 @@ export default function RafflesManager() {
                         ) : (o.proofs ?? []).map((p, i) => (
                           <button key={i} onClick={() => setPreview(p)} title="Ver comprovante"
                             className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-lg border border-gray-700 hover:border-purple-400 bg-white/5 hover:bg-purple-600/15 transition-colors">
-                            <span className="w-9 h-11 rounded bg-white overflow-hidden flex items-center justify-center">
+                            <span className="w-9 h-11 rounded bg-checker overflow-hidden flex items-center justify-center">
                               <img src={p} alt="" className="max-w-full max-h-full object-contain" />
                             </span>
                             <span className="text-xs font-bold text-gray-200">Ver{(o.proofs ?? []).length > 1 ? ` ${i + 1}` : " comprovante"}</span>
@@ -480,8 +480,8 @@ export default function RafflesManager() {
 
       {preview && (
         <div className="fixed inset-0 z-[200] bg-black/90 flex flex-col items-center justify-center gap-3 p-4 cursor-zoom-out" onClick={() => setPreview(null)}>
-          {/* fundo claro: comprovante com fundo transparente ou escuro continua legível */}
-          <img src={preview} alt="Comprovante" className="max-w-full max-h-[85vh] rounded-lg border border-gray-700 bg-white" />
+          {/* fundo xadrez: comprovante branco, escuro ou transparente continua visível */}
+          <img src={preview} alt="Comprovante" className="max-w-full max-h-[85vh] rounded-lg border border-gray-700 bg-checker" />
           <a href={preview} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="text-xs font-bold text-purple-300 hover:text-purple-200">Abrir em outra aba</a>
         </div>
       )}
