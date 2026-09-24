@@ -4,7 +4,9 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { fetchTwitchAvatar, fetchTwitchAvatars, checkTwitchSubscriptions } from "@/lib/twitch";
 import { addChatEntry } from "@/lib/dailyEntry";
 import { chancesFor } from "@/lib/daily";
-import { removeProofs, signProofs } from "@/lib/proofs";
+import { PROOFS_BUCKET, removeProofs, signProofs } from "@/lib/proofs";
+import { isMissingTable, MISSING_RAFFLES, RAFFLE_COLUMNS, takenByRaffle, withCounts } from "@/lib/rifasServer";
+import { MAX_RAFFLE_NUMBERS, type Raffle } from "@/lib/rifas";
 import { isValidEmail, normalizeWhatsapp } from "@/lib/siteUsers";
 import { isShortsLink, parseYouTubeId, VIDEOS_VISIBILITY_KEY } from "@/lib/videos";
 import { serverCaptureStatus, startServerCapture, stopServerCapture } from "@/lib/eventsub";
@@ -579,6 +581,103 @@ export async function POST(request: Request) {
         .upsert({ key: VIDEOS_VISIBILITY_KEY, value, updated_at: new Date().toISOString() }, { onConflict: "key" });
       if (error) return fail(/site_settings|schema cache|does not exist/i.test(error.message) ? MISSING_SETTINGS_TABLE : error.message, 500);
       return Response.json({ ok: true, value });
+    }
+
+    // ---- Rifas ----
+    case "listRaffles": {
+      const { data, error } = await db.from("raffles").select(RAFFLE_COLUMNS).order("created_at", { ascending: false });
+      if (error) return fail(MISSING_RAFFLES, 500);
+      const raffles = (data ?? []) as Raffle[];
+      const taken = await takenByRaffle(raffles.map((r) => r.id));
+      const { data: orders } = await db.from("raffle_orders").select("raffle_id, status, total_cents").in("raffle_id", raffles.map((r) => r.id));
+      const stats: Record<string, { pending: number; received_cents: number }> = {};
+      for (const o of orders ?? []) {
+        const s = (stats[o.raffle_id] ??= { pending: 0, received_cents: 0 });
+        if (o.status === "pending") s.pending++;
+        if (o.status === "approved") s.received_cents += o.total_cents;
+      }
+      return Response.json({
+        data: withCounts(raffles, taken).map((r) => ({ ...r, pending_orders: stats[r.id]?.pending ?? 0, received_cents: stats[r.id]?.received_cents ?? 0 })),
+      });
+    }
+
+    case "saveRaffle": {
+      const f = body.fields ?? {};
+      const title = String(f.title ?? "").trim().slice(0, 120);
+      const price = Math.round(Number(f.price_cents));
+      const total = Math.round(Number(f.total_numbers));
+      if (!title) return fail("Dê um nome para a rifa.");
+      if (!Number.isFinite(price) || price <= 0) return fail("Coloque o valor de cada número.");
+      if (!Number.isFinite(total) || total < 1 || total > MAX_RAFFLE_NUMBERS) return fail(`A quantidade de números vai de 1 a ${MAX_RAFFLE_NUMBERS}.`);
+      const fields = {
+        title,
+        subtitle: String(f.subtitle ?? "").trim().slice(0, 200) || null,
+        image_url: typeof f.image_url === "string" && f.image_url ? f.image_url : null,
+        price_cents: price,
+        total_numbers: total,
+        draw_date: f.draw_date ? new Date(f.draw_date).toISOString() : null,
+        pix_key: String(f.pix_key ?? "").trim().slice(0, 120) || null,
+        pix_name: String(f.pix_name ?? "").trim().slice(0, 120) || null,
+        qr_image_url: typeof f.qr_image_url === "string" && f.qr_image_url ? f.qr_image_url : null,
+        status: f.status === "closed" ? "closed" : "open",
+      };
+      if (body.id) {
+        // Não dá para diminuir a rifa abaixo de um número que já tem dono
+        const { data: top } = await db.from("raffle_numbers").select("number").eq("raffle_id", body.id).order("number", { ascending: false }).limit(1).maybeSingle();
+        if (top && total < top.number) return fail(`O número ${top.number} já foi escolhido: a rifa precisa ter pelo menos ${top.number} números.`);
+        const { error } = await db.from("raffles").update(fields).eq("id", body.id);
+        if (error) return fail(error.message, 500);
+      } else {
+        const { error } = await db.from("raffles").insert(fields);
+        if (error) return fail(isMissingTable(error.message) ? MISSING_RAFFLES : error.message, 500);
+      }
+      return Response.json({ ok: true });
+    }
+
+    case "deleteRaffle": {
+      // Compras e números saem em cascata; os comprovantes no Storage, à parte
+      const { data: orders } = await db.from("raffle_orders").select("proof_paths").eq("raffle_id", body.id);
+      const { error } = await db.from("raffles").delete().eq("id", body.id);
+      if (error) return fail(error.message, 500);
+      await removeProofs((orders ?? []).flatMap((o) => o.proof_paths ?? []));
+      return Response.json({ ok: true });
+    }
+
+    case "listRaffleOrders": {
+      let query = db
+        .from("raffle_orders")
+        .select("id, raffle_id, username, numbers, total_cents, proof_paths, status, created_at, decided_at, raffles(title)")
+        .order("created_at", { ascending: body.status === "pending" })
+        .limit(300);
+      if (body.status) query = query.eq("status", body.status);
+      if (body.raffleId) query = query.eq("raffle_id", body.raffleId);
+      const { data, error } = await query;
+      if (error) return fail(isMissingTable(error.message) ? MISSING_RAFFLES : error.message, 500);
+      // Comprovantes privados: links temporários (1h), todos numa chamada
+      const allPaths = (data ?? []).flatMap((o) => o.proof_paths ?? []);
+      const signed = new Map<string, string>();
+      if (allPaths.length) {
+        const { data: urls } = await db.storage.from(PROOFS_BUCKET).createSignedUrls(allPaths, 3600);
+        for (const u of urls ?? []) if (u.path && u.signedUrl) signed.set(u.path, u.signedUrl);
+      }
+      return Response.json({
+        data: (data ?? []).map(({ proof_paths, raffles, ...o }) => ({
+          ...o,
+          raffle_title: (raffles as unknown as { title?: string } | null)?.title ?? "",
+          proofs: (proof_paths ?? []).map((p: string) => signed.get(p)).filter(Boolean),
+        })),
+      });
+    }
+
+    case "setRaffleOrderStatus": {
+      const status = String(body.status);
+      if (!["pending", "approved", "rejected"].includes(status)) return fail("Status inválido.");
+      const { error } = await db.rpc("raffle_set_order_status", { p_order: body.id, p_status: status });
+      if (error) {
+        if (error.message.includes("ORDER_REJECTED")) return fail("Compra recusada não volta: os números já foram liberados e podem ter outro dono.");
+        return fail(isMissingTable(error.message) ? MISSING_RAFFLES : error.message, 500);
+      }
+      return Response.json({ ok: true });
     }
 
     case "deleteVideo": {

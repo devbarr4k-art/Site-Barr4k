@@ -3,19 +3,18 @@
 import { useMemo, useState } from "react";
 import { AlertTriangle, ArrowLeft, Check, CheckCircle2, Clock, Copy, ImagePlus, QrCode, X } from "lucide-react";
 import { compressImage } from "@/lib/image";
-import { brl, padNumber, type Raffle, type RaffleOrder } from "@/lib/rifas";
+import { getRecaptchaToken } from "@/lib/recaptcha";
+import { brl, MAX_RAFFLE_PROOFS as MAX_PROOFS, padNumber, type Raffle, type RaffleOrder } from "@/lib/rifas";
 
 type Step = "review" | "pay" | "done";
-type Result = { ok: true; order: RaffleOrder } | { ok: false; clash: number[] };
-
-const MAX_PROOFS = 4;
+export type CheckoutResult = { ok: true; order: RaffleOrder } | { ok: false; error: string; clash?: number[] };
 
 // Compra de números: revisar → pagar no PIX (QR fixo) e anexar comprovante(s) → pendente
 export default function CheckoutModal({ raffle, numbers, onClose, onConfirm }: {
   raffle: Raffle;
   numbers: number[];
   onClose: () => void;
-  onConfirm: (proofs: string[]) => Result;
+  onConfirm: (proofs: string[], recaptcha: string) => Promise<CheckoutResult>;
 }) {
   const [step, setStep] = useState<Step>("review");
   const [proofs, setProofs] = useState<string[]>([]);
@@ -23,32 +22,35 @@ export default function CheckoutModal({ raffle, numbers, onClose, onConfirm }: {
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
   const [order, setOrder] = useState<RaffleOrder | null>(null);
-  const total = numbers.length * raffle.pricePerNumber;
+  const total = numbers.length * raffle.price_cents;
 
   const addProofs = async (files: FileList | null) => {
     if (!files) return;
     const room = MAX_PROOFS - proofs.length;
     const picked = [...files].filter((f) => f.type.startsWith("image/")).slice(0, room);
-    const small = await Promise.all(picked.map((f) => compressImage(f, 900, 0.7)));
+    // Legível para conferir o PIX e leve o bastante para enviar pelo celular
+    const small = await Promise.all(picked.map((f) => compressImage(f, 1400, 0.8)));
     setProofs((prev) => [...prev, ...small]);
   };
 
   const copyKey = async () => {
     try {
-      await navigator.clipboard.writeText(raffle.pixKey);
+      await navigator.clipboard.writeText(raffle.pix_key ?? "");
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {}
   };
 
-  const confirm = () => {
+  const confirm = async () => {
     setError("");
     if (proofs.length === 0) return setError("Anexe o comprovante do PIX para enviar.");
     setSending(true);
-    const res = onConfirm(proofs);
+    const res = await onConfirm(proofs, await getRecaptchaToken("rifa"));
     setSending(false);
     if (!res.ok) {
-      setError(`Os números ${res.clash.map((n) => padNumber(n, raffle.totalNumbers)).join(", ")} acabaram de ser escolhidos por outra pessoa. Volte e troque.`);
+      setError(res.clash?.length
+        ? `Os números ${res.clash.map((n) => padNumber(n, raffle.total_numbers)).join(", ")} acabaram de ser escolhidos por outra pessoa. Feche, troque esses números e tente de novo (o PIX ainda não foi registrado).`
+        : res.error);
       return;
     }
     setOrder(res.order);
@@ -60,7 +62,7 @@ export default function CheckoutModal({ raffle, numbers, onClose, onConfirm }: {
     <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto custom-scrollbar">
       {(order?.numbers ?? numbers).map((n) => (
         <span key={n} className="px-2.5 py-1 rounded-md bg-purple-600/20 border border-purple-500/40 text-purple-200 text-xs font-black not-italic">
-          {padNumber(n, raffle.totalNumbers)}
+          {padNumber(n, raffle.total_numbers)}
         </span>
       ))}
     </div>
@@ -96,7 +98,7 @@ export default function CheckoutModal({ raffle, numbers, onClose, onConfirm }: {
             </div>
             {chips}
             <div className="rounded-xl bg-black/50 border border-white/5 p-4 flex items-center justify-between">
-              <span className="text-gray-400 text-sm font-bold">{numbers.length} × {brl(raffle.pricePerNumber)}</span>
+              <span className="text-gray-400 text-sm font-bold">{numbers.length} × {brl(raffle.price_cents)}</span>
               <span className="text-2xl font-black text-white not-italic">{brl(total)}</span>
             </div>
             <button onClick={() => setStep("pay")} className="w-full btn-neon py-3.5 rounded-lg font-black uppercase tracking-widest text-sm">
@@ -114,17 +116,17 @@ export default function CheckoutModal({ raffle, numbers, onClose, onConfirm }: {
 
             <div className="flex flex-col sm:flex-row items-center gap-5">
               <div className="shrink-0 w-44 h-44 rounded-xl bg-white p-2.5 relative">
-                {raffle.qrImage ? <img src={raffle.qrImage} alt="QR code do PIX" className="w-full h-full object-contain" /> : <FakeQr />}
+                {raffle.qr_image_url ? <img src={raffle.qr_image_url} alt="QR code do PIX" className="w-full h-full object-contain" /> : <FakeQr />}
               </div>
               <div className="flex-1 w-full space-y-3">
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Favorecido</p>
-                  <p className="text-white font-black not-italic">{raffle.pixName}</p>
+                  <p className="text-white font-black not-italic">{raffle.pix_name || "BARR4K PRODUÇÕES"}</p>
                 </div>
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Chave PIX (CNPJ)</p>
                   <button onClick={copyKey} className="mt-1 w-full flex items-center justify-between gap-2 rounded-lg bg-black/50 border border-gray-800 hover:border-purple-500 px-3 py-2 text-left">
-                    <span className="text-gray-200 text-sm font-bold not-italic truncate">{raffle.pixKey}</span>
+                    <span className="text-gray-200 text-sm font-bold not-italic truncate">{raffle.pix_key || "(chave não configurada)"}</span>
                     <span className={`shrink-0 text-xs font-bold flex items-center gap-1 ${copied ? "text-green-400" : "text-purple-400"}`}>
                       {copied ? <><Check className="w-3.5 h-3.5" /> Copiado</> : <><Copy className="w-3.5 h-3.5" /> Copiar</>}
                     </span>
@@ -169,7 +171,7 @@ export default function CheckoutModal({ raffle, numbers, onClose, onConfirm }: {
             <div className="flex gap-3">
               <button onClick={() => setStep("review")} className="px-4 py-3.5 rounded-lg border border-gray-800 text-gray-300 hover:text-white"><ArrowLeft className="w-4 h-4" /></button>
               <button onClick={confirm} disabled={sending} className="flex-1 btn-neon py-3.5 rounded-lg font-black uppercase tracking-widest text-sm disabled:opacity-50">
-                Já paguei, enviar comprovante
+                {sending ? "Enviando..." : "Já paguei, enviar comprovante"}
               </button>
             </div>
           </div>
@@ -189,7 +191,7 @@ export default function CheckoutModal({ raffle, numbers, onClose, onConfirm }: {
             {chips}
             <div className="rounded-xl bg-black/50 border border-white/5 p-3 flex items-center justify-between text-sm">
               <span className="text-gray-400 font-bold flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-purple-400" /> Comprovante enviado</span>
-              <span className="text-white font-black not-italic">{brl(order.total)}</span>
+              <span className="text-white font-black not-italic">{brl(order.total_cents)}</span>
             </div>
             <button onClick={onClose} className="w-full btn-neon py-3.5 rounded-lg font-black uppercase tracking-widest text-sm">Ver meus números</button>
           </div>
@@ -199,7 +201,7 @@ export default function CheckoutModal({ raffle, numbers, onClose, onConfirm }: {
   );
 }
 
-// QR de mentira para o protótipo (no real, o streamer sobe a imagem do QR do CNPJ no painel)
+// Sem QR configurado no painel: desenho neutro com aviso (não parece um QR de verdade para pagar)
 function FakeQr() {
   const cells = useMemo(() => {
     let seed = 7;
@@ -221,7 +223,7 @@ function FakeQr() {
       </svg>
       <span className="absolute inset-0 flex items-center justify-center">
         <span className="px-2 py-1 rounded bg-purple-600 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1 not-italic shadow">
-          <QrCode className="w-3 h-3" /> exemplo
+          <QrCode className="w-3 h-3" /> use a chave
         </span>
       </span>
     </div>

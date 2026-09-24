@@ -1,41 +1,81 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useSession, signIn } from "next-auth/react";
-import { ArrowLeft, Calendar, CheckCircle2, Clock, Shuffle, Sparkles, Ticket, Trash2, X, XCircle } from "lucide-react";
+import { ArrowLeft, Calendar, CheckCircle2, Clock, Lock, Shuffle, Sparkles, Ticket, Trash2, X, XCircle } from "lucide-react";
 import { FaTwitch } from "react-icons/fa";
-import { brl, padNumber, takenNumbers, useRifaStore, type RaffleOrder } from "@/lib/rifas";
-import CheckoutModal from "@/components/rifas/CheckoutModal";
+import { brl, padNumber, type OrderStatus, type Raffle, type RaffleOrder, type TakenNumbers } from "@/lib/rifas";
+import { useRefreshOnReturn } from "@/lib/freshData";
+import CheckoutModal, { type CheckoutResult } from "@/components/rifas/CheckoutModal";
 
 type Filter = "all" | "free" | "mine";
+const POLL_MS = 8000; // a grade se atualiza sozinha: mostra na hora o que outras pessoas pegaram
 
-// PROTÓTIPO: tela da rifa com todos os números
 export default function RifaPage() {
   const { id } = useParams<{ id: string }>();
-  const { store, placeOrder } = useRifaStore();
-  const { data: session } = useSession();
-  const username = String((session?.user as { username?: string } | undefined)?.username || session?.user?.name || "").toLowerCase();
+  const { data: session, status: authStatus } = useSession();
+  const loggedIn = authStatus === "authenticated";
 
+  const [raffle, setRaffle] = useState<Raffle | null>(null);
+  const [takenRaw, setTakenRaw] = useState<TakenNumbers>({ approved: [], pending: [] });
+  const [myOrders, setMyOrders] = useState<RaffleOrder[]>([]);
+  const [notFound, setNotFound] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [guest, setGuest] = useState(false); // só no protótipo: testar sem login
+  const [notice, setNotice] = useState("");
 
-  const raffle = store?.raffles.find((r) => r.id === id);
-  const buyer = username || (guest ? "visitante" : "");
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/rifas/${id}`);
+      if (res.status === 404) return setNotFound(true);
+      const json = await res.json();
+      if (json.raffle) {
+        setRaffle(json.raffle);
+        setTakenRaw(json.taken);
+      }
+    } catch {
+      // mantém o que já está na tela
+    }
+  }, [id]);
 
-  const taken = useMemo(() => (store && raffle ? takenNumbers(store.orders, raffle.id) : new Map()), [store, raffle]);
-  const myOrders = useMemo(
-    () => (store && raffle && buyer ? store.orders.filter((o) => o.raffleId === raffle.id && o.username === buyer) : []),
-    [store, raffle, buyer]
-  );
+  const loadMine = useCallback(async () => {
+    if (!loggedIn) return setMyOrders([]);
+    try {
+      const json = await (await fetch(`/api/rifas/${id}?mine=1`)).json();
+      setMyOrders(json.orders ?? []);
+    } catch {}
+  }, [id, loggedIn]);
+
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => { loadMine(); }, [loadMine]);
+  useEffect(() => {
+    if (raffle?.status !== "open") return;
+    const t = setInterval(load, POLL_MS);
+    return () => clearInterval(t);
+  }, [raffle?.status, load]);
+  useRefreshOnReturn(() => { load(); loadMine(); });
+
+  const taken = useMemo(() => {
+    const map = new Map<number, OrderStatus>();
+    takenRaw.approved.forEach((n) => map.set(n, "approved"));
+    takenRaw.pending.forEach((n) => map.set(n, "pending"));
+    return map;
+  }, [takenRaw]);
   const mine = useMemo(() => new Set(myOrders.filter((o) => o.status !== "rejected").flatMap((o) => o.numbers)), [myOrders]);
 
-  if (!store) return <div className="min-h-screen bg-black flex items-center justify-center"><div className="uiverse-loader" /></div>;
-  if (!raffle) {
+  // Se alguém pegou um número que estava selecionado aqui, ele sai da seleção com aviso
+  useEffect(() => {
+    const lost = [...selected].filter((n) => taken.has(n) && !mine.has(n));
+    if (lost.length === 0 || !raffle) return;
+    setSelected((prev) => new Set([...prev].filter((n) => !lost.includes(n))));
+    setNotice(`O${lost.length > 1 ? "s" : ""} número${lost.length > 1 ? "s" : ""} ${lost.map((n) => padNumber(n, raffle.total_numbers)).join(", ")} acab${lost.length > 1 ? "aram" : "ou"} de ser escolhido${lost.length > 1 ? "s" : ""} por outra pessoa.`);
+  }, [taken]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (notFound) {
     return (
       <div className="min-h-screen bg-black flex flex-col items-center justify-center gap-4 text-center px-4">
         <h1 className="font-title text-3xl text-white">Rifa não encontrada</h1>
@@ -43,20 +83,23 @@ export default function RifaPage() {
       </div>
     );
   }
+  if (!raffle) return <div className="min-h-screen bg-black flex items-center justify-center"><div className="uiverse-loader" /></div>;
 
-  const all = Array.from({ length: raffle.totalNumbers }, (_, i) => i + 1);
+  const open = raffle.status === "open";
+  const all = Array.from({ length: raffle.total_numbers }, (_, i) => i + 1);
   const free = all.filter((n) => !taken.has(n));
-  const pct = Math.round((taken.size / raffle.totalNumbers) * 100);
-  const total = selected.size * raffle.pricePerNumber;
+  const pct = Math.round((taken.size / raffle.total_numbers) * 100);
+  const total = selected.size * raffle.price_cents;
   const q = search.replace(/\D/g, "");
   const shown = all.filter((n) => {
     if (filter === "free" && taken.has(n)) return false;
     if (filter === "mine" && !mine.has(n)) return false;
-    return !q || String(n).includes(String(Number(q))) || padNumber(n, raffle.totalNumbers).includes(q);
+    return !q || padNumber(n, raffle.total_numbers).includes(q) || String(n) === String(Number(q));
   });
 
   const toggle = (n: number) => {
-    if (taken.has(n)) return;
+    if (!open || taken.has(n)) return;
+    setNotice("");
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(n)) next.delete(n);
@@ -70,25 +113,39 @@ export default function RifaPage() {
     const pool = free.filter((n) => !selected.has(n));
     const picks: number[] = [];
     while (picks.length < count && pool.length) picks.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+    setNotice("");
     setSelected((prev) => new Set([...prev, ...picks]));
   };
 
-  const startCheckout = () => {
-    if (!buyer) return;
-    setCheckoutOpen(true);
+  const buy = async (proofs: string[], recaptcha: string): Promise<CheckoutResult> => {
+    try {
+      const res = await fetch(`/api/rifas/${raffle.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ numbers: [...selected], proofs, recaptcha }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (json.clash) load(); // atualiza a grade com quem pegou antes
+        return { ok: false, error: json.error || "Não foi possível concluir a compra.", clash: json.clash };
+      }
+      setSelected(new Set());
+      load();
+      loadMine();
+      return { ok: true, order: json.order };
+    } catch {
+      return { ok: false, error: "Sem conexão. Tente de novo." };
+    }
   };
 
   const cell = (n: number) => {
     const state = taken.get(n);
-    const isMine = mine.has(n);
-    const isSelected = selected.has(n);
     const base = "relative aspect-square rounded-lg text-xs sm:text-sm font-black not-italic flex items-center justify-center border transition-all select-none";
-    if (isMine) {
-      return `${base} bg-purple-500/15 border-purple-400/70 text-purple-200 cursor-default`;
-    }
+    if (mine.has(n)) return `${base} bg-purple-500/15 border-purple-400/70 text-purple-200 cursor-default`;
     if (state === "approved") return `${base} bg-white/[0.03] border-white/5 text-gray-700 line-through cursor-not-allowed`;
     if (state === "pending") return `${base} bg-white/[0.05] border-white/5 text-gray-600 cursor-not-allowed stripes`;
-    if (isSelected) return `${base} bg-purple-600 border-purple-300 text-white shadow-[0_0_18px_rgba(168,85,247,0.7)] scale-[1.06] z-10`;
+    if (selected.has(n)) return `${base} bg-purple-600 border-purple-300 text-white shadow-[0_0_18px_rgba(168,85,247,0.7)] scale-[1.06] z-10`;
+    if (!open) return `${base} bg-[#121214] border-white/10 text-gray-500 cursor-default`;
     return `${base} bg-[#121214] border-white/10 text-gray-200 hover:border-purple-400 hover:text-white hover:bg-purple-600/15 cursor-pointer active:scale-95`;
   };
 
@@ -102,21 +159,21 @@ export default function RifaPage() {
         {/* Cabeçalho da rifa */}
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-10">
           <div className="lg:col-span-2 rounded-2xl overflow-hidden border border-purple-500/30 bg-black aspect-[3/2]">
-            {raffle.image && <img src={raffle.image} alt={raffle.title} className="w-full h-full object-cover" />}
+            {raffle.image_url && <img src={raffle.image_url} alt={raffle.title} className={`w-full h-full object-cover ${open ? "" : "grayscale"}`} />}
           </div>
           <div className="lg:col-span-3 glass-panel rounded-2xl border border-gray-800 p-6 md:p-8 flex flex-col justify-between gap-6">
             <div>
-              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-600/15 border border-purple-500/40 text-purple-300 text-[11px] font-bold uppercase tracking-widest mb-4">
-                <Ticket className="w-3.5 h-3.5" /> Rifa
+              <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border text-[11px] font-bold uppercase tracking-widest mb-4 ${open ? "bg-purple-600/15 border-purple-500/40 text-purple-300" : "bg-gray-800 border-gray-700 text-gray-300"}`}>
+                {open ? <><Ticket className="w-3.5 h-3.5" /> Rifa aberta</> : <><Lock className="w-3.5 h-3.5" /> Vendas encerradas</>}
               </span>
               <h1 className="font-title text-4xl md:text-5xl text-white">{raffle.title}</h1>
-              <p className="text-gray-400 mt-2">{raffle.subtitle}</p>
+              {raffle.subtitle && <p className="text-gray-400 mt-2">{raffle.subtitle}</p>}
             </div>
             <div className="grid grid-cols-3 gap-3">
               {[
-                ["Por número", brl(raffle.pricePerNumber)],
-                ["Números", String(raffle.totalNumbers)],
-                ["Sorteio", new Date(raffle.drawDate).toLocaleDateString("pt-BR")],
+                ["Por número", brl(raffle.price_cents)],
+                ["Números", String(raffle.total_numbers)],
+                ["Sorteio", raffle.draw_date ? new Date(raffle.draw_date).toLocaleDateString("pt-BR") : "A definir"],
               ].map(([label, value]) => (
                 <div key={label} className="rounded-xl bg-black/40 border border-white/5 p-3 text-center">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">{label}</p>
@@ -126,7 +183,7 @@ export default function RifaPage() {
             </div>
             <div>
               <div className="flex justify-between text-xs font-bold uppercase tracking-widest mb-2">
-                <span className="text-gray-400">{taken.size} de {raffle.totalNumbers} já escolhidos</span>
+                <span className="text-gray-400">{taken.size} de {raffle.total_numbers} já escolhidos</span>
                 <span className="text-purple-400">{pct}%</span>
               </div>
               <div className="h-3 rounded-full bg-white/5 overflow-hidden">
@@ -141,7 +198,7 @@ export default function RifaPage() {
           <div className="glass-panel rounded-2xl border border-purple-500/30 p-5 md:p-6 mb-10">
             <h2 className="font-title text-2xl text-white mb-4">Meus números</h2>
             <div className="space-y-3">
-              {myOrders.map((o) => <MyOrder key={o.id} order={o} total={raffle.totalNumbers} />)}
+              {myOrders.map((o) => <MyOrder key={o.id} order={o} total={raffle.total_numbers} />)}
             </div>
           </div>
         )}
@@ -149,7 +206,7 @@ export default function RifaPage() {
         {/* Barra de ferramentas + legenda */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-5">
           <div className="flex flex-wrap items-center gap-2">
-            {([["all", `Todos (${raffle.totalNumbers})`], ["free", `Disponíveis (${free.length})`], ["mine", `Meus (${mine.size})`]] as const).map(([key, label]) => (
+            {([["all", `Todos (${raffle.total_numbers})`], ["free", `Disponíveis (${free.length})`], ["mine", `Meus (${mine.size})`]] as const).map(([key, label]) => (
               <button key={key} onClick={() => setFilter(key)}
                 className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest border transition-colors ${filter === key ? "bg-purple-600 border-purple-400 text-white" : "border-gray-800 text-gray-400 hover:text-white"}`}>
                 {label}
@@ -158,15 +215,17 @@ export default function RifaPage() {
             <input value={search} onChange={(e) => setSearch(e.target.value)} inputMode="numeric" placeholder="Buscar número"
               className="w-36 bg-[#0a0a0b] border border-gray-800 rounded-lg px-3 py-2 text-sm text-white placeholder:text-gray-600 focus:border-purple-500 outline-none" />
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-bold uppercase tracking-widest text-gray-500 mr-1 flex items-center gap-1.5"><Shuffle className="w-4 h-4 text-purple-400" /> Surpresinha</span>
-            {[1, 5, 10].map((n) => (
-              <button key={n} onClick={() => surprise(n)} disabled={free.length === 0}
-                className="px-3 py-2 rounded-lg text-xs font-black border border-purple-500/40 text-purple-200 bg-purple-600/10 hover:bg-purple-600/25 disabled:opacity-40 not-italic">
-                +{n}
-              </button>
-            ))}
-          </div>
+          {open && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-widest text-gray-500 mr-1 flex items-center gap-1.5"><Shuffle className="w-4 h-4 text-purple-400" /> Surpresinha</span>
+              {[1, 5, 10].map((n) => (
+                <button key={n} onClick={() => surprise(n)} disabled={free.length === 0}
+                  className="px-3 py-2 rounded-lg text-xs font-black border border-purple-500/40 text-purple-200 bg-purple-600/10 hover:bg-purple-600/25 disabled:opacity-40 not-italic">
+                  +{n}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex flex-wrap gap-x-5 gap-y-2 mb-5 text-xs font-bold text-gray-400">
@@ -177,6 +236,13 @@ export default function RifaPage() {
           <Legend className="bg-white/[0.03] border-white/5" label="Vendido" />
         </div>
 
+        {notice && (
+          <div className="mb-4 rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-100 flex items-start justify-between gap-3">
+            <span>{notice}</span>
+            <button onClick={() => setNotice("")} aria-label="Fechar aviso"><X className="w-4 h-4" /></button>
+          </div>
+        )}
+
         {/* Grade de números */}
         <div className="glass-panel rounded-2xl border border-gray-800 p-3 sm:p-5">
           {shown.length === 0 ? (
@@ -184,9 +250,9 @@ export default function RifaPage() {
           ) : (
             <div className="grid grid-cols-6 sm:grid-cols-10 gap-1.5 sm:gap-2">
               {shown.map((n) => (
-                <button key={n} type="button" onClick={() => toggle(n)} disabled={taken.has(n)} className={cell(n)}
+                <button key={n} type="button" onClick={() => toggle(n)} disabled={!open || taken.has(n)} className={cell(n)}
                   title={mine.has(n) ? "Seu número" : taken.get(n) === "pending" ? "Reservado" : taken.has(n) ? "Vendido" : "Disponível"}>
-                  {padNumber(n, raffle.totalNumbers)}
+                  {padNumber(n, raffle.total_numbers)}
                 </button>
               ))}
             </div>
@@ -207,43 +273,36 @@ export default function RifaPage() {
                 {[...selected].sort((a, b) => a - b).map((n) => (
                   <button key={n} onClick={() => toggle(n)} title="Tirar"
                     className="shrink-0 px-2.5 py-1 rounded-md bg-purple-600 text-white text-xs font-black not-italic flex items-center gap-1 hover:bg-purple-500">
-                    {padNumber(n, raffle.totalNumbers)} <X className="w-3 h-3" />
+                    {padNumber(n, raffle.total_numbers)} <X className="w-3 h-3" />
                   </button>
                 ))}
               </div>
             </div>
             <div className="flex items-center justify-between md:justify-end gap-5">
               <div className="text-right">
-                <p className="text-[11px] font-bold uppercase tracking-widest text-gray-500">{selected.size} × {brl(raffle.pricePerNumber)}</p>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-gray-500">{selected.size} × {brl(raffle.price_cents)}</p>
                 <p className="text-3xl font-black text-white not-italic">{brl(total)}</p>
               </div>
-              {buyer ? (
-                <button onClick={startCheckout} className="btn-neon px-6 py-3.5 rounded-xl font-black uppercase tracking-widest text-sm flex items-center gap-2">
+              {loggedIn ? (
+                <button onClick={() => setCheckoutOpen(true)} className="btn-neon px-6 py-3.5 rounded-xl font-black uppercase tracking-widest text-sm flex items-center gap-2">
                   <Sparkles className="w-4 h-4" /> Comprar números
                 </button>
               ) : (
-                <div className="flex flex-col items-end gap-1">
-                  <button onClick={() => signIn("twitch")} className="btn-neon px-6 py-3.5 rounded-xl font-black uppercase tracking-widest text-sm flex items-center gap-2">
-                    <FaTwitch className="w-4 h-4" /> Entrar para comprar
-                  </button>
-                  <button onClick={() => setGuest(true)} className="text-[11px] text-gray-500 hover:text-gray-300 font-bold">continuar sem login (só no protótipo)</button>
-                </div>
+                <button onClick={() => signIn("twitch")} className="btn-neon px-6 py-3.5 rounded-xl font-black uppercase tracking-widest text-sm flex items-center gap-2">
+                  <FaTwitch className="w-4 h-4" /> Entrar para comprar
+                </button>
               )}
             </div>
           </div>
         </div>
       </div>
 
-      {checkoutOpen && (
+      {checkoutOpen && session && (
         <CheckoutModal
           raffle={raffle}
           numbers={[...selected].sort((a, b) => a - b)}
           onClose={() => setCheckoutOpen(false)}
-          onConfirm={(proofs) => {
-            const res = placeOrder(raffle, buyer, [...selected], proofs);
-            if (res.ok) setSelected(new Set());
-            return res;
-          }}
+          onConfirm={buy}
         />
       )}
     </div>
@@ -278,7 +337,7 @@ function MyOrder({ order, total }: { order: RaffleOrder; total: number }) {
         ))}
       </div>
       <span className="shrink-0 text-sm font-black text-white not-italic flex items-center gap-1.5">
-        <Calendar className="w-3.5 h-3.5 text-gray-500" /> {new Date(order.createdAt).toLocaleDateString("pt-BR")} · {brl(order.total)}
+        <Calendar className="w-3.5 h-3.5 text-gray-500" /> {new Date(order.created_at).toLocaleDateString("pt-BR")} · {brl(order.total_cents)}
       </span>
     </div>
   );
