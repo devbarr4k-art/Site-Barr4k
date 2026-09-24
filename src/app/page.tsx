@@ -473,7 +473,7 @@ export default function Home() {
                       </div>
                       {winner.won_at && (
                         <div className="text-right shrink-0">
-                          <p className="text-xs text-gray-500 uppercase font-bold tracking-wider">Sorteio</p>
+                          <p className="text-xs text-gray-500 uppercase font-bold tracking-wider">Sorteado</p>
                           <p className="text-gray-300 font-medium text-sm flex items-center gap-1 justify-end">
                             <Clock className="w-3.5 h-3.5 text-purple-400" />
                             {new Date(winner.won_at).toLocaleDateString("pt-BR")}
