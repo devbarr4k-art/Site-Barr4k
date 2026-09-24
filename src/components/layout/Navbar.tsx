@@ -22,6 +22,7 @@ export default function Navbar() {
   const giveawayLinks = [
     { name: "SORTEIOS ATIVOS", href: "/#sorteios", icon: <Gift className="w-4 h-4" /> },
     { name: "SORTEIO DIÁRIO", href: "/diario", icon: <FaGamepad className="w-4 h-4" /> },
+    { name: "RIFAS", href: "/rifas", icon: <Ticket className="w-4 h-4" /> },
   ];
 
   const navLinks: { name: string; href: string; icon: React.ReactNode; children?: typeof giveawayLinks }[] = [
