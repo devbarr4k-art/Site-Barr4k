@@ -79,7 +79,7 @@ export default function RifaPage() {
     return (
       <div className="min-h-screen bg-black flex flex-col items-center justify-center gap-4 text-center px-4">
         <h1 className="font-title text-3xl text-white">Rifa não encontrada</h1>
-        <Link href="/rifas" className="text-purple-400 hover:text-purple-300 font-bold">Ver rifas abertas</Link>
+        <Link href="/ragi09" className="text-purple-400 hover:text-purple-300 font-bold">Ver rifas abertas</Link>
       </div>
     );
   }
@@ -152,7 +152,7 @@ export default function RifaPage() {
   return (
     <div className="min-h-screen bg-black pt-10 pb-40">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <Link href="/rifas" className="inline-flex items-center gap-2 text-gray-400 hover:text-white text-sm font-bold mb-6">
+        <Link href="/ragi09" className="inline-flex items-center gap-2 text-gray-400 hover:text-white text-sm font-bold mb-6">
           <ArrowLeft className="w-4 h-4" /> Todas as rifas
         </Link>
 

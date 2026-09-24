@@ -49,7 +49,7 @@ export default function RifasPage() {
               return (
                 <Link
                   key={r.id}
-                  href={`/rifas/${r.id}`}
+                  href={`/ragi09/${r.id}`}
                   className={`group rounded-2xl overflow-hidden border bg-[#0c0d10] transition-all ${closed ? "border-white/10 opacity-70 hover:opacity-100" : "border-purple-500/30 hover:border-purple-500 hover:-translate-y-1 hover:shadow-[0_0_40px_rgba(168,85,247,0.25)]"}`}
                 >
                   <div className="relative aspect-[3/2] overflow-hidden bg-black">

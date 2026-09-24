@@ -15,8 +15,7 @@ import AddWinnerModal from "@/components/admin/AddWinnerModal";
 import SiteUsers from "@/components/admin/SiteUsers";
 import PartnersManager from "@/components/admin/PartnersManager";
 import VideosManager from "@/components/admin/VideosManager";
-import RafflesManager from "@/components/admin/RafflesManager";
-import { Handshake, Ticket, UserRound } from "lucide-react";
+import { Handshake, UserRound } from "lucide-react";
 import { FaYoutube } from "react-icons/fa";
 import NumberInput from "@/components/ui/NumberInput";
 import { useSounds } from "@/lib/useSounds";
@@ -123,7 +122,7 @@ export default function AdminDashboard() {
   // Abre direto numa aba (?tab=twitch), usado na volta da autorização do chat
   useEffect(() => {
     const tab = new URLSearchParams(window.location.search).get("tab");
-    if (tab && ["sorteios", "twitch", "users", "cadastros", "parceiros", "videos", "rifas"].includes(tab)) setActiveTab(tab);
+    if (tab && ["sorteios", "twitch", "users", "cadastros", "parceiros", "videos"].includes(tab)) setActiveTab(tab);
   }, []);
 
   const [sorteios, setSorteios] = useState<any[]>([]);
@@ -590,12 +589,6 @@ export default function AdminDashboard() {
         >
           <FaYoutube className="w-4 h-4 md:w-5 md:h-5" /> Vídeos
         </button>
-        <button
-          onClick={() => setActiveTab("rifas")}
-          className={`flex items-center gap-2 md:gap-3 px-4 py-2 md:py-3 rounded-lg font-medium transition-all flex-shrink-0 ${activeTab === "rifas" ? "bg-purple-600/20 text-purple-300 border border-purple-500/50" : "text-gray-400 hover:bg-gray-900 hover:text-white"}`}
-        >
-          <Ticket className="w-4 h-4 md:w-5 md:h-5" /> Rifas
-        </button>
       </aside>
 
       {/* Main Content */}
@@ -930,7 +923,6 @@ export default function AdminDashboard() {
         {activeTab === "cadastros" && <SiteUsers />}
         {activeTab === "parceiros" && <PartnersManager />}
         {activeTab === "videos" && <VideosManager />}
-        {activeTab === "rifas" && <RafflesManager />}
 
         {activeTab === "twitch" && <LiveGiveaway defaultChannel={currentUsername || "barr4k"} />}
 

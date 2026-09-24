@@ -210,7 +210,7 @@ export default function RafflesManager() {
         </div>
         {!loadError && (
           <div className="flex gap-3 shrink-0">
-            <Link href="/rifas" target="_blank" className="px-4 py-3 rounded-lg border border-gray-700 text-gray-300 hover:text-white text-sm font-bold flex items-center gap-2">
+            <Link href="/ragi09" target="_blank" className="px-4 py-3 rounded-lg border border-gray-700 text-gray-300 hover:text-white text-sm font-bold flex items-center gap-2">
               <ExternalLink className="w-4 h-4" /> Ver no site
             </Link>
             <button onClick={openNew} className="btn-neon px-6 py-3 rounded-lg font-bold flex items-center gap-2">
@@ -268,7 +268,7 @@ export default function RafflesManager() {
                         )}
                         {!r.qr_image_url && <span className="px-2.5 py-1 rounded bg-red-500/10 border border-red-500/30 text-red-300 text-xs font-bold">sem QR do PIX</span>}
                         <div className="flex-1" />
-                        <Link href={`/rifas/${r.id}`} target="_blank" title="Ver no site" className="p-2 rounded bg-white/5 hover:bg-white/10 text-gray-300"><ExternalLink className="w-4 h-4" /></Link>
+                        <Link href={`/ragi09/${r.id}`} target="_blank" title="Ver no site" className="p-2 rounded bg-white/5 hover:bg-white/10 text-gray-300"><ExternalLink className="w-4 h-4" /></Link>
                         <button onClick={() => toggleOpen(r)} title={open ? "Encerrar vendas" : "Reabrir vendas"} className="p-2 rounded bg-white/5 hover:bg-white/10 text-gray-300">
                           {open ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
                         </button>
