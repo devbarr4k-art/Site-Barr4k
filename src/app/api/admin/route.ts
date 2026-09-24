@@ -680,18 +680,41 @@ export async function POST(request: Request) {
       if (body.raffleId) await expireHolds([body.raffleId]);
       const { error } = await db.rpc("raffle_set_order_status", { p_order: body.id, p_status: status });
       if (error) {
+        // Desfazer recusa com números já pegos: o painel abre a troca de números
         const takenBack = error.message.match(/TAKEN:([\d,]+)/);
         if (takenBack) {
-          const nums = takenBack[1].split(",");
-          return fail(nums.length > 1
-            ? `Não dá para voltar: os números ${nums.join(", ")} já foram escolhidos por outra pessoa depois da recusa.`
-            : `Não dá para voltar: o número ${nums[0]} já foi escolhido por outra pessoa depois da recusa.`);
+          const lost = takenBack[1].split(",").map(Number);
+          return Response.json(
+            { error: `${lost.length > 1 ? "Números já escolhidos" : "Número já escolhido"} por outra pessoa depois da recusa.`, needsReplacement: true, lost },
+            { status: 409 }
+          );
         }
         if (error.message.includes("ORDER_REJECTED")) return fail("Reserva vencida não volta: a pessoa não chegou a enviar o comprovante.");
         if (error.message.includes("ORDER_NOT_PAID")) return fail("Essa pessoa ainda não enviou o comprovante.");
         return fail(isMissingTable(error.message) ? MISSING_RAFFLES : error.message, 500);
       }
       return Response.json({ ok: true });
+    }
+
+    case "restoreRaffleOrder": {
+      const numbers: number[] = Array.isArray(body.numbers) ? body.numbers.map(Number).filter((n: number) => Number.isInteger(n)) : [];
+      const { data: added, error } = await db.rpc("raffle_restore_order", {
+        p_order: body.id,
+        p_new_numbers: numbers,
+        p_extend: !!body.extend,
+      });
+      if (error) {
+        const m = error.message;
+        const taken = m.match(/TAKEN:([\d,]+)/);
+        if (taken) return Response.json({ error: `O número ${taken[1]} acabou de ser escolhido. Escolha outro.`, lost: taken[1].split(",").map(Number) }, { status: 409 });
+        const wrong = m.match(/WRONG_COUNT:(\d+)/);
+        if (wrong) return fail(`Escolha exatamente ${wrong[1]} número(s).`);
+        if (m.includes("TOO_MANY")) return fail(`A rifa não pode passar de ${MAX_RAFFLE_NUMBERS} números.`);
+        if (m.includes("INVALID_NUMBER")) return fail("Algum número escolhido não serve (fora da rifa ou repetido).");
+        if (m.includes("INVALID_STATUS")) return fail("Essa compra não está mais recusada.");
+        return fail(isMissingTable(m) ? "Falta rodar o SQL supabase/migracao-rifas-desfazer-recusa.sql no Supabase." : m, 500);
+      }
+      return Response.json({ ok: true, added: added ?? [] });
     }
 
     case "deleteVideo": {

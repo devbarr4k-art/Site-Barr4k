@@ -10,7 +10,7 @@ export async function adminApi<T = any>(action: string, payload: Record<string, 
     body: JSON.stringify({ action, ...payload }),
   });
   const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(json.error || `Erro ${res.status}`);
+  if (!res.ok) throw Object.assign(new Error(json.error || `Erro ${res.status}`), { data: json, status: res.status });
   // Leituras não mudam nada; o resto faz a home buscar dados novos, sem cache
   if (!READ_ACTIONS.has(action)) markDataChanged();
   return json as T;

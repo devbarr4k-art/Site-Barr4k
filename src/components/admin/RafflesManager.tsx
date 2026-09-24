@@ -7,6 +7,7 @@ import { adminApi } from "@/lib/adminApi";
 import { uploadGiveawayImage } from "@/lib/image";
 import { useDialog } from "@/components/ui/Dialog";
 import NumberInput from "@/components/ui/NumberInput";
+import ReplaceNumbersModal from "@/components/admin/ReplaceNumbersModal";
 import {
   brl, centsToInput, MAX_RAFFLE_NUMBERS, padNumber, parseMoneyToCents,
   type OrderStatus, type Raffle, type RaffleOrder,
@@ -59,6 +60,7 @@ export default function RafflesManager() {
   const [saving, setSaving] = useState(false);
   const [busyOrder, setBusyOrder] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [replacing, setReplacing] = useState<{ order: RaffleOrder; lost: number[] } | null>(null);
 
   const loadRaffles = useCallback(async () => {
     try {
@@ -193,7 +195,10 @@ export default function RafflesManager() {
       setOrders((prev) => prev.filter((x) => x.id !== o.id)); // sai desta aba
       loadRaffles();
     } catch (err) {
-      dialog.error(err);
+      const data = (err as { data?: { needsReplacement?: boolean; lost?: number[] } }).data;
+      // Desfazer recusa com números já pegos: pergunta se quer escolher outros
+      if (data?.needsReplacement && data.lost?.length) setReplacing({ order: o, lost: data.lost });
+      else dialog.error(err);
     }
     setBusyOrder(null);
   };
@@ -456,6 +461,21 @@ export default function RafflesManager() {
             </div>
           </form>
         </div>
+      )}
+
+      {replacing && raffles.find((r) => r.id === replacing.order.raffle_id) && (
+        <ReplaceNumbersModal
+          order={replacing.order}
+          raffle={raffles.find((r) => r.id === replacing.order.raffle_id)!}
+          lost={replacing.lost}
+          onClose={() => setReplacing(null)}
+          onDone={(message) => {
+            setReplacing(null);
+            setOrders((prev) => prev.filter((x) => x.id !== replacing.order.id));
+            loadRaffles();
+            dialog.alert({ title: "Compra de volta!", message, tone: "success" });
+          }}
+        />
       )}
 
       {preview && (
