@@ -40,7 +40,7 @@ export default function Footer() {
               <Link href="/" onClick={(e) => handleSectionLink(e, "/", pathname)} className="text-gray-400 hover:text-purple-400 hover:translate-x-1 transition-all text-sm flex items-center gap-2">
                 <span className="w-1 h-1 bg-purple-500 rounded-full"></span> Home
               </Link>
-              <Link href="/#sorteios" onClick={(e) => handleSectionLink(e, "/#sorteios", pathname)} className="text-gray-400 hover:text-purple-400 hover:translate-x-1 transition-all text-sm flex items-center gap-2">
+              <Link href="/sorteios" onClick={(e) => handleSectionLink(e, "/sorteios", pathname)} className="text-gray-400 hover:text-purple-400 hover:translate-x-1 transition-all text-sm flex items-center gap-2">
                 <span className="w-1 h-1 bg-purple-500 rounded-full"></span> Sorteios Ativos
               </Link>
               <Link href="/diario" onClick={(e) => handleSectionLink(e, "/diario", pathname)} className="text-gray-400 hover:text-purple-400 hover:translate-x-1 transition-all text-sm flex items-center gap-2">
@@ -49,13 +49,13 @@ export default function Footer() {
               <Link href="/vendas" onClick={(e) => handleSectionLink(e, "/vendas", pathname)} className="text-gray-400 hover:text-purple-400 hover:translate-x-1 transition-all text-sm flex items-center gap-2">
                 <span className="w-1 h-1 bg-purple-500 rounded-full"></span> Venda
               </Link>
-              <Link href="/#videos" onClick={(e) => handleSectionLink(e, "/#videos", pathname)} className="text-gray-400 hover:text-purple-400 hover:translate-x-1 transition-all text-sm flex items-center gap-2">
+              <Link href="/videos" onClick={(e) => handleSectionLink(e, "/videos", pathname)} className="text-gray-400 hover:text-purple-400 hover:translate-x-1 transition-all text-sm flex items-center gap-2">
                 <span className="w-1 h-1 bg-purple-500 rounded-full"></span> Vídeos
               </Link>
               <Link href="/biografia" onClick={(e) => handleSectionLink(e, "/biografia", pathname)} className="text-gray-400 hover:text-purple-400 hover:translate-x-1 transition-all text-sm flex items-center gap-2">
                 <span className="w-1 h-1 bg-purple-500 rounded-full"></span> Biografia
               </Link>
-              <Link href="/#parceiros" onClick={(e) => handleSectionLink(e, "/#parceiros", pathname)} className="text-gray-400 hover:text-purple-400 hover:translate-x-1 transition-all text-sm flex items-center gap-2">
+              <Link href="/parceiros" onClick={(e) => handleSectionLink(e, "/parceiros", pathname)} className="text-gray-400 hover:text-purple-400 hover:translate-x-1 transition-all text-sm flex items-center gap-2">
                 <span className="w-1 h-1 bg-purple-500 rounded-full"></span> Parceiros
               </Link>
               <Link href="/meus-tickets" onClick={(e) => handleSectionLink(e, "/meus-tickets", pathname)} className="text-gray-400 hover:text-purple-400 hover:translate-x-1 transition-all text-sm flex items-center gap-2">

@@ -5,7 +5,7 @@ import { Trophy, Gift, ArrowDown, X, ArrowRight, Clock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { isGiveawayClosed } from "@/lib/giveaway";
-import { currentSectionId, handleSectionLink, scrollToSectionId } from "@/lib/sectionNav";
+import { currentSectionId, handleSectionLink, HOME_SECTIONS, scrollToSectionId, sectionPath } from "@/lib/sectionNav";
 import ClosedStamp from "@/components/ui/ClosedStamp";
 import { avatarFor } from "@/lib/daily";
 import { dataVersionQuery, useRefreshOnReturn } from "@/lib/freshData";
@@ -139,8 +139,8 @@ export default function Home() {
     router.push(`/sorteio/${giveaway.id}`);
   };
 
-  // A URL acompanha a seção visível ao rolar (#sorteios, #hall-da-fama, #videos...);
-  // no topo volta para "/" limpo
+  // O endereço acompanha a seção visível ao rolar (/sorteios, /hall-da-fama, /videos...);
+  // no topo volta para "/"
   useEffect(() => {
     const sections = Array.from(document.querySelectorAll<HTMLElement>("section[id]"));
     if (sections.length === 0) return;
@@ -154,27 +154,28 @@ export default function Home() {
       const id = !visible || visible.id === "home" ? "" : visible.id;
       if (id === current) return;
       current = id;
-      const url = window.location.pathname + window.location.search + (id ? `#${id}` : "");
-      window.history.replaceState(window.history.state, "", url);
+      window.history.replaceState(window.history.state, "", sectionPath(id) + window.location.search);
     };
     window.addEventListener("scroll", update, { passive: true });
-    if (!window.location.hash) update();
+    // chegou por /secao ou /#secao: quem acerta o endereço é a rolagem inicial abaixo
+    if (!window.location.hash && window.location.pathname === "/") update();
     return () => window.removeEventListener("scroll", update);
   }, [isLoadingGiveaways]);
 
-  const scrollToSection = (e: React.MouseEvent, id: string) => handleSectionLink(e, `/#${id}`, "/");
+  const scrollToSection = (e: React.MouseEvent, id: string) => handleSectionLink(e, sectionPath(id), "/");
 
-  // Chegou com #secao (ex.: /#parceiros vindo de outra página): rola quando o conteúdo carregar
-  // (lê o # só depois do carregamento: na montagem o Next ainda não gravou a URL nova)
+  // Chegou por /secao (ex.: /parceiros vindo de outra página) ou por um link antigo /#secao:
+  // rola quando o conteúdo carregar (lê o endereço só depois: na montagem o Next ainda não gravou o novo)
   const didInitialScroll = useRef(false);
   useEffect(() => {
     if (isLoadingGiveaways || didInitialScroll.current) return;
     didInitialScroll.current = true;
-    const hashId = window.location.hash.slice(1);
-    if (!hashId) return;
-    // Link antigo (ex.: #active-giveaways): troca a URL pelo nome novo da seção
-    const id = currentSectionId(hashId);
-    if (id !== hashId) window.history.replaceState(window.history.state, "", `/#${id}`);
+    const fromPath = window.location.pathname.slice(1);
+    const raw = window.location.hash.slice(1) || fromPath;
+    const id = currentSectionId(raw);
+    if (!id || !(HOME_SECTIONS as readonly string[]).includes(id)) return;
+    // Link antigo com # (ex.: /#active-giveaways): troca pelo endereço novo, sem #
+    if (window.location.hash || fromPath !== id) window.history.replaceState(window.history.state, "", sectionPath(id));
     // segunda passada acerta a posição depois que imagens e o Hall da Fama terminam de montar
     const t1 = setTimeout(() => scrollToSectionId(id, "instant"), 50);
     const t2 = setTimeout(() => scrollToSectionId(id, "instant"), 700);
@@ -214,7 +215,7 @@ export default function Home() {
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-purple-700/30 blur-[120px] rounded-full pointer-events-none animate-[pulse-glow_6s_ease-in-out_infinite] z-0" />
         {/* Só o vídeo; a setinha discreta leva para os sorteios ativos */}
         <a
-          href="#sorteios"
+          href="/sorteios"
           onClick={(e) => scrollToSection(e, "sorteios")}
           aria-label="Ver sorteios ativos"
           className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-1 text-white/60 hover:text-white transition-colors"
@@ -352,7 +353,7 @@ export default function Home() {
                 Sorteios para depositantes!
               </p>
             </div>
-            <a href="#hall-da-fama" onClick={(e) => scrollToSection(e, "hall-da-fama")} className="text-gray-500 hover:text-white text-xs font-bold uppercase tracking-widest transition-colors mb-1">
+            <a href="/hall-da-fama" onClick={(e) => scrollToSection(e, "hall-da-fama")} className="text-gray-500 hover:text-white text-xs font-bold uppercase tracking-widest transition-colors mb-1">
               VER HALL DA FAMA
             </a>
           </div>
@@ -502,7 +503,7 @@ export default function Home() {
                   </p>
                 </div>
                 <a
-                  href="#sorteios"
+                  href="/sorteios"
                   onClick={(e) => scrollToSection(e, "sorteios")}
                   className="mt-4 btn-neon px-8 py-3"
                 >

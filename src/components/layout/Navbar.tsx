@@ -20,17 +20,17 @@ export default function Navbar() {
 
   // "SORTEIO" abre um menu com os ativos e o diário
   const giveawayLinks = [
-    { name: "SORTEIOS ATIVOS", href: "/#sorteios", icon: <Gift className="w-4 h-4" /> },
+    { name: "SORTEIOS ATIVOS", href: "/sorteios", icon: <Gift className="w-4 h-4" /> },
     { name: "SORTEIO DIÁRIO", href: "/diario", icon: <FaGamepad className="w-4 h-4" /> },
   ];
 
   const navLinks: { name: string; href: string; icon: React.ReactNode; children?: typeof giveawayLinks }[] = [
     { name: "HOME", href: "/", icon: <FaHome className="w-4 h-4" /> },
-    { name: "SORTEIO", href: "/#sorteios", icon: <FaTicketAlt className="w-4 h-4" />, children: giveawayLinks },
+    { name: "SORTEIO", href: "/sorteios", icon: <FaTicketAlt className="w-4 h-4" />, children: giveawayLinks },
     { name: "VENDAS", href: "/vendas", icon: <GiAk47 className="w-5 h-5" /> },
-    { name: "VÍDEOS", href: "/#videos", icon: <FaYoutube className="w-4 h-4" /> },
+    { name: "VÍDEOS", href: "/videos", icon: <FaYoutube className="w-4 h-4" /> },
     { name: "BIOGRAFIA", href: "/biografia", icon: <UserRound className="w-4 h-4" /> },
-    { name: "PARCEIROS", href: "/#parceiros", icon: <FaHandshake className="w-4 h-4" /> },
+    { name: "PARCEIROS", href: "/parceiros", icon: <FaHandshake className="w-4 h-4" /> },
   ];
 
   const dropdownRef = useRef<HTMLDivElement>(null);
