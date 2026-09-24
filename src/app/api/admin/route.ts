@@ -680,7 +680,14 @@ export async function POST(request: Request) {
       if (body.raffleId) await expireHolds([body.raffleId]);
       const { error } = await db.rpc("raffle_set_order_status", { p_order: body.id, p_status: status });
       if (error) {
-        if (error.message.includes("ORDER_REJECTED")) return fail("Compra recusada ou vencida não volta: os números já foram liberados e podem ter outro dono.");
+        const takenBack = error.message.match(/TAKEN:([\d,]+)/);
+        if (takenBack) {
+          const nums = takenBack[1].split(",");
+          return fail(nums.length > 1
+            ? `Não dá para voltar: os números ${nums.join(", ")} já foram escolhidos por outra pessoa depois da recusa.`
+            : `Não dá para voltar: o número ${nums[0]} já foi escolhido por outra pessoa depois da recusa.`);
+        }
+        if (error.message.includes("ORDER_REJECTED")) return fail("Reserva vencida não volta: a pessoa não chegou a enviar o comprovante.");
         if (error.message.includes("ORDER_NOT_PAID")) return fail("Essa pessoa ainda não enviou o comprovante.");
         return fail(isMissingTable(error.message) ? MISSING_RAFFLES : error.message, 500);
       }

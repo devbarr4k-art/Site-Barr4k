@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Check, Clock, Edit, ExternalLink, ImagePlus, Lock, Plus, Search, Ticket, Trash2, Unlock, X } from "lucide-react";
+import { Check, Clock, Edit, ExternalLink, ImagePlus, Lock, Plus, RotateCcw, Search, Ticket, Trash2, Unlock, X } from "lucide-react";
 import { adminApi } from "@/lib/adminApi";
 import { uploadGiveawayImage } from "@/lib/image";
 import { useDialog } from "@/components/ui/Dialog";
@@ -182,13 +182,14 @@ export default function RafflesManager() {
   const decide = async (o: RaffleOrder, status: OrderStatus) => {
     if (status === "rejected" && !(await dialog.confirm({
       title: `Recusar a compra de @${o.username}?`,
-      message: `Os ${o.numbers.length} números voltam a ficar livres e outra pessoa pode escolher. Não dá para desfazer.`,
+      message: `Os ${o.numbers.length} números voltam a ficar livres e outra pessoa pode escolher. Se foi sem querer, dá para voltar na aba Recusadas enquanto ninguém pegar esses números.`,
       confirmText: "Recusar",
       tone: "danger",
     }))) return;
     setBusyOrder(o.id);
     try {
       await adminApi("setRaffleOrderStatus", { id: o.id, status });
+      if (o.status === "rejected") dialog.alert({ title: "Compra de volta!", message: `@${o.username} voltou para Pendentes com os mesmos números.`, tone: "success" });
       setOrders((prev) => prev.filter((x) => x.id !== o.id)); // sai desta aba
       loadRaffles();
     } catch (err) {
@@ -369,7 +370,10 @@ export default function RafflesManager() {
                           <Clock className="w-3.5 h-3.5" /> Voltar para pendente
                         </button>
                       ) : (
-                        <span className="text-xs text-gray-600">números liberados</span>
+                        <button disabled={busyOrder === o.id} onClick={() => decide(o, "pending")} title="Recusou sem querer? Volta para Pendentes se os números ainda estiverem livres"
+                          className="px-3 py-2 rounded-lg border border-purple-500/40 text-purple-200 hover:bg-purple-600/15 text-xs font-bold flex items-center gap-1.5 disabled:opacity-50">
+                          <RotateCcw className="w-3.5 h-3.5" /> Voltar para pendente
+                        </button>
                       )}
                     </div>
                   );
