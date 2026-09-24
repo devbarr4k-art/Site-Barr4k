@@ -2,8 +2,8 @@ import { getSessionUsername } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { PROOFS_BUCKET, removeProofs } from "@/lib/proofs";
 import { RECAPTCHA_FAILED, verifyRecaptcha } from "@/lib/recaptchaServer";
-import { RAFFLE_COLUMNS, reserveError, takenByRaffle, withCounts } from "@/lib/rifasServer";
-import { MAX_RAFFLE_PROOFS, type Raffle } from "@/lib/rifas";
+import { expireHolds, RAFFLE_COLUMNS, reserveError, takenByRaffle, withCounts } from "@/lib/rifasServer";
+import { HOLD_MINUTES, MAX_RAFFLE_PROOFS, type Raffle } from "@/lib/rifas";
 
 const MAX_PROOF_LENGTH = 3_000_000; // ~2 MB de imagem em base64
 
@@ -14,15 +14,18 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   if (new URL(request.url).searchParams.get("mine") === "1") {
     const username = await getSessionUsername();
     if (!username) return Response.json({ orders: [] }, { headers: { "Cache-Control": "no-store" } });
+    await expireHolds([id]);
     const { data } = await supabaseAdmin
       .from("raffle_orders")
-      .select("id, raffle_id, username, numbers, total_cents, status, created_at, decided_at")
+      .select("id, raffle_id, username, numbers, total_cents, status, created_at, decided_at, expires_at")
       .eq("raffle_id", id)
       .eq("username", username)
+      .neq("status", "expired") // reserva que venceu sem pagar não interessa
       .order("created_at", { ascending: false });
     return Response.json({ orders: data ?? [] }, { headers: { "Cache-Control": "no-store" } });
   }
 
+  await expireHolds([id]);
   const { data, error } = await supabaseAdmin.from("raffles").select(RAFFLE_COLUMNS).eq("id", id).maybeSingle();
   if (error || !data) return Response.json({ error: "Rifa não encontrada." }, { status: 404 });
   const taken = await takenByRaffle([id]);
@@ -38,22 +41,38 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   );
 }
 
-// POST: compra. Sobe os comprovantes e reserva os números numa operação só no banco.
+// POST: { action: "reserve", numbers } prende os números por HOLD_MINUTES;
+//       { action: "pay", orderId, proofs } envia o comprovante; { action: "cancel", orderId } solta a reserva.
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const username = await getSessionUsername();
   if (!username) return Response.json({ error: "Entre com a Twitch para comprar." }, { status: 401 });
 
   const body = await request.json().catch(() => null);
-  if (!(await verifyRecaptcha(body?.recaptcha, "rifa"))) {
-    return Response.json({ error: RECAPTCHA_FAILED }, { status: 403 });
+  const action = body?.action;
+
+  if (action === "reserve") {
+    if (!(await verifyRecaptcha(body?.recaptcha, "rifa"))) return Response.json({ error: RECAPTCHA_FAILED }, { status: 403 });
+    const numbers: number[] = Array.isArray(body?.numbers) ? body.numbers.map(Number).filter((n: number) => Number.isInteger(n)) : [];
+    if (numbers.length === 0) return Response.json({ error: "Escolha pelo menos um número." }, { status: 400 });
+    const { data: orderId, error } = await supabaseAdmin.rpc("raffle_reserve", {
+      p_raffle: id, p_username: username, p_numbers: numbers, p_hold_minutes: HOLD_MINUTES,
+    });
+    if (error) {
+      const e = reserveError(error.message);
+      return Response.json({ error: e.error, clash: e.clash }, { status: e.status });
+    }
+    return Response.json({ ok: true, order: await readOrder(orderId) });
   }
 
-  const numbers: number[] = Array.isArray(body?.numbers)
-    ? body.numbers.map(Number).filter((n: number) => Number.isInteger(n))
-    : [];
-  if (numbers.length === 0) return Response.json({ error: "Escolha pelo menos um número." }, { status: 400 });
+  if (action === "cancel") {
+    await supabaseAdmin.rpc("raffle_release", { p_order: String(body?.orderId ?? ""), p_username: username });
+    return Response.json({ ok: true });
+  }
 
+  if (action !== "pay") return Response.json({ error: "Ação inválida." }, { status: 400 });
+
+  const orderId = String(body?.orderId ?? "");
   const proofs: string[] = Array.isArray(body?.proofs) ? body.proofs.filter((p: unknown) => typeof p === "string") : [];
   if (proofs.length === 0) return Response.json({ error: "Anexe o comprovante do PIX." }, { status: 400 });
   if (proofs.length > MAX_RAFFLE_PROOFS) return Response.json({ error: `Envie no máximo ${MAX_RAFFLE_PROOFS} comprovantes.` }, { status: 400 });
@@ -77,24 +96,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     paths.push(path);
   }
 
-  const { data: orderId, error } = await supabaseAdmin.rpc("raffle_reserve", {
-    p_raffle: id,
-    p_username: username,
-    p_numbers: numbers,
-    p_proofs: paths,
-  });
-
+  const { error } = await supabaseAdmin.rpc("raffle_submit_proof", { p_order: orderId, p_username: username, p_proofs: paths });
   if (error) {
-    // Não reservou (número ocupado, rifa fechada...): os comprovantes enviados saem
     await removeProofs(paths);
     const e = reserveError(error.message);
     return Response.json({ error: e.error, clash: e.clash }, { status: e.status });
   }
+  return Response.json({ ok: true, order: await readOrder(orderId) });
+}
 
-  const { data: order } = await supabaseAdmin
+async function readOrder(orderId: string) {
+  const { data } = await supabaseAdmin
     .from("raffle_orders")
-    .select("id, raffle_id, username, numbers, total_cents, status, created_at")
+    .select("id, raffle_id, username, numbers, total_cents, status, created_at, expires_at")
     .eq("id", orderId)
     .maybeSingle();
-  return Response.json({ ok: true, order });
+  return data;
 }

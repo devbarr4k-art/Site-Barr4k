@@ -2,7 +2,8 @@
 // Os dados vivem nas tabelas raffles, raffle_orders e raffle_numbers (supabase/migracao-rifas.sql).
 
 export type RaffleStatus = "open" | "closed";
-export type OrderStatus = "pending" | "approved" | "rejected";
+// awaiting = números presos esperando o PIX (prazo HOLD_MINUTES); pending = comprovante enviado, esperando aprovação
+export type OrderStatus = "awaiting" | "pending" | "approved" | "rejected" | "expired";
 
 export type Raffle = {
   id: string;
@@ -34,12 +35,16 @@ export type RaffleOrder = {
   status: OrderStatus;
   created_at: string;
   decided_at?: string | null;
+  expires_at?: string | null; // até quando a reserva segura os números (status awaiting)
   proofs?: string[]; // links temporários dos comprovantes (só no painel)
   raffle_title?: string; // só no painel
 };
 
 export const MAX_RAFFLE_NUMBERS = 10000;
 export const MAX_RAFFLE_PROOFS = 4;
+
+/** Minutos que os números ficam presos para quem está pagando */
+export const HOLD_MINUTES = 15;
 
 export const brl = (cents: number) => (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 

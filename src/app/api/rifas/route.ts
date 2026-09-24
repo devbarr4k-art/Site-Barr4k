@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { RAFFLE_COLUMNS, takenByRaffle, withCounts } from "@/lib/rifasServer";
+import { expireHolds, RAFFLE_COLUMNS, takenByRaffle, withCounts } from "@/lib/rifasServer";
 import type { Raffle } from "@/lib/rifas";
 
 // Lista pública das rifas (abertas primeiro), com quantos números já saíram
@@ -14,6 +14,7 @@ export async function GET() {
   if (error) return Response.json({ raffles: [] });
 
   const raffles = (data ?? []) as Raffle[];
+  await expireHolds(raffles.filter((r) => r.status === "open").map((r) => r.id)).catch(() => {});
   const taken = await takenByRaffle(raffles.map((r) => r.id)).catch(() => ({}));
   return Response.json(
     { raffles: withCounts(raffles, taken) },

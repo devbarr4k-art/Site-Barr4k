@@ -12,7 +12,7 @@ import {
   type OrderStatus, type Raffle, type RaffleOrder,
 } from "@/lib/rifas";
 
-type AdminRaffle = Raffle & { pending_orders: number; received_cents: number };
+type AdminRaffle = Raffle & { pending_orders: number; awaiting_orders: number; received_cents: number };
 
 type Draft = {
   id?: string;
@@ -28,7 +28,7 @@ type Draft = {
   qr: { url: string | null; file: File | null; preview: string | null };
 };
 
-const STATUS_LABEL: Record<OrderStatus, string> = { pending: "Pendentes", approved: "Aprovadas", rejected: "Recusadas" };
+const STATUS_LABEL: Record<OrderStatus, string> = { awaiting: "Pagando agora", pending: "Pendentes", approved: "Aprovadas", rejected: "Recusadas", expired: "Vencidas" };
 
 const toLocalInput = (iso: string | null) => {
   if (!iso) return "";
@@ -266,6 +266,12 @@ export default function RafflesManager() {
                             {r.pending_orders} para aprovar
                           </button>
                         )}
+                        {r.awaiting_orders > 0 && (
+                          <button onClick={() => { setTab("awaiting"); setRaffleFilter(r.id); }}
+                            className="px-2.5 py-1 rounded bg-purple-500/15 border border-purple-500/40 text-purple-200 text-xs font-bold">
+                            {r.awaiting_orders} pagando agora
+                          </button>
+                        )}
                         {!r.qr_image_url && <span className="px-2.5 py-1 rounded bg-red-500/10 border border-red-500/30 text-red-300 text-xs font-bold">sem QR do PIX</span>}
                         <div className="flex-1" />
                         <Link href={`/ragi09/${r.id}`} target="_blank" title="Ver no site" className="p-2 rounded bg-white/5 hover:bg-white/10 text-gray-300"><ExternalLink className="w-4 h-4" /></Link>
@@ -288,7 +294,7 @@ export default function RafflesManager() {
               <h2 className="font-title text-2xl text-white">Compras</h2>
               <div className="flex flex-wrap items-center gap-2">
                 <div className="flex bg-[#121214] border border-gray-800 rounded-lg overflow-hidden">
-                  {(["pending", "approved", "rejected"] as const).map((s) => (
+                  {(["pending", "awaiting", "approved", "rejected"] as const).map((s) => (
                     <button key={s} onClick={() => setTab(s)}
                       className={`px-4 py-2 text-xs font-bold uppercase tracking-widest transition-colors flex items-center gap-2 ${tab === s ? "bg-purple-600 text-white" : "text-gray-500 hover:text-gray-300"}`}>
                       {STATUS_LABEL[s]}
@@ -331,9 +337,17 @@ export default function RafflesManager() {
                         ))}
                       </div>
                       <div className="flex items-center gap-2">
-                        {(o.proofs ?? []).map((p, i) => (
-                          <button key={i} onClick={() => setPreview(p)} className="w-10 h-12 rounded border border-gray-700 overflow-hidden hover:border-purple-400" title="Ver comprovante">
-                            <img src={p} alt="" className="w-full h-full object-cover" />
+                        {o.status === "awaiting" ? (
+                          <span className="text-xs text-purple-300 font-bold">pagando até {o.expires_at ? new Date(o.expires_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "—"}</span>
+                        ) : (o.proofs ?? []).length === 0 ? (
+                          <span className="text-xs text-gray-600">sem comprovante</span>
+                        ) : (o.proofs ?? []).map((p, i) => (
+                          <button key={i} onClick={() => setPreview(p)} title="Ver comprovante"
+                            className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-lg border border-gray-700 hover:border-purple-400 bg-white/5 hover:bg-purple-600/15 transition-colors">
+                            <span className="w-9 h-11 rounded bg-white overflow-hidden flex items-center justify-center">
+                              <img src={p} alt="" className="max-w-full max-h-full object-contain" />
+                            </span>
+                            <span className="text-xs font-bold text-gray-200">Ver{(o.proofs ?? []).length > 1 ? ` ${i + 1}` : " comprovante"}</span>
                           </button>
                         ))}
                       </div>
@@ -341,7 +355,11 @@ export default function RafflesManager() {
                         <p className="text-lg font-black text-white not-italic">{brl(o.total_cents)}</p>
                         <p className="text-[11px] text-gray-500">{o.numbers.length} × {brl(r?.price_cents ?? o.total_cents / o.numbers.length)}</p>
                       </div>
-                      {o.status === "pending" ? (
+                      {o.status === "awaiting" ? (
+                        <button disabled={busyOrder === o.id} onClick={() => decide(o, "rejected")} className="px-3 py-2 rounded-lg border border-gray-700 text-gray-400 hover:text-red-300 text-xs font-bold flex items-center gap-1.5">
+                          <X className="w-3.5 h-3.5" /> Liberar números
+                        </button>
+                      ) : o.status === "pending" ? (
                         <div className="flex gap-2">
                           <button disabled={busyOrder === o.id} onClick={() => decide(o, "approved")} className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white text-sm font-bold flex items-center gap-1.5 disabled:opacity-50"><Check className="w-4 h-4" /> Aprovar</button>
                           <button disabled={busyOrder === o.id} onClick={() => decide(o, "rejected")} className="px-4 py-2 rounded-lg bg-red-500/15 hover:bg-red-500/25 text-red-300 text-sm font-bold flex items-center gap-1.5 disabled:opacity-50"><X className="w-4 h-4" /> Recusar</button>
@@ -437,8 +455,10 @@ export default function RafflesManager() {
       )}
 
       {preview && (
-        <div className="fixed inset-0 z-[200] bg-black/90 flex items-center justify-center p-4 cursor-zoom-out" onClick={() => setPreview(null)}>
-          <img src={preview} alt="Comprovante" className="max-w-full max-h-[90vh] rounded-lg border border-gray-800" />
+        <div className="fixed inset-0 z-[200] bg-black/90 flex flex-col items-center justify-center gap-3 p-4 cursor-zoom-out" onClick={() => setPreview(null)}>
+          {/* fundo claro: comprovante com fundo transparente ou escuro continua legível */}
+          <img src={preview} alt="Comprovante" className="max-w-full max-h-[85vh] rounded-lg border border-gray-700 bg-white" />
+          <a href={preview} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="text-xs font-bold text-purple-300 hover:text-purple-200">Abrir em outra aba</a>
         </div>
       )}
     </div>

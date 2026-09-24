@@ -26,6 +26,7 @@ export default function RifaPage() {
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [resumeOrder, setResumeOrder] = useState<RaffleOrder | null>(null); // reserva que ficou pendurada
   const [notice, setNotice] = useState("");
 
   const load = useCallback(async () => {
@@ -117,25 +118,52 @@ export default function RifaPage() {
     setSelected((prev) => new Set([...prev, ...picks]));
   };
 
-  const buy = async (proofs: string[], recaptcha: string): Promise<CheckoutResult> => {
+  const post = async (payload: Record<string, unknown>): Promise<CheckoutResult> => {
     try {
       const res = await fetch(`/api/rifas/${raffle.id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ numbers: [...selected], proofs, recaptcha }),
+        body: JSON.stringify(payload),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
         if (json.clash) load(); // atualiza a grade com quem pegou antes
-        return { ok: false, error: json.error || "Não foi possível concluir a compra.", clash: json.clash };
+        return { ok: false, error: json.error || "Não foi possível concluir.", clash: json.clash };
       }
-      setSelected(new Set());
-      load();
-      loadMine();
       return { ok: true, order: json.order };
     } catch {
       return { ok: false, error: "Sem conexão. Tente de novo." };
     }
+  };
+
+  // "Ir para o pagamento": prende os números para esta pessoa
+  const reserve = async (numbers: number[], recaptcha: string) => {
+    const res = await post({ action: "reserve", numbers, recaptcha });
+    if (res.ok) {
+      setSelected(new Set()); // agora são "Meus" (reservados)
+      load();
+      loadMine();
+    }
+    return res;
+  };
+
+  const pay = async (orderId: string, proofs: string[]) => {
+    const res = await post({ action: "pay", orderId, proofs });
+    load();
+    loadMine();
+    return res;
+  };
+
+  // Fechou sem pagar: os números voltam para a lista. Na saída da página vai por sendBeacon.
+  const cancel = async (orderId: string, beacon?: boolean) => {
+    const body = JSON.stringify({ action: "cancel", orderId });
+    if (beacon && navigator.sendBeacon) {
+      navigator.sendBeacon(`/api/rifas/${raffle.id}`, new Blob([body], { type: "application/json" }));
+      return;
+    }
+    await fetch(`/api/rifas/${raffle.id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body }).catch(() => {});
+    load();
+    loadMine();
   };
 
   const cell = (n: number) => {
@@ -198,7 +226,11 @@ export default function RifaPage() {
           <div className="glass-panel rounded-2xl border border-purple-500/30 p-5 md:p-6 mb-10">
             <h2 className="font-title text-2xl text-white mb-4">Meus números</h2>
             <div className="space-y-3">
-              {myOrders.map((o) => <MyOrder key={o.id} order={o} total={raffle.total_numbers} />)}
+              {myOrders.map((o) => (
+                <MyOrder key={o.id} order={o} total={raffle.total_numbers}
+                  onResume={() => { setResumeOrder(o); setCheckoutOpen(true); }}
+                  onCancel={() => cancel(o.id)} />
+              ))}
             </div>
           </div>
         )}
@@ -301,8 +333,11 @@ export default function RifaPage() {
         <CheckoutModal
           raffle={raffle}
           numbers={[...selected].sort((a, b) => a - b)}
-          onClose={() => setCheckoutOpen(false)}
-          onConfirm={buy}
+          resume={resumeOrder}
+          onReserve={reserve}
+          onPay={pay}
+          onCancel={cancel}
+          onClose={() => { setCheckoutOpen(false); setResumeOrder(null); load(); loadMine(); }}
         />
       )}
     </div>
@@ -317,8 +352,11 @@ function Legend({ className, label }: { className: string; label: string }) {
   );
 }
 
-function MyOrder({ order, total }: { order: RaffleOrder; total: number }) {
+function MyOrder({ order, total, onResume, onCancel }: { order: RaffleOrder; total: number; onResume: () => void; onCancel: () => void }) {
+  const until = order.expires_at ? new Date(order.expires_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "";
   const badge = {
+    awaiting: { icon: Clock, text: `Reservado: pague até ${until}`, cls: "text-purple-200 bg-purple-500/10 border-purple-500/40" },
+    expired: { icon: XCircle, text: "Reserva vencida", cls: "text-gray-400 bg-white/5 border-white/10" },
     pending: { icon: Clock, text: "Aguardando aprovação", cls: "text-yellow-300 bg-yellow-500/10 border-yellow-500/30" },
     approved: { icon: CheckCircle2, text: "Pagamento aprovado", cls: "text-green-300 bg-green-500/10 border-green-500/30" },
     rejected: { icon: XCircle, text: "Recusado (números liberados)", cls: "text-red-300 bg-red-500/10 border-red-500/30" },
@@ -339,6 +377,12 @@ function MyOrder({ order, total }: { order: RaffleOrder; total: number }) {
       <span className="shrink-0 text-sm font-black text-white not-italic flex items-center gap-1.5">
         <Calendar className="w-3.5 h-3.5 text-gray-500" /> {new Date(order.created_at).toLocaleDateString("pt-BR")} · {brl(order.total_cents)}
       </span>
+      {order.status === "awaiting" && (
+        <div className="flex gap-2 shrink-0">
+          <button onClick={onResume} className="btn-neon px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest">Pagar</button>
+          <button onClick={onCancel} className="px-3 py-1.5 rounded-lg text-xs font-bold text-gray-400 hover:text-red-300 border border-gray-700">Liberar</button>
+        </div>
+      )}
     </div>
   );
 }

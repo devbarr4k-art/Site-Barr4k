@@ -10,7 +10,12 @@ export const MISSING_RAFFLES = "Falta rodar o SQL supabase/migracao-rifas.sql no
 
 export const isMissingTable = (message: string) => /raffle|schema cache|does not exist|function/i.test(message);
 
-/** Números ocupados de cada rifa: pagos e aguardando aprovação */
+/** Libera as reservas vencidas (quem não pagou no prazo) antes de mostrar os números */
+export async function expireHolds(raffleIds: string[]) {
+  await Promise.all(raffleIds.map((id) => supabaseAdmin.rpc("raffle_expire_holds", { p_raffle: id })));
+}
+
+/** Números ocupados de cada rifa: pagos e reservados (pagando ou esperando aprovação) */
 export async function takenByRaffle(raffleIds: string[]): Promise<Record<string, TakenNumbers>> {
   const out: Record<string, TakenNumbers> = Object.fromEntries(raffleIds.map((id) => [id, { approved: [], pending: [] }]));
   if (raffleIds.length === 0) return out;
@@ -47,6 +52,8 @@ export function reserveError(message: string): { status: number; error: string; 
   if (message.includes("RAFFLE_NOT_FOUND")) return { status: 404, error: "Rifa não encontrada." };
   if (message.includes("INVALID_NUMBER")) return { status: 400, error: "Algum número escolhido não existe nesta rifa." };
   if (message.includes("NO_NUMBERS")) return { status: 400, error: "Escolha pelo menos um número." };
+  if (message.includes("ALREADY_SENT")) return { status: 400, error: "O comprovante desta compra já foi enviado." };
+  if (message.includes("ORDER_NOT_FOUND") || message.includes("ORDER_CLOSED")) return { status: 404, error: "Essa reserva não existe mais. Escolha os números de novo." };
   if (isMissingTable(message)) return { status: 500, error: MISSING_RAFFLES };
   return { status: 500, error: "Não foi possível concluir a compra agora. Tente de novo." };
 }

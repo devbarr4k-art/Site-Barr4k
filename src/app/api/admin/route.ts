@@ -5,7 +5,7 @@ import { fetchTwitchAvatar, fetchTwitchAvatars, checkTwitchSubscriptions } from 
 import { addChatEntry } from "@/lib/dailyEntry";
 import { chancesFor } from "@/lib/daily";
 import { PROOFS_BUCKET, removeProofs, signProofs } from "@/lib/proofs";
-import { isMissingTable, MISSING_RAFFLES, RAFFLE_COLUMNS, takenByRaffle, withCounts } from "@/lib/rifasServer";
+import { expireHolds, isMissingTable, MISSING_RAFFLES, RAFFLE_COLUMNS, takenByRaffle, withCounts } from "@/lib/rifasServer";
 import { MAX_RAFFLE_NUMBERS, type Raffle } from "@/lib/rifas";
 import { isValidEmail, normalizeWhatsapp } from "@/lib/siteUsers";
 import { isShortsLink, parseYouTubeId, VIDEOS_VISIBILITY_KEY } from "@/lib/videos";
@@ -588,16 +588,18 @@ export async function POST(request: Request) {
       const { data, error } = await db.from("raffles").select(RAFFLE_COLUMNS).order("created_at", { ascending: false });
       if (error) return fail(MISSING_RAFFLES, 500);
       const raffles = (data ?? []) as Raffle[];
+      await expireHolds(raffles.map((r) => r.id));
       const taken = await takenByRaffle(raffles.map((r) => r.id));
       const { data: orders } = await db.from("raffle_orders").select("raffle_id, status, total_cents").in("raffle_id", raffles.map((r) => r.id));
-      const stats: Record<string, { pending: number; received_cents: number }> = {};
+      const stats: Record<string, { pending: number; received_cents: number; awaiting?: number }> = {};
       for (const o of orders ?? []) {
         const s = (stats[o.raffle_id] ??= { pending: 0, received_cents: 0 });
         if (o.status === "pending") s.pending++;
+        if (o.status === "awaiting") s.awaiting = (s.awaiting ?? 0) + 1;
         if (o.status === "approved") s.received_cents += o.total_cents;
       }
       return Response.json({
-        data: withCounts(raffles, taken).map((r) => ({ ...r, pending_orders: stats[r.id]?.pending ?? 0, received_cents: stats[r.id]?.received_cents ?? 0 })),
+        data: withCounts(raffles, taken).map((r) => ({ ...r, pending_orders: stats[r.id]?.pending ?? 0, awaiting_orders: stats[r.id]?.awaiting ?? 0, received_cents: stats[r.id]?.received_cents ?? 0 })),
       });
     }
 
@@ -644,9 +646,12 @@ export async function POST(request: Request) {
     }
 
     case "listRaffleOrders": {
+      // reservas vencidas saem antes de listar
+      const { data: openRaffles } = await db.from("raffles").select("id").eq("status", "open");
+      await expireHolds((openRaffles ?? []).map((r) => r.id));
       let query = db
         .from("raffle_orders")
-        .select("id, raffle_id, username, numbers, total_cents, proof_paths, status, created_at, decided_at, raffles(title)")
+        .select("id, raffle_id, username, numbers, total_cents, proof_paths, status, created_at, decided_at, expires_at, raffles(title)")
         .order("created_at", { ascending: body.status === "pending" })
         .limit(300);
       if (body.status) query = query.eq("status", body.status);
@@ -672,9 +677,11 @@ export async function POST(request: Request) {
     case "setRaffleOrderStatus": {
       const status = String(body.status);
       if (!["pending", "approved", "rejected"].includes(status)) return fail("Status inválido.");
+      if (body.raffleId) await expireHolds([body.raffleId]);
       const { error } = await db.rpc("raffle_set_order_status", { p_order: body.id, p_status: status });
       if (error) {
-        if (error.message.includes("ORDER_REJECTED")) return fail("Compra recusada não volta: os números já foram liberados e podem ter outro dono.");
+        if (error.message.includes("ORDER_REJECTED")) return fail("Compra recusada ou vencida não volta: os números já foram liberados e podem ter outro dono.");
+        if (error.message.includes("ORDER_NOT_PAID")) return fail("Essa pessoa ainda não enviou o comprovante.");
         return fail(isMissingTable(error.message) ? MISSING_RAFFLES : error.message, 500);
       }
       return Response.json({ ok: true });
