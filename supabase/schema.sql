@@ -64,6 +64,7 @@ create table public.participants (
   sub_tier        smallint not null default 0 check (sub_tier between 0 and 3), -- 0 = não é sub
   avatar_url      text,                           -- foto da Twitch (entradas do chat)
   proof_url       text,                           -- comprovante (base64)
+  proof_paths     text[] not null default '{}',   -- todos os comprovantes (caminhos no bucket proofs)
   status          text not null default 'pending' check (status in ('pending', 'approved', 'rejected')),
   created_at      timestamptz not null default now()
   -- sem unique: no sorteio mensal a mesma pessoa pode ter várias entradas;

@@ -4,7 +4,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { fetchTwitchAvatar, fetchTwitchAvatars, checkTwitchSubscriptions } from "@/lib/twitch";
 import { addChatEntry } from "@/lib/dailyEntry";
 import { chancesFor } from "@/lib/daily";
-import { PROOFS_BUCKET, removeProofs, signProofs } from "@/lib/proofs";
+import { allProofs, PROOFS_BUCKET, removeProofs, signProofs } from "@/lib/proofs";
 import { expireHolds, isMissingTable, MISSING_RAFFLES, RAFFLE_COLUMNS, takenByRaffle, withCounts } from "@/lib/rifasServer";
 import { MAX_RAFFLE_NUMBERS, type Raffle } from "@/lib/rifas";
 import { isValidEmail, normalizeWhatsapp } from "@/lib/siteUsers";
@@ -130,9 +130,9 @@ export async function POST(request: Request) {
 
 
     case "deleteParticipant": {
-      const { data: removed, error } = await db.from("participants").delete().eq("id", body.id).select("proof_url");
+      const { data: removed, error } = await db.from("participants").delete().eq("id", body.id).select("*");
       if (error) return fail(error.message, 500);
-      await removeProofs((removed ?? []).map((p) => p.proof_url));
+      await removeProofs((removed ?? []).flatMap(allProofs));
       return Response.json({ ok: true });
     }
 
@@ -153,10 +153,10 @@ export async function POST(request: Request) {
     case "deleteGiveaway": {
       await stopCaptureIfIdle(body.id);
       // Os participantes saem em cascata; os comprovantes no Storage precisam ser apagados à parte
-      const { data: proofs } = await db.from("participants").select("proof_url").eq("giveaway_id", body.id);
+      const { data: proofs } = await db.from("participants").select("*").eq("giveaway_id", body.id);
       const { error } = await db.from("giveaways").delete().eq("id", body.id);
       if (error) return fail(error.message, 500);
-      await removeProofs((proofs ?? []).map((p) => p.proof_url));
+      await removeProofs((proofs ?? []).flatMap(allProofs));
       return Response.json({ ok: true });
     }
 

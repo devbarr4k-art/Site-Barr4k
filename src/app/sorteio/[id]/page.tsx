@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRefreshOnReturn } from "@/lib/freshData";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, CheckCircle2, Gift, Sparkles, Trophy, Upload } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Gift, Sparkles, Trophy, Upload, X } from "lucide-react";
 import { FaTwitch } from "react-icons/fa";
 import { supabase } from "@/lib/supabase";
 import { compressImage } from "@/lib/image";
@@ -11,6 +11,8 @@ import ClosedStamp from "@/components/ui/ClosedStamp";
 import NumberInput from "@/components/ui/NumberInput";
 import { useSession, signIn } from "next-auth/react";
 import { getRecaptchaToken } from "@/lib/recaptcha";
+
+const MAX_PROOFS = 4; // comprovantes por inscrição
 
 // onEnd é chamado quando o cronômetro zera (com a página aberta)
 const useCountdown = (targetDateString: string | null, onEnd?: () => void) => {
@@ -64,7 +66,8 @@ export default function SorteioPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [isSuccess, setIsSuccess] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [proofs, setProofs] = useState<string[]>([]); // comprovantes já comprimidos (até MAX_PROOFS)
+  const [addingProof, setAddingProof] = useState(false);
   const [casaId, setCasaId] = useState("");
   const [coinsSpent, setCoinsSpent] = useState<number | "">("");
   const [isParticipating, setIsParticipating] = useState(false);
@@ -94,8 +97,16 @@ export default function SorteioPage() {
   // Voltou para a aba: pega data, textos e status atualizados
   useRefreshOnReturn(fetchGiveaway);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSelectedFile(e.target.files?.[0] ?? null);
+  // Pode anexar mais de um comprovante (ex.: pagou em dois PIX); comprime já ao escolher
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = [...(e.target.files ?? [])].filter((f) => f.type.startsWith("image/")).slice(0, MAX_PROOFS - proofs.length);
+    e.target.value = "";
+    if (files.length === 0) return;
+    setAddingProof(true);
+    const small = await Promise.all(files.map((f) => compressImage(f, 1400, 0.8)));
+    setProofs((prev) => [...prev, ...small].slice(0, MAX_PROOFS));
+    setAddingProof(false);
+    setError("");
   };
 
   const handleConfirm = async (e: React.FormEvent) => {
@@ -104,7 +115,7 @@ export default function SorteioPage() {
       signIn('twitch');
       return;
     }
-    if (!selectedFile) {
+    if (proofs.length === 0) {
       setError("Você deve enviar um comprovante!");
       return;
     }
@@ -112,14 +123,11 @@ export default function SorteioPage() {
     setError("");
     setIsSubmitting(true);
     try {
-      const [proof, recaptcha] = await Promise.all([
-        compressImage(selectedFile, 1600, 0.85),
-        getRecaptchaToken("participar"),
-      ]);
+      const recaptcha = await getRecaptchaToken("participar");
       const res = await fetch("/api/participar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ giveawayId: giveaway.id, coins: coinsSpent, casaId, proof, recaptcha }),
+        body: JSON.stringify({ giveawayId: giveaway.id, coins: coinsSpent, casaId, proofs, recaptcha }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || "Erro ao participar.");
@@ -322,19 +330,37 @@ export default function SorteioPage() {
               </div>
 
               <div>
-                <label className="block text-[#a0a0a0] text-xs font-bold uppercase tracking-wider mb-2">Comprovante (Obrigatório)</label>
-                <div className="w-full border-2 border-dashed border-white/10 rounded-lg p-6 flex flex-col items-center justify-center bg-[#050505] hover:bg-white/5 transition-colors cursor-pointer relative group">
-                  <input
-                    type="file"
-                    onChange={handleFileChange}
-                    accept="image/*"
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                  />
-                  <Upload className="w-6 h-6 text-[#505050] mb-2 group-hover:text-purple-500 transition-colors" />
-                  <p className="text-[#a0a0a0] text-sm font-medium">
-                    {selectedFile ? selectedFile.name : "Clique ou arraste a imagem aqui"}
-                  </p>
-                </div>
+                <label className="block text-[#a0a0a0] text-xs font-bold uppercase tracking-wider mb-2">
+                  Comprovante (Obrigatório) <span className="text-[#606060] normal-case tracking-normal font-medium">· até {MAX_PROOFS} imagens</span>
+                </label>
+                {proofs.length > 0 && (
+                  <div className="grid grid-cols-4 gap-2 mb-2">
+                    {proofs.map((p, i) => (
+                      <div key={i} className="relative aspect-[3/4] rounded-lg overflow-hidden border border-white/10 bg-checker">
+                        <img src={p} alt={`Comprovante ${i + 1}`} className="w-full h-full object-contain" />
+                        <button type="button" onClick={() => setProofs((prev) => prev.filter((_, j) => j !== i))} aria-label="Tirar comprovante"
+                          className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/80 text-gray-200 hover:text-red-400 flex items-center justify-center">
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {proofs.length < MAX_PROOFS && (
+                  <div className="w-full border-2 border-dashed border-white/10 rounded-lg p-6 flex flex-col items-center justify-center bg-[#050505] hover:bg-white/5 transition-colors cursor-pointer relative group">
+                    <input
+                      type="file"
+                      multiple
+                      onChange={handleFileChange}
+                      accept="image/*"
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    />
+                    <Upload className="w-6 h-6 text-[#505050] mb-2 group-hover:text-purple-500 transition-colors" />
+                    <p className="text-[#a0a0a0] text-sm font-medium text-center">
+                      {addingProof ? "Preparando imagem..." : proofs.length ? "Adicionar outro comprovante" : "Clique ou arraste a imagem aqui"}
+                    </p>
+                  </div>
+                )}
               </div>
 
               {error && (

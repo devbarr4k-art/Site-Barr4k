@@ -12,6 +12,7 @@ import { uploadGiveawayImage } from "@/lib/image";
 import { useDialog } from "@/components/ui/Dialog";
 import WinnerPrizeEditor from "@/components/admin/WinnerPrizeEditor";
 import AddWinnerModal from "@/components/admin/AddWinnerModal";
+import DrawCountdown from "@/components/admin/DrawCountdown";
 import SiteUsers from "@/components/admin/SiteUsers";
 import PartnersManager from "@/components/admin/PartnersManager";
 import VideosManager from "@/components/admin/VideosManager";
@@ -108,6 +109,7 @@ const toLocalInputValue = (iso: string) => {
 
 const ITEM_STEP = 160; // largura do card da roleta (144px) + gap (16px)
 const WINNER_INDEX = 40;
+const SPIN_MS = 10000; // duração do giro da roleta mensal
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -146,6 +148,7 @@ export default function AdminDashboard() {
   const [localWinners, setLocalWinners] = useState<any[]>([]);
   const rouletteTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const reelRef = useRef<HTMLDivElement>(null);
+  const [countdown, setCountdown] = useState<(() => void) | null>(null); // o que roda quando o 3 · 2 · 1 acabar
   const spinIdRef = useRef(0); // muda a cada giro; o loop de som para quando o giro acaba ou é cancelado
   const sounds = useSounds();
 
@@ -281,7 +284,15 @@ export default function AdminDashboard() {
   };
 
   // excludeNames: quem já ganhou (passado explicitamente porque o estado pode estar desatualizado)
+  // Sortear: contagem 3 · 2 · 1 e depois a roleta (sem ninguém para sortear, avisa direto, sem contar)
   const startRoulette = (excludeNames: string[] = localWinners.map((w) => w.twitch_username)) => {
+    const hasSomeone = participants.some((p) => p.status === "approved" && !excludeNames.includes(p.twitch_username));
+    if (!hasSomeone) return runRoulette(excludeNames);
+    sounds.unlock();
+    setCountdown(() => () => runRoulette(excludeNames));
+  };
+
+  const runRoulette = (excludeNames: string[]) => {
     const approved = participants.filter((p) => p.status === "approved" && !excludeNames.includes(p.twitch_username));
 
     if (approved.length === 0) {
@@ -309,32 +320,39 @@ export default function AdminDashboard() {
     setIsDrawing(true);
     setShowWinner(false);
 
-    // Mesmo som do sorteio diário: tique a cada card que passa pelo traço e fanfarra no final
+    // O giro é feito quadro a quadro (igual ao sorteio diário), e não por transição de CSS:
+    // com "efeitos de animação" desligados no Windows/navegador, a transição some e a roleta travava.
+    // Tique a cada card que passa pelo traço e fanfarra no final.
     sounds.unlock();
     const spinId = ++spinIdRef.current;
-    const startedAt = performance.now() + 100;
+    const target = WINNER_INDEX * ITEM_STEP;
     let lastIndex = -1;
-    const tickLoop = () => {
-      if (spinIdRef.current !== spinId || !reelRef.current) return;
-      const x = -new DOMMatrixReadOnly(getComputedStyle(reelRef.current).transform).m41;
+    let startedAt = 0;
+    const frame = (now: number) => {
+      const reel = reelRef.current;
+      if (spinIdRef.current !== spinId || !reel) return;
+      if (!startedAt) startedAt = now;
+      const t = Math.min(1, (now - startedAt) / SPIN_MS);
+      const x = target * (1 - Math.pow(1 - t, 4)); // desacelera devagar no final
+      reel.style.transform = `translateX(${-x}px)`;
       const index = Math.round(x / ITEM_STEP);
       if (index !== lastIndex) {
         lastIndex = index;
-        sounds.tick(Math.min(1, Math.max(0, (performance.now() - startedAt) / 10000)));
+        sounds.tick(t);
       }
-      requestAnimationFrame(tickLoop);
+      if (t < 1) requestAnimationFrame(frame);
     };
 
     rouletteTimers.current = [
-      setTimeout(() => {
-        setRouletteOffset(WINNER_INDEX * ITEM_STEP);
-        requestAnimationFrame(tickLoop);
-      }, 100),
+      setTimeout(() => requestAnimationFrame(frame), 100),
+      // O resultado sai pelo relógio mesmo se o navegador pausar os quadros (aba em segundo plano)
       setTimeout(() => {
         spinIdRef.current++;
+        if (reelRef.current) reelRef.current.style.transform = `translateX(${-target}px)`;
+        setRouletteOffset(target);
         sounds.win();
         setShowWinner(true);
-      }, 10100),
+      }, SPIN_MS + 100),
     ];
   };
 
@@ -661,10 +679,15 @@ export default function AdminDashboard() {
                                 </td>
                                 <td className="px-6 py-4 font-bold text-gray-400">{p.casa_id || "N/A"}</td>
                                 <td className="px-6 py-4">
-                                  {p.proof_url ? (
-                                    <button type="button" onClick={() => setProofPreview(p.proof_url)} className="text-blue-400 hover:text-blue-300 underline font-medium">
-                                      Ver Imagem
-                                    </button>
+                                  {/* um link por comprovante (a pessoa pode mandar até 4) */}
+                                  {(p.proofs ?? (p.proof_url ? [p.proof_url] : [])).length > 0 ? (
+                                    <div className="flex flex-wrap gap-x-3 gap-y-1">
+                                      {(p.proofs ?? [p.proof_url]).map((url: string, i: number, all: string[]) => (
+                                        <button key={i} type="button" onClick={() => setProofPreview(url)} className="text-blue-400 hover:text-blue-300 underline font-medium whitespace-nowrap">
+                                          {all.length > 1 ? `Imagem ${i + 1}` : "Ver Imagem"}
+                                        </button>
+                                      ))}
+                                    </div>
                                   ) : (
                                     <span>Nenhum</span>
                                   )}
@@ -694,10 +717,15 @@ export default function AdminDashboard() {
                                 <td className="px-6 py-4 font-bold text-yellow-500">{p.coins_used}</td>
                                 <td className="px-6 py-4 font-bold text-gray-400">{p.casa_id || "N/A"}</td>
                                 <td className="px-6 py-4">
-                                  {p.proof_url ? (
-                                    <button type="button" onClick={() => setProofPreview(p.proof_url)} className="text-blue-400 hover:text-blue-300 underline font-medium">
-                                      Ver Imagem
-                                    </button>
+                                  {/* um link por comprovante (a pessoa pode mandar até 4) */}
+                                  {(p.proofs ?? (p.proof_url ? [p.proof_url] : [])).length > 0 ? (
+                                    <div className="flex flex-wrap gap-x-3 gap-y-1">
+                                      {(p.proofs ?? [p.proof_url]).map((url: string, i: number, all: string[]) => (
+                                        <button key={i} type="button" onClick={() => setProofPreview(url)} className="text-blue-400 hover:text-blue-300 underline font-medium whitespace-nowrap">
+                                          {all.length > 1 ? `Imagem ${i + 1}` : "Ver Imagem"}
+                                        </button>
+                                      ))}
+                                    </div>
                                   ) : (
                                     <span className="text-gray-600">Nenhum</span>
                                   )}
@@ -1080,12 +1108,11 @@ export default function AdminDashboard() {
               {/* A esteira de avatares */}
               <div
                 ref={reelRef}
-                className={`flex gap-4 w-full transition-transform ease-[cubic-bezier(0.15,0.85,0.15,1)]`}
+                className="flex gap-4 w-full"
                 style={{
                   /* centraliza o 1º card no traço: metade da faixa menos metade do card (144px) */
                   paddingLeft: 'calc(50% - 72px)',
                   transform: `translateX(-${rouletteOffset}px)`,
-                  transitionDuration: rouletteOffset > 0 ? '10s' : '0s'
                 }}
               >
                 {rouletteItems.map((item, index) => (
@@ -1151,12 +1178,19 @@ export default function AdminDashboard() {
       )}
 
       {/* Visualizar comprovante (data URLs não abrem em nova aba) */}
+      {countdown && (
+        <DrawCountdown
+          onStep={(n) => sounds.tick(n === 1 ? 0.9 : n === 2 ? 0.5 : 0.15)}
+          onDone={() => { const run = countdown; setCountdown(null); run(); }}
+        />
+      )}
+
       {proofPreview && (
         <div onClick={() => setProofPreview(null)} className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-fade-in cursor-zoom-out">
           <button onClick={() => setProofPreview(null)} className="absolute top-4 right-4 text-gray-300 hover:text-white bg-black/60 rounded-full p-2">
             <X className="w-6 h-6" />
           </button>
-          <img src={proofPreview} alt="Comprovante" className="max-w-full max-h-[90vh] rounded-lg border border-gray-800" />
+          <img src={proofPreview} alt="Comprovante" className="max-w-full max-h-[90vh] rounded-lg border border-gray-800 bg-checker" />
         </div>
       )}
 

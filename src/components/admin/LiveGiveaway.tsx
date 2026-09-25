@@ -7,6 +7,7 @@ import {
   Bot, Clock, Gift, Pause, Play, Radio, Search, Star, Trophy, Upload, User, Users, Volume2, VolumeX, X, CheckCircle2, RotateCcw, Cloud, CloudOff, Trash2, RefreshCw,
 } from "lucide-react";
 import { adminApi } from "@/lib/adminApi";
+import DrawCountdown from "@/components/admin/DrawCountdown";
 import { uploadGiveawayImage } from "@/lib/image";
 import { avatarFor, chancesFor, isCommand, tierFromBadgeVersion } from "@/lib/daily";
 import DailyHistory from "@/components/admin/DailyHistory";
@@ -80,6 +81,7 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
   const [serverCapture, setServerCapture] = useState<ServerCapture>("checking");
   const [busy, setBusy] = useState(false);
   const [refreshingSubs, setRefreshingSubs] = useState(false);
+  const [countdown, setCountdown] = useState<(() => void) | null>(null); // roda quando o 3 · 2 · 1 acabar
 
   // Formulário de configuração
   const [title, setTitle] = useState("");
@@ -359,13 +361,18 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
 
   // Sorteio ponderado: cada participante entra na roleta tantas vezes quanto suas chances
   const startDraw = (pool: Participant[] = eligible) => {
-    if (!daily || isSpinning) return;
+    if (!daily || isSpinning || countdown) return;
     if (pool.length === 0) {
       dialog.alert({ title: "Ninguém na lista", message: "Espere alguém digitar o comando no chat antes de sortear.", tone: "warning" });
       return;
     }
     sounds.unlock();
+    // Contagem 3 · 2 · 1 e depois a roleta
+    setCountdown(() => () => launchDraw(pool));
+  };
 
+  const launchDraw = (pool: Participant[]) => {
+    if (!daily) return;
     const tickets: Participant[] = [];
     pool.forEach((p) => {
       for (let i = 0; i < chancesFor(p.sub_tier, daily); i++) tickets.push(p);
@@ -637,6 +644,12 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {countdown && (
+        <DrawCountdown
+          onStep={(n) => sounds.tick(n === 1 ? 0.9 : n === 2 ? 0.5 : 0.15)}
+          onDone={() => { const run = countdown; setCountdown(null); run(); }}
+        />
+      )}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-white">Sorteio Diário (Live)</h1>
