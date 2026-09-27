@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { FaTwitch, FaHandshake, FaGamepad, FaHome, FaTicketAlt, FaYoutube } from "react-icons/fa";
-import { ShieldAlert, Ticket, LogOut, ChevronDown, Menu, X, Gift, UserRound } from "lucide-react";
+import { ShieldAlert, ShieldCheck, Ticket, LogOut, ChevronDown, Menu, X, Gift, UserRound } from "lucide-react";
 import { GiAk47 } from "react-icons/gi";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
@@ -18,11 +18,12 @@ export default function Navbar() {
   const isLoggedIn = !!session;
   const isAdmin = !!(session?.user as any)?.isAdmin;
 
-  // "SORTEIO" abre um menu com os ativos, o diário e as rifas
+  // "SORTEIO" abre um menu com os ativos, o diário, as rifas e a prova dos sorteios
   const giveawayLinks = [
     { name: "SORTEIOS ATIVOS", href: "/sorteios", icon: <Gift className="w-4 h-4" /> },
     { name: "SORTEIO DIÁRIO", href: "/diario", icon: <FaGamepad className="w-4 h-4" /> },
     { name: "RIFAS", href: "/rifas", icon: <Ticket className="w-4 h-4" /> },
+    { name: "PROVABLY FAIR", href: "/provably-fair", icon: <ShieldCheck className="w-4 h-4" /> },
   ];
 
   const navLinks: { name: string; href: string; icon: React.ReactNode; children?: typeof giveawayLinks }[] = [

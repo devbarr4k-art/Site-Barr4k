@@ -10,6 +10,10 @@ import { MAX_RAFFLE_NUMBERS, type Raffle } from "@/lib/rifas";
 import { isValidEmail, normalizeWhatsapp } from "@/lib/siteUsers";
 import { isShortsLink, parseYouTubeId, VIDEOS_VISIBILITY_KEY } from "@/lib/videos";
 import { serverCaptureStatus, startServerCapture, stopServerCapture } from "@/lib/eventsub";
+import { FAIR_COLUMNS, runFairDraw, setFairStatus } from "@/lib/fairServer";
+
+// O sorteio provably fair espera a rodada do drand sair (até ~7s)
+export const maxDuration = 30;
 
 const GIVEAWAY_FIELDS = [
   "title", "description", "highlight_text", "highlight_color", "coins_cost", "subtitle",
@@ -226,7 +230,40 @@ export async function POST(request: Request) {
         .select()
         .single();
       if (error) return fail(error.message, 500);
+      await setFairStatus(body.drawId, "confirmed");
       return Response.json({ data });
+    }
+
+    // ---- Provably fair: a roleta só gira depois que o servidor sorteia ----
+    case "fairDraw": {
+      if (!["mensal", "diario", "rifa"].includes(body.kind) || typeof body.targetId !== "string") return fail("Sorteio inválido.");
+      const res = await runFairDraw(body.kind, body.targetId);
+      if (!res.draw) return fail(res.error ?? "Erro ao sortear.", res.status ?? 500);
+      return Response.json({ data: res.draw });
+    }
+
+    case "fairStatus": {
+      if (body.status !== "confirmed" && body.status !== "skipped") return fail("Status inválido.");
+      await setFairStatus(body.id, body.status);
+      return Response.json({ ok: true });
+    }
+
+    case "confirmRaffleWinner": {
+      // Ganhador da rifa: vai para o histórico de vencedores e a rifa é encerrada
+      const { data: draw } = await db.from("fair_draws").select(FAIR_COLUMNS).eq("id", body.drawId).eq("kind", "rifa").maybeSingle();
+      if (!draw || draw.status === "waiting" || !draw.winner_username) return fail("Sorteio inválido.");
+      if (draw.status !== "confirmed") {
+        const { error } = await db.from("winners").insert({
+          giveaway_id: null,
+          twitch_username: draw.winner_username,
+          avatar_url: await fetchTwitchAvatar(draw.winner_username),
+          prize: `${draw.title} (número ${draw.winner_label})`,
+        });
+        if (error) return fail(error.message, 500);
+        await setFairStatus(draw.id, "confirmed");
+      }
+      await db.from("raffles").update({ status: "closed" }).eq("id", draw.target_id);
+      return Response.json({ ok: true });
     }
 
     case "addWinnerManual": {
@@ -486,6 +523,7 @@ export async function POST(request: Request) {
         prize: daily.title.replace(/\s*\|\s*/g, " "),
       });
       if (error) return fail(error.message, 500);
+      await setFairStatus(body.drawId, "confirmed");
       await stopCaptureIfIdle(daily.id);
       await db
         .from("giveaways")

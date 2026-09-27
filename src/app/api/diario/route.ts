@@ -32,7 +32,7 @@ export async function GET() {
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   const { data: history } = await supabaseAdmin
     .from("winners")
-    .select("twitch_username, prize, avatar_url, won_at, giveaways!inner(type)")
+    .select("giveaway_id, twitch_username, prize, avatar_url, won_at, giveaways!inner(type)")
     .eq("giveaways.type", "daily")
     .gte("won_at", since)
     .order("won_at", { ascending: false });

@@ -61,6 +61,9 @@ export default function Footer() {
               <Link href="/meus-tickets" onClick={(e) => handleSectionLink(e, "/meus-tickets", pathname)} className="text-gray-400 hover:text-purple-400 hover:translate-x-1 transition-all text-sm flex items-center gap-2">
                 <span className="w-1 h-1 bg-purple-500 rounded-full"></span> Meus Tickets
               </Link>
+              <Link href="/provably-fair" className="text-gray-400 hover:text-purple-400 hover:translate-x-1 transition-all text-sm flex items-center gap-2">
+                <span className="w-1 h-1 bg-purple-500 rounded-full"></span> Provably Fair
+              </Link>
             </nav>
           </div>
 

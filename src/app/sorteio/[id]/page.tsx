@@ -8,6 +8,7 @@ import { FaTwitch } from "react-icons/fa";
 import { supabase } from "@/lib/supabase";
 import { compressImage } from "@/lib/image";
 import ClosedStamp from "@/components/ui/ClosedStamp";
+import FairBadge from "@/components/fair/FairBadge";
 import NumberInput from "@/components/ui/NumberInput";
 import { useSession, signIn } from "next-auth/react";
 import { getRecaptchaToken } from "@/lib/recaptcha";
@@ -249,6 +250,10 @@ export default function SorteioPage() {
               </span>
             </div>
           )}
+        </div>
+
+        <div className="px-6 sm:px-12 pt-6 sm:pt-10">
+          <FairBadge target={giveaway.id} className="text-left" />
         </div>
 
         {/* Bloco 3: Formulário de Participação */}

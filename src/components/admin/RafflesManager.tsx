@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Check, Clock, Edit, ExternalLink, ImagePlus, Lock, Plus, RotateCcw, Search, Ticket, Trash2, Unlock, X } from "lucide-react";
+import { Check, Clock, Trophy, Edit, ExternalLink, ImagePlus, Lock, Plus, RotateCcw, Search, Ticket, Trash2, Unlock, X } from "lucide-react";
 import { adminApi } from "@/lib/adminApi";
 import { uploadGiveawayImage } from "@/lib/image";
 import { useDialog } from "@/components/ui/Dialog";
 import NumberInput from "@/components/ui/NumberInput";
 import ReplaceNumbersModal from "@/components/admin/ReplaceNumbersModal";
+import RaffleDraw from "@/components/admin/RaffleDraw";
 import {
   brl, centsToInput, MAX_RAFFLE_NUMBERS, padNumber, parseMoneyToCents,
   type OrderStatus, type Raffle, type RaffleOrder,
@@ -61,6 +62,22 @@ export default function RafflesManager() {
   const [busyOrder, setBusyOrder] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [replacing, setReplacing] = useState<{ order: RaffleOrder; lost: number[] } | null>(null);
+  const [drawing, setDrawing] = useState<AdminRaffle | null>(null);
+
+  // Só números pagos (aprovados) entram na roleta; avisa se ainda tem compra esperando
+  const startDraw = async (r: AdminRaffle) => {
+    const waiting = r.pending_orders + r.awaiting_orders;
+    if (waiting > 0) {
+      const ok = await dialog.confirm({
+        title: "Ainda tem compra em aberto",
+        message: `${waiting} compra(s) ainda não foram aprovadas e os números delas NÃO entram no sorteio. Sortear mesmo assim?`,
+        confirmText: "Sortear assim mesmo",
+        tone: "warning",
+      });
+      if (!ok) return;
+    }
+    setDrawing(r);
+  };
 
   // silent: atualização automática, sem "carregando" e sem apagar a lista se a rede falhar
   const loadRaffles = useCallback(async (silent = false) => {
@@ -292,6 +309,12 @@ export default function RafflesManager() {
                         )}
                         {!r.qr_image_url && <span className="px-2.5 py-1 rounded bg-red-500/10 border border-red-500/30 text-red-300 text-xs font-bold">sem QR do PIX</span>}
                         <div className="flex-1" />
+                        {sold > 0 && (
+                          <button onClick={() => startDraw(r)} title="Sortear entre os números pagos"
+                            className="px-3 py-1.5 rounded btn-neon text-xs font-bold uppercase tracking-widest flex items-center gap-1.5">
+                            <Trophy className="w-3.5 h-3.5" /> Sortear
+                          </button>
+                        )}
                         <Link href={`/rifas/${r.id}`} target="_blank" title="Ver no site" className="p-2 rounded bg-white/5 hover:bg-white/10 text-gray-300"><ExternalLink className="w-4 h-4" /></Link>
                         <button onClick={() => toggleOpen(r)} title={open ? "Encerrar vendas" : "Reabrir vendas"} className="p-2 rounded bg-white/5 hover:bg-white/10 text-gray-300">
                           {open ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
@@ -473,6 +496,14 @@ export default function RafflesManager() {
             </div>
           </form>
         </div>
+      )}
+
+      {drawing && (
+        <RaffleDraw
+          raffle={drawing}
+          onClose={() => setDrawing(null)}
+          onConfirmed={() => { setDrawing(null); loadRaffles(); }}
+        />
       )}
 
       {replacing && raffles.find((r) => r.id === replacing.order.raffle_id) && (

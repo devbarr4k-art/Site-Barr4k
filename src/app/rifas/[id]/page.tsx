@@ -8,6 +8,7 @@ import { ArrowLeft, Calendar, CheckCircle2, Clock, Lock, Shuffle, Sparkles, Tick
 import { FaTwitch } from "react-icons/fa";
 import { brl, padNumber, type OrderStatus, type Raffle, type RaffleOrder, type TakenNumbers } from "@/lib/rifas";
 import { useRefreshOnReturn } from "@/lib/freshData";
+import FairBadge from "@/components/fair/FairBadge";
 import CheckoutModal, { type CheckoutResult } from "@/components/rifas/CheckoutModal";
 
 type Filter = "all" | "free" | "mine";
@@ -220,6 +221,8 @@ export default function RifaPage() {
             </div>
           </div>
         </div>
+
+        <FairBadge target={raffle.id} className="mb-10" />
 
         {/* Meus números */}
         {myOrders.length > 0 && (

@@ -16,7 +16,8 @@ import DrawCountdown from "@/components/admin/DrawCountdown";
 import SiteUsers from "@/components/admin/SiteUsers";
 import PartnersManager from "@/components/admin/PartnersManager";
 import VideosManager from "@/components/admin/VideosManager";
-import { Handshake, Ticket, UserRound } from "lucide-react";
+import { Handshake, ShieldCheck, Ticket, UserRound } from "lucide-react";
+import type { FairDraw } from "@/lib/fair";
 import RafflesManager from "@/components/admin/RafflesManager";
 import { FaYoutube } from "react-icons/fa";
 import NumberInput from "@/components/ui/NumberInput";
@@ -149,7 +150,8 @@ export default function AdminDashboard() {
   const [localWinners, setLocalWinners] = useState<any[]>([]);
   const rouletteTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const reelRef = useRef<HTMLDivElement>(null);
-  const [countdown, setCountdown] = useState<(() => void) | null>(null); // o que roda quando o 3 · 2 · 1 acabar
+  const [countdown, setCountdown] = useState<{ run: () => void; until?: Promise<unknown> } | null>(null); // o que roda quando o 3 · 2 · 1 acabar
+  const [currentDraw, setCurrentDraw] = useState<FairDraw | null>(null); // giro provably fair em andamento
   const spinIdRef = useRef(0); // muda a cada giro; o loop de som para quando o giro acaba ou é cancelado
   const sounds = useSounds();
 
@@ -286,17 +288,27 @@ export default function AdminDashboard() {
 
   // excludeNames: quem já ganhou (passado explicitamente porque o estado pode estar desatualizado)
   // Sortear: contagem 3 · 2 · 1 e depois a roleta (sem ninguém para sortear, avisa direto, sem contar)
+  // Provably fair: quem ganha é decidido no servidor (lista congelada + número público do drand)
+  // durante a contagem; a roleta só mostra o resultado.
   const startRoulette = (excludeNames: string[] = localWinners.map((w) => w.twitch_username)) => {
     const hasSomeone = participants.some((p) => p.status === "approved" && !excludeNames.includes(p.twitch_username));
-    if (!hasSomeone) return runRoulette(excludeNames);
+    if (!hasSomeone) return runRoulette(excludeNames, null);
     sounds.unlock();
-    setCountdown(() => () => runRoulette(excludeNames));
+    const draw = adminApi<{ data: FairDraw }>("fairDraw", { kind: "mensal", targetId: managingParticipants }).then((r) => r.data);
+    draw.catch(() => {}); // o erro é mostrado depois da contagem
+    setCountdown({
+      until: draw,
+      run: () => draw.then(
+        (d) => runRoulette(excludeNames, d),
+        (err) => { dialog.error(err, "Não foi possível sortear"); setIsDrawing(false); setShowWinner(false); }
+      ),
+    });
   };
 
-  const runRoulette = (excludeNames: string[]) => {
+  const runRoulette = (excludeNames: string[], draw: FairDraw | null) => {
     const approved = participants.filter((p) => p.status === "approved" && !excludeNames.includes(p.twitch_username));
 
-    if (approved.length === 0) {
+    if (approved.length === 0 || !draw) {
       dialog.alert({
         title: "Ninguém disponível para sortear",
         message: "Não há mais participantes aprovados que ainda não foram sorteados. Aprove participantes na tabela para sortear.",
@@ -311,8 +323,10 @@ export default function AdminDashboard() {
     for (let i = 0; i < 50; i++) {
       items.push(approved[Math.floor(Math.random() * approved.length)]);
     }
-    const trueWinner = approved[Math.floor(Math.random() * approved.length)];
+    // Os outros cards são só enfeite; o do traço é o ganhador sorteado no servidor
+    const trueWinner = approved.find((p) => p.twitch_username === draw.winner_username) ?? { twitch_username: draw.winner_username, avatar_url: null };
     items[WINNER_INDEX] = trueWinner;
+    setCurrentDraw(draw);
 
     rouletteTimers.current.forEach(clearTimeout);
     setRouletteItems(items);
@@ -358,6 +372,9 @@ export default function AdminDashboard() {
   };
 
   const cancelRoulette = () => {
+    // O resultado já existe: fica no registro público como descartado
+    if (currentDraw) adminApi("fairStatus", { id: currentDraw.id, status: "skipped" }).catch(() => {});
+    setCurrentDraw(null);
     spinIdRef.current++;
     rouletteTimers.current.forEach(clearTimeout);
     setIsDrawing(false);
@@ -382,7 +399,9 @@ export default function AdminDashboard() {
       twitchUsername: drawnWinner.twitch_username,
       avatarUrl: drawnWinner.avatar_url ?? null,
       prize: sorteio ? sorteio.title : "Prêmio Sorteado",
+      drawId: currentDraw?.id,
     });
+    setCurrentDraw(null);
 
     const updatedWinners = res?.data ? [...localWinners, res.data] : localWinners;
     setLocalWinners(updatedWinners);
@@ -1162,7 +1181,12 @@ export default function AdminDashboard() {
                 />
 
                 <h3 className="text-3xl font-black text-white uppercase tracking-wider mb-2 truncate">@{drawnWinner?.twitch_username}</h3>
-                <p className="text-gray-400 mb-6 font-medium text-xs uppercase tracking-widest">Vencedor do sorteio</p>
+                <p className="text-gray-400 mb-2 font-medium text-xs uppercase tracking-widest">Vencedor do sorteio</p>
+                {currentDraw && (
+                  <a href={`/provably-fair?id=${currentDraw.id}`} target="_blank" className="inline-flex items-center gap-1.5 mb-6 text-[11px] font-bold text-purple-300 hover:text-purple-200 uppercase tracking-widest">
+                    <ShieldCheck className="w-3.5 h-3.5" /> Ver prova do sorteio
+                  </a>
+                )}
 
                 <div className="flex gap-3">
                   <button
@@ -1189,7 +1213,8 @@ export default function AdminDashboard() {
       {countdown && (
         <DrawCountdown
           onStep={(n) => sounds.tick(n === 1 ? 0.9 : n === 2 ? 0.5 : 0.15)}
-          onDone={() => { const run = countdown; setCountdown(null); run(); }}
+          until={countdown.until}
+          onDone={() => { const { run } = countdown; setCountdown(null); run(); }}
         />
       )}
 

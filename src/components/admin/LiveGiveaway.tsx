@@ -4,10 +4,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import tmi from "tmi.js";
 import {
-  Bot, Clock, Gift, Pause, Play, Radio, Search, Star, Trophy, Upload, User, Users, Volume2, VolumeX, X, CheckCircle2, RotateCcw, Cloud, CloudOff, Trash2, RefreshCw,
+  Bot, Clock, Gift, Pause, Play, Radio, Search, Star, Trophy, Upload, User, Users, Volume2, VolumeX, X, CheckCircle2, RotateCcw, Cloud, CloudOff, Trash2, RefreshCw, ShieldCheck,
 } from "lucide-react";
 import { adminApi } from "@/lib/adminApi";
 import DrawCountdown from "@/components/admin/DrawCountdown";
+import type { FairDraw } from "@/lib/fair";
 import { uploadGiveawayImage } from "@/lib/image";
 import { avatarFor, chancesFor, isCommand, tierFromBadgeVersion } from "@/lib/daily";
 import DailyHistory from "@/components/admin/DailyHistory";
@@ -81,7 +82,8 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
   const [serverCapture, setServerCapture] = useState<ServerCapture>("checking");
   const [busy, setBusy] = useState(false);
   const [refreshingSubs, setRefreshingSubs] = useState(false);
-  const [countdown, setCountdown] = useState<(() => void) | null>(null); // roda quando o 3 · 2 · 1 acabar
+  const [countdown, setCountdown] = useState<{ run: () => void; until?: Promise<unknown> } | null>(null); // roda quando o 3 · 2 · 1 acabar
+  const drawRef = useRef<FairDraw | null>(null); // giro provably fair atual
 
   // Formulário de configuração
   const [title, setTitle] = useState("");
@@ -367,17 +369,26 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
       return;
     }
     sounds.unlock();
-    // Contagem 3 · 2 · 1 e depois a roleta
-    setCountdown(() => () => launchDraw(pool));
+    // Provably fair: o servidor sorteia (lista congelada + número público do drand) durante a contagem 3 · 2 · 1
+    const draw = adminApi<{ data: FairDraw }>("fairDraw", { kind: "diario", targetId: daily.id }).then((r) => r.data);
+    draw.catch(() => {}); // o erro é mostrado depois da contagem
+    setCountdown({
+      until: draw,
+      run: () => draw.then((d) => launchDraw(pool, d), (err) => dialog.error(err, "Não foi possível sortear")),
+    });
   };
 
-  const launchDraw = (pool: Participant[]) => {
+  const launchDraw = (pool: Participant[], draw: FairDraw) => {
     if (!daily) return;
     const tickets: Participant[] = [];
     pool.forEach((p) => {
       for (let i = 0; i < chancesFor(p.sub_tier, daily); i++) tickets.push(p);
     });
-    const winner = tickets[Math.floor(Math.random() * tickets.length)];
+    // Os outros cards são só enfeite; o do traço é o ganhador sorteado no servidor
+    const winner =
+      participants.find((p) => p.twitch_username === draw.winner_username) ??
+      ({ id: "", twitch_username: draw.winner_username ?? "", sub_tier: 0, avatar_url: null, status: "pending", created_at: "" } as Participant);
+    drawRef.current = draw;
     const items = Array.from({ length: REEL_SIZE }, () => tickets[Math.floor(Math.random() * tickets.length)]);
     items[WIN_INDEX] = winner;
 
@@ -444,6 +455,8 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
     if (!drawn || !daily) return;
     awaitingRef.current = null;
     setShowPopup(false);
+    // Fica no registro público como descartado (não respondeu)
+    if (drawRef.current) adminApi("fairStatus", { id: drawRef.current.id, status: "skipped" }).catch(() => {});
     try {
       await adminApi("updateParticipant", { id: drawn.id, fields: { status: "rejected" } });
     } catch (err) {
@@ -459,7 +472,7 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
     if (!drawn || !daily) return;
     setBusy(true);
     try {
-      await adminApi("finishDaily", { giveawayId: daily.id, participantId: drawn.id });
+      await adminApi("finishDaily", { giveawayId: daily.id, participantId: drawn.id, drawId: drawRef.current?.id });
       awaitingRef.current = null;
       setShowPopup(false);
       setConfirmedWinner(drawn);
@@ -647,7 +660,8 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
       {countdown && (
         <DrawCountdown
           onStep={(n) => sounds.tick(n === 1 ? 0.9 : n === 2 ? 0.5 : 0.15)}
-          onDone={() => { const run = countdown; setCountdown(null); run(); }}
+          until={countdown.until}
+          onDone={() => { const { run } = countdown; setCountdown(null); run(); }}
         />
       )}
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -906,6 +920,11 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
               <SubBadge tier={drawn.sub_tier} />
               <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 border border-gray-700 rounded-md px-1.5 py-0.5">{chancesFor(drawn.sub_tier, daily)} {chancesFor(drawn.sub_tier, daily) === 1 ? "chance" : "chances"}</span>
             </div>
+            {drawRef.current && (
+              <a href={`/provably-fair?id=${drawRef.current.id}`} target="_blank" className="relative mt-3 inline-flex items-center gap-1.5 text-[11px] font-bold text-purple-300 hover:text-purple-200 uppercase tracking-widest">
+                <ShieldCheck className="w-3.5 h-3.5" /> Ver prova do sorteio
+              </a>
+            )}
 
             <div className="relative mt-6">
               {drawn.sub_tier >= 3 ? (

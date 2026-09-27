@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Trophy, Users, History, Calendar, Star, Sparkles, Gift, User } from "lucide-react";
 import { avatarFor, chancesFor } from "@/lib/daily";
+import FairBadge from "@/components/fair/FairBadge";
 
 interface DailyData {
   giveaway: {
@@ -16,7 +17,7 @@ interface DailyData {
     chance_t3: number;
   } | null;
   participants: { twitch_username: string; sub_tier: number; avatar_url: string | null }[];
-  history: { twitch_username: string; prize: string; avatar_url: string | null; won_at: string }[];
+  history: { giveaway_id: string | null; twitch_username: string; prize: string; avatar_url: string | null; won_at: string }[];
 }
 
 const isToday = (iso: string) => new Date(iso).toDateString() === new Date().toDateString();
@@ -161,6 +162,8 @@ export default function DiarioPage() {
             <p className="text-gray-400">O streamer ainda não abriu a captação para o sorteio de hoje.</p>
           </div>
         )}
+
+        {(giveaway || todayWinner) && <FairBadge target={giveaway?.id ?? todayWinner?.giveaway_id} className="max-w-xl mx-auto" />}
 
         {/* HISTÓRICO DE 30 DIAS */}
         <div>
