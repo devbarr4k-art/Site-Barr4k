@@ -6,6 +6,8 @@ import { ArrowRight, Calendar, Ticket } from "lucide-react";
 import { brl, type Raffle } from "@/lib/rifas";
 import { useRefreshOnReturn } from "@/lib/freshData";
 
+const POLL_MS = 8000;
+
 // Lista de rifas (abertas primeiro; as encerradas aparecem em preto e branco)
 export default function RifasPage() {
   const [raffles, setRaffles] = useState<Raffle[] | null>(null);
@@ -14,7 +16,12 @@ export default function RifasPage() {
       .then((r) => r.json())
       .then((j) => setRaffles(j.raffles ?? []))
       .catch(() => setRaffles((prev) => prev ?? []));
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    // Atualiza sozinha: rifa nova, encerrada ou números vendidos aparecem sem F5
+    const t = setInterval(() => { if (document.visibilityState === "visible") load(); }, POLL_MS);
+    return () => clearInterval(t);
+  }, []);
   useRefreshOnReturn(load);
 
   return (

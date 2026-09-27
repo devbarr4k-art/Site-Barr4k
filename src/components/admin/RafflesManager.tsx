@@ -62,30 +62,42 @@ export default function RafflesManager() {
   const [preview, setPreview] = useState<string | null>(null);
   const [replacing, setReplacing] = useState<{ order: RaffleOrder; lost: number[] } | null>(null);
 
-  const loadRaffles = useCallback(async () => {
+  // silent: atualização automática, sem "carregando" e sem apagar a lista se a rede falhar
+  const loadRaffles = useCallback(async (silent = false) => {
     try {
       const res = await adminApi<{ data: AdminRaffle[] }>("listRaffles");
       setRaffles(res.data);
       setLoadError("");
     } catch (err) {
+      if (silent) return;
       setLoadError(err instanceof Error ? err.message : "Erro ao carregar.");
       setRaffles([]);
     }
   }, []);
 
-  const loadOrders = useCallback(async () => {
-    setOrdersLoading(true);
+  const loadOrders = useCallback(async (silent = false) => {
+    if (!silent) setOrdersLoading(true);
     try {
       const res = await adminApi<{ data: RaffleOrder[] }>("listRaffleOrders", { status: tab, raffleId: raffleFilter || undefined });
       setOrders(res.data);
     } catch {
-      setOrders([]);
+      if (!silent) setOrders([]);
     }
-    setOrdersLoading(false);
+    if (!silent) setOrdersLoading(false);
   }, [tab, raffleFilter]);
 
   useEffect(() => { loadRaffles(); }, [loadRaffles]);
   useEffect(() => { if (!loadError) loadOrders(); }, [loadOrders, loadError]);
+  // Compras novas e pagamentos aparecem sozinhos, sem F5
+  useEffect(() => {
+    if (loadError) return;
+    const t = setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      loadRaffles(true);
+      loadOrders(true);
+    }, 10000);
+    return () => clearInterval(t);
+  }, [loadRaffles, loadOrders, loadError]);
 
   const shownOrders = useMemo(() => {
     const q = query.trim().toLowerCase().replace(/^@/, "");
