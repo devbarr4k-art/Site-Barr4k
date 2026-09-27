@@ -6,6 +6,9 @@ const nextConfig: NextConfig = {
     return [
       { source: "/skins", destination: "/vendas", permanent: true },
       { source: "/sobre", destination: "/biografia", permanent: true },
+      // Endereço usado enquanto as rifas estavam escondidas
+      { source: "/ragi09/painel", destination: "/admin?tab=rifas", permanent: false },
+      { source: "/ragi09/:path*", destination: "/rifas/:path*", permanent: false },
     ];
   },
   images: {

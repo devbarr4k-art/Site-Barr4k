@@ -18,10 +18,11 @@ export default function Navbar() {
   const isLoggedIn = !!session;
   const isAdmin = !!(session?.user as any)?.isAdmin;
 
-  // "SORTEIO" abre um menu com os ativos e o diário
+  // "SORTEIO" abre um menu com os ativos, o diário e as rifas
   const giveawayLinks = [
     { name: "SORTEIOS ATIVOS", href: "/sorteios", icon: <Gift className="w-4 h-4" /> },
     { name: "SORTEIO DIÁRIO", href: "/diario", icon: <FaGamepad className="w-4 h-4" /> },
+    { name: "RIFAS", href: "/rifas", icon: <Ticket className="w-4 h-4" /> },
   ];
 
   const navLinks: { name: string; href: string; icon: React.ReactNode; children?: typeof giveawayLinks }[] = [
