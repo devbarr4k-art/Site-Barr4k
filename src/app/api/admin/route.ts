@@ -10,7 +10,7 @@ import { MAX_RAFFLE_NUMBERS, type Raffle } from "@/lib/rifas";
 import { isValidEmail, normalizeWhatsapp } from "@/lib/siteUsers";
 import { isShortsLink, parseYouTubeId, VIDEOS_VISIBILITY_KEY } from "@/lib/videos";
 import { serverCaptureStatus, startServerCapture, stopServerCapture } from "@/lib/eventsub";
-import { FAIR_COLUMNS, runFairDraw, setFairStatus } from "@/lib/fairServer";
+import { FAIR_COLUMNS, MISSING_FAIR, runFairDraw, setFairStatus } from "@/lib/fairServer";
 
 // O sorteio provably fair espera a rodada do drand sair (até ~7s)
 export const maxDuration = 30;
@@ -246,6 +246,25 @@ export async function POST(request: Request) {
       const res = await runFairDraw(body.kind, body.targetId);
       if (!res.draw) return fail(res.error ?? "Erro ao sortear.", res.status ?? 500);
       return Response.json({ data: res.draw });
+    }
+
+    // Registro dos giros no painel: o operador pode apagar (ex.: testes, giros descartados)
+    case "listFairDraws": {
+      const { data, error } = await db
+        .from("fair_draws")
+        .select("id, kind, target_id, title, total_weight, drand_round, winner_label, winner_username, status, created_at")
+        .order("created_at", { ascending: false })
+        .limit(500);
+      if (error) return fail(/fair_draws|schema cache/i.test(error.message) ? MISSING_FAIR : error.message, 500);
+      return Response.json({ data });
+    }
+
+    case "deleteFairDraws": {
+      const ids = (Array.isArray(body.ids) ? body.ids : [body.id]).filter((x: unknown): x is string => typeof x === "string" && !!x);
+      if (ids.length === 0) return fail("Nada para excluir.");
+      const { error } = await db.from("fair_draws").delete().in("id", ids);
+      if (error) return fail(error.message, 500);
+      return Response.json({ ok: true });
     }
 
     case "fairStatus": {

@@ -19,6 +19,7 @@ import VideosManager from "@/components/admin/VideosManager";
 import { Handshake, ShieldCheck, Ticket, UserRound } from "lucide-react";
 import type { FairDraw } from "@/lib/fair";
 import RafflesManager from "@/components/admin/RafflesManager";
+import FairDrawsManager from "@/components/admin/FairDrawsManager";
 import { FaYoutube } from "react-icons/fa";
 import NumberInput from "@/components/ui/NumberInput";
 import { useSounds } from "@/lib/useSounds";
@@ -126,7 +127,7 @@ export default function AdminDashboard() {
   // Abre direto numa aba (?tab=twitch), usado na volta da autorização do chat
   useEffect(() => {
     const tab = new URLSearchParams(window.location.search).get("tab");
-    if (tab && ["sorteios", "twitch", "rifas", "users", "cadastros", "parceiros", "videos"].includes(tab)) setActiveTab(tab);
+    if (tab && ["sorteios", "twitch", "rifas", "provably", "users", "cadastros", "parceiros", "videos"].includes(tab)) setActiveTab(tab);
   }, []);
 
   const [sorteios, setSorteios] = useState<any[]>([]);
@@ -626,6 +627,12 @@ export default function AdminDashboard() {
           <Ticket className="w-4 h-4 md:w-5 md:h-5" /> Rifas
         </button>
         <button
+          onClick={() => setActiveTab("provably")}
+          className={`flex items-center gap-2 md:gap-3 px-4 py-2 md:py-3 rounded-lg font-medium transition-all flex-shrink-0 ${activeTab === "provably" ? "bg-purple-600/20 text-purple-300 border border-purple-500/50" : "text-gray-400 hover:bg-gray-900 hover:text-white"}`}
+        >
+          <ShieldCheck className="w-4 h-4 md:w-5 md:h-5" /> Provably Fair
+        </button>
+        <button
           onClick={() => { setActiveTab("users"); fetchWinners(); }}
           className={`flex items-center gap-2 md:gap-3 px-4 py-2 md:py-3 rounded-lg font-medium transition-all flex-shrink-0 ${activeTab === "users" ? "bg-purple-600/20 text-purple-300 border border-purple-500/50" : "text-gray-400 hover:bg-gray-900 hover:text-white"}`}
         >
@@ -991,6 +998,7 @@ export default function AdminDashboard() {
         )}
 
         {activeTab === "rifas" && <RafflesManager />}
+        {activeTab === "provably" && <FairDrawsManager />}
         {activeTab === "cadastros" && <SiteUsers />}
         {activeTab === "parceiros" && <PartnersManager />}
         {activeTab === "videos" && <VideosManager />}
