@@ -152,6 +152,7 @@ export default function AdminDashboard() {
   const reelRef = useRef<HTMLDivElement>(null);
   const [countdown, setCountdown] = useState<{ run: () => void; until?: Promise<unknown> } | null>(null); // o que roda quando o 3 · 2 · 1 acabar
   const [currentDraw, setCurrentDraw] = useState<FairDraw | null>(null); // giro provably fair em andamento
+  const drawLockRef = useRef(false); // um sorteio por vez (do clique até a roleta começar)
   const spinIdRef = useRef(0); // muda a cada giro; o loop de som para quando o giro acaba ou é cancelado
   const sounds = useSounds();
 
@@ -290,17 +291,32 @@ export default function AdminDashboard() {
   // Sortear: contagem 3 · 2 · 1 e depois a roleta (sem ninguém para sortear, avisa direto, sem contar)
   // Provably fair: quem ganha é decidido no servidor (lista congelada + número público do drand)
   // durante a contagem; a roleta só mostra o resultado.
-  const startRoulette = (excludeNames: string[] = localWinners.map((w) => w.twitch_username)) => {
+  const startRoulette = async (excludeNames: string[] = localWinners.map((w) => w.twitch_username)) => {
+    if (drawLockRef.current) return; // clique duplo não cria dois sorteios
     const hasSomeone = participants.some((p) => p.status === "approved" && !excludeNames.includes(p.twitch_username));
     if (!hasSomeone) return runRoulette(excludeNames, null);
+    drawLockRef.current = true;
+    const pending = participants.filter((p) => p.status === "pending").length;
+    if (pending > 0) {
+      const ok = await dialog.confirm({
+        title: "Ainda tem inscrição pendente",
+        message: `${pending} inscrição(ões) ainda não foram aprovadas e NÃO entram no sorteio. Sortear mesmo assim?`,
+        confirmText: "Sortear assim mesmo",
+        tone: "warning",
+      });
+      if (!ok) {
+        drawLockRef.current = false;
+        return;
+      }
+    }
     sounds.unlock();
     const draw = adminApi<{ data: FairDraw }>("fairDraw", { kind: "mensal", targetId: managingParticipants }).then((r) => r.data);
     draw.catch(() => {}); // o erro é mostrado depois da contagem
     setCountdown({
       until: draw,
       run: () => draw.then(
-        (d) => runRoulette(excludeNames, d),
-        (err) => { dialog.error(err, "Não foi possível sortear"); setIsDrawing(false); setShowWinner(false); }
+        (d) => { drawLockRef.current = false; runRoulette(excludeNames, d); },
+        (err) => { drawLockRef.current = false; dialog.error(err, "Não foi possível sortear"); setIsDrawing(false); setShowWinner(false); }
       ),
     });
   };

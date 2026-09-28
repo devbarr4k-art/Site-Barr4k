@@ -84,6 +84,7 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
   const [refreshingSubs, setRefreshingSubs] = useState(false);
   const [countdown, setCountdown] = useState<{ run: () => void; until?: Promise<unknown> } | null>(null); // roda quando o 3 · 2 · 1 acabar
   const drawRef = useRef<FairDraw | null>(null); // giro provably fair atual
+  const drawLockRef = useRef(false);
 
   // Formulário de configuração
   const [title, setTitle] = useState("");
@@ -363,18 +364,25 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
 
   // Sorteio ponderado: cada participante entra na roleta tantas vezes quanto suas chances
   const startDraw = (pool: Participant[] = eligible) => {
-    if (!daily || isSpinning || countdown) return;
+    if (!daily || isSpinning || countdown || drawLockRef.current) return; // clique duplo não cria dois sorteios
     if (pool.length === 0) {
       dialog.alert({ title: "Ninguém na lista", message: "Espere alguém digitar o comando no chat antes de sortear.", tone: "warning" });
       return;
     }
     sounds.unlock();
+    // Giro anterior que ficou sem confirmar (popup fechado): vai para o registro como descartado
+    if (drawRef.current) adminApi("fairStatus", { id: drawRef.current.id, status: "skipped" }).catch(() => {});
+    drawRef.current = null;
+    drawLockRef.current = true;
     // Provably fair: o servidor sorteia (lista congelada + número público do drand) durante a contagem 3 · 2 · 1
     const draw = adminApi<{ data: FairDraw }>("fairDraw", { kind: "diario", targetId: daily.id }).then((r) => r.data);
     draw.catch(() => {}); // o erro é mostrado depois da contagem
     setCountdown({
       until: draw,
-      run: () => draw.then((d) => launchDraw(pool, d), (err) => dialog.error(err, "Não foi possível sortear")),
+      run: () => draw.then(
+        (d) => { drawLockRef.current = false; launchDraw(pool, d); },
+        (err) => { drawLockRef.current = false; dialog.error(err, "Não foi possível sortear"); }
+      ),
     });
   };
 
@@ -389,6 +397,16 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
       participants.find((p) => p.twitch_username === draw.winner_username) ??
       ({ id: "", twitch_username: draw.winner_username ?? "", sub_tier: 0, avatar_url: null, status: "pending", created_at: "" } as Participant);
     drawRef.current = draw;
+    // Sorteado que entrou nos últimos segundos e ainda não aparecia na lista do painel
+    if (!winner.id) {
+      adminApi<{ data: Participant[] }>("listParticipants", { giveawayId: daily.id })
+        .then(({ data }) => {
+          const found = data.find((p) => p.twitch_username === draw.winner_username);
+          if (found) setDrawn((cur) => (cur && cur.twitch_username === found.twitch_username ? found : cur));
+        })
+        .catch(() => {});
+      loadParticipants(daily.id);
+    }
     const items = Array.from({ length: REEL_SIZE }, () => tickets[Math.floor(Math.random() * tickets.length)]);
     items[WIN_INDEX] = winner;
 
@@ -476,6 +494,7 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
       awaitingRef.current = null;
       setShowPopup(false);
       setConfirmedWinner(drawn);
+      drawRef.current = null;
       setHistoryKey((k) => k + 1);
       clientRef.current?.disconnect().catch(() => {});
     } catch (err) {

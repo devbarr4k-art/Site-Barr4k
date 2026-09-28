@@ -169,7 +169,7 @@ export default function RaffleDraw({ raffle, onClose, onConfirmed }: {
             {phase === "result" && draw && (
               <div className="mt-12 bg-[#121214] border border-purple-500/50 rounded-2xl w-full max-w-md shadow-[0_0_50px_rgba(168,85,247,0.3)] p-8 text-center animate-fade-in relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-purple-600 to-pink-600" />
-                <button onClick={onClose} title="Fechar" className="absolute top-4 right-4 text-gray-500 hover:text-white"><X className="w-5 h-5" /></button>
+                <button onClick={cancel} title="Fechar (o giro fica como descartado)" className="absolute top-4 right-4 text-gray-500 hover:text-white"><X className="w-5 h-5" /></button>
                 <img src={avatarFor(draw.winner_username ?? "?", null)} alt=""
                   className="w-24 h-24 rounded-full mx-auto mb-4 object-cover border-4 border-yellow-400 shadow-[0_0_30px_rgba(234,179,8,0.45)]" />
                 <p className="font-title text-6xl text-white tabular-nums">{draw.winner_label}</p>

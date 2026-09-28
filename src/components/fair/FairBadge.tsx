@@ -22,8 +22,8 @@ export default function FairBadge({ target, className = "" }: { target: string |
     return () => clearInterval(t);
   }, [target]);
 
-  const results = draws.filter((d) => d.status === "confirmed");
-  const shown = results.length ? results : draws.filter((d) => d.status === "drawn").slice(0, 1);
+  // Só ganhador confirmado aparece como resultado; giros descartados ou em aberto ficam no registro completo
+  const shown = draws.filter((d) => d.status === "confirmed");
 
   return (
     <div className={`rounded-2xl border border-purple-500/30 bg-purple-600/5 p-4 ${className}`}>
@@ -45,6 +45,7 @@ export default function FairBadge({ target, className = "" }: { target: string |
         <p className="mt-2 text-sm text-gray-400">
           O ganhador sai de uma conta com a lista de participantes e um número público que ninguém conhece antes.{" "}
           <Link href="/provably-fair" className="text-purple-400 hover:text-purple-300 font-bold">Como funciona</Link>
+          {draws.length > 0 && <> · <Link href={`/provably-fair?target=${target}`} className="text-purple-400 hover:text-purple-300 font-bold">Giros deste sorteio</Link></>}
         </p>
       )}
     </div>

@@ -38,6 +38,8 @@ export async function addChatEntry(giveawayId: string, username: string, tier: n
     .select("id, sub_tier")
     .eq("giveaway_id", daily.id)
     .eq("twitch_username", chatUser)
+    .order("created_at")
+    .limit(1)
     .maybeSingle();
 
   if (existing) {

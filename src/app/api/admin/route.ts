@@ -127,7 +127,13 @@ export async function POST(request: Request) {
           if (g) fields.coins_used = chancesFor(fields.sub_tier, g);
         }
       }
-      const { error } = await db.from("participants").update(fields).eq("id", body.id);
+      // No diário a pessoa entra uma vez só: se o chat gravou a mesma pessoa repetida, a mudança
+      // (tirar da lista, trocar o tier) vale para todas as linhas dela, senão a repetida continuaria valendo
+      const { data: target } = await db.from("participants").select("giveaway_id, twitch_username, giveaways(type)").eq("id", body.id).maybeSingle();
+      const isDaily = (target?.giveaways as { type?: string } | null)?.type === "daily";
+      const { error } = isDaily && !("twitch_username" in fields)
+        ? await db.from("participants").update(fields).eq("giveaway_id", target!.giveaway_id).eq("twitch_username", target!.twitch_username)
+        : await db.from("participants").update(fields).eq("id", body.id);
       if (error) return fail(error.message, 500);
       return Response.json({ ok: true });
     }
@@ -507,12 +513,21 @@ export async function POST(request: Request) {
     }
 
     case "finishDaily": {
-      // Confirma o ganhador: vai para o histórico e o sorteio do dia é encerrado
-      const { data: participant } = await db
-        .from("participants")
-        .select("twitch_username, avatar_url, giveaway_id")
-        .eq("id", body.participantId)
-        .maybeSingle();
+      // Confirma o ganhador: vai para o histórico e o sorteio do dia é encerrado.
+      // Com giro provably fair, quem ganhou é o que ficou registrado nele (não o que estava na tela)
+      let participant: { twitch_username: string; avatar_url: string | null; giveaway_id: string } | null = null;
+      if (body.drawId) {
+        const { data: draw } = await db.from("fair_draws").select("target_id, kind, status, winner_username").eq("id", body.drawId).maybeSingle();
+        if (!draw || draw.kind !== "diario" || draw.target_id !== body.giveawayId || !draw.winner_username || draw.status === "skipped") {
+          return fail("Este giro não vale mais. Sorteie de novo.");
+        }
+        const { data } = await db.from("participants").select("twitch_username, avatar_url, giveaway_id")
+          .eq("giveaway_id", draw.target_id).eq("twitch_username", draw.winner_username).order("created_at").limit(1).maybeSingle();
+        participant = data;
+      } else {
+        const { data } = await db.from("participants").select("twitch_username, avatar_url, giveaway_id").eq("id", body.participantId).maybeSingle();
+        participant = data;
+      }
       const { data: daily } = await db.from("giveaways").select("id, title").eq("id", body.giveawayId).maybeSingle();
       if (!participant || !daily || participant.giveaway_id !== daily.id) return fail("Participante ou sorteio inválido.");
 

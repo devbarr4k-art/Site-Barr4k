@@ -67,10 +67,14 @@ export default function RafflesManager() {
   // Só números pagos (aprovados) entram na roleta; avisa se ainda tem compra esperando
   const startDraw = async (r: AdminRaffle) => {
     const waiting = r.pending_orders + r.awaiting_orders;
-    if (waiting > 0) {
+    const warnings = [
+      r.status === "open" && "As vendas ainda estão abertas: dá para comprar números enquanto você sorteia.",
+      waiting > 0 && `${waiting} compra(s) ainda não foram aprovadas e os números delas NÃO entram no sorteio.`,
+    ].filter(Boolean);
+    if (warnings.length > 0) {
       const ok = await dialog.confirm({
-        title: "Ainda tem compra em aberto",
-        message: `${waiting} compra(s) ainda não foram aprovadas e os números delas NÃO entram no sorteio. Sortear mesmo assim?`,
+        title: "Antes de sortear",
+        message: `${warnings.join(" ")} Sortear mesmo assim?`,
         confirmText: "Sortear assim mesmo",
         tone: "warning",
       });

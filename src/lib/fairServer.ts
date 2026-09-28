@@ -33,8 +33,9 @@ async function buildPool(kind: FairKind, targetId: string): Promise<Pool | null>
     return { title: raffle.title, entries, owners };
   }
 
-  const { data: g } = await db.from("giveaways").select("title, chance_t1, chance_t2, chance_t3").eq("id", targetId).maybeSingle();
-  if (!g) return null;
+  // O tipo do sorteio tem que bater com o botão usado (regras do mensal não valem no diário e vice-versa)
+  const { data: g } = await db.from("giveaways").select("title, type, chance_t1, chance_t2, chance_t3").eq("id", targetId).maybeSingle();
+  if (!g || (kind === "diario") !== (g.type === "daily")) return null;
   const weights = new Map<string, number>();
 
   if (kind === "mensal") {
@@ -50,11 +51,16 @@ async function buildPool(kind: FairKind, targetId: string): Promise<Pool | null>
       if (!excluded.has(p.twitch_username)) weights.set(p.twitch_username, (weights.get(p.twitch_username) ?? 0) + chances);
     }
   } else {
-    // Diário: todos da lista que não foram tirados; chances pelo tier do sub
-    const { data: parts } = await db.from("participants").select("twitch_username, sub_tier").eq("giveaway_id", targetId).neq("status", "rejected");
+    // Diário: cada pessoa entra UMA vez, com as chances do tier do sub. O chat às vezes grava a mesma
+    // pessoa repetida (bot do painel + captação do servidor ao mesmo tempo): conta uma vez só, pelo
+    // maior tier, e quem foi tirado da lista em qualquer linha fica de fora.
+    const { data: parts } = await db.from("participants").select("twitch_username, sub_tier, status").eq("giveaway_id", targetId);
+    const removed = new Set((parts ?? []).filter((p) => p.status === "rejected").map((p) => p.twitch_username));
+    const tier = new Map<string, number>();
     for (const p of parts ?? []) {
-      weights.set(p.twitch_username, (weights.get(p.twitch_username) ?? 0) + chancesFor(p.sub_tier ?? 0, g));
+      if (!removed.has(p.twitch_username)) tier.set(p.twitch_username, Math.max(tier.get(p.twitch_username) ?? 0, p.sub_tier ?? 0));
     }
+    for (const [name, t] of tier) weights.set(name, chancesFor(t, g));
   }
 
   const entries = [...weights].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([label, weight]) => ({ label, weight }));
@@ -136,5 +142,6 @@ export async function runFairDraw(kind: FairKind, targetId: string): Promise<{ d
 /** Marca o giro como confirmado (ganhador salvo) ou descartado (sem resposta, cancelado, sortear de novo). */
 export async function setFairStatus(id: string | undefined | null, status: "confirmed" | "skipped") {
   if (!id) return;
-  await supabaseAdmin.from("fair_draws").update({ status }).eq("id", id).in("status", ["drawn", "confirmed", "skipped"]);
+  // Só um giro "sorteado" muda de estado: confirmado nunca vira descartado, nem o contrário
+  await supabaseAdmin.from("fair_draws").update({ status }).eq("id", id).eq("status", "drawn");
 }
