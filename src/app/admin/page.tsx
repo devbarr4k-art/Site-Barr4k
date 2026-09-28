@@ -19,6 +19,7 @@ import VideosManager from "@/components/admin/VideosManager";
 import { Handshake, ShieldCheck, Ticket, UserRound } from "lucide-react";
 import type { FairDraw } from "@/lib/fair";
 import RafflesManager from "@/components/admin/RafflesManager";
+import Pagination, { usePagination } from "@/components/ui/Pagination";
 import FairDrawsManager from "@/components/admin/FairDrawsManager";
 import { FaYoutube } from "react-icons/fa";
 import NumberInput from "@/components/ui/NumberInput";
@@ -149,6 +150,10 @@ export default function AdminDashboard() {
   const [showWinner, setShowWinner] = useState(false);
   const [drawnWinner, setDrawnWinner] = useState<any>(null);
   const [localWinners, setLocalWinners] = useState<any[]>([]);
+  // Listas longas do painel em páginas de 10
+  const participantsPage = usePagination(participants);
+  const sorteiosPage = usePagination(sorteios.filter((s) => s.type !== "daily"));
+  const winnersPage = usePagination(winners);
   const rouletteTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const reelRef = useRef<HTMLDivElement>(null);
   const [countdown, setCountdown] = useState<{ run: () => void; until?: Promise<unknown> } | null>(null); // o que roda quando o 3 · 2 · 1 acabar
@@ -703,7 +708,7 @@ export default function AdminDashboard() {
                         </tr>
                       </thead>
                       <tbody>
-                        {participants.map((p) => (
+                        {participantsPage.pageItems.map((p) => (
                           <tr key={p.id} className="border-b border-gray-800 hover:bg-white/5 transition-colors">
                             {/* Se estiver editando */}
                             {editingParticipant === p.id ? (
@@ -833,6 +838,7 @@ export default function AdminDashboard() {
                       </tbody>
                     </table>
                   </div>
+                  <Pagination {...participantsPage} className="px-6 pb-4" />
                 </div>
 
                 {/* Tabela de Vencedores Locais (Desse Sorteio) */}
@@ -925,7 +931,7 @@ export default function AdminDashboard() {
                         </tr>
                       </thead>
                       <tbody>
-                        {sorteios.filter((s) => s.type !== "daily").map((sorteio) => {
+                        {sorteiosPage.pageItems.map((sorteio) => {
                           const closed = isGiveawayClosed(sorteio, listLoadedAt || undefined);
                           return (
                           <tr key={sorteio.id} className="border-b border-gray-800 hover:bg-white/5 transition-colors">
@@ -991,6 +997,7 @@ export default function AdminDashboard() {
                       </tbody>
                     </table>
                   </div>
+                  <Pagination {...sorteiosPage} className="px-6 pb-4" />
                 </div>
               </>
             )}
@@ -1037,7 +1044,7 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {winners.map((winner: any) => (
+                    {winnersPage.pageItems.map((winner: any) => (
                       <tr key={winner.id} className="border-b border-gray-800 hover:bg-white/5 transition-colors">
                         <td className="px-6 py-4 font-bold text-white">
                           <div className="flex items-center gap-3">
@@ -1079,6 +1086,7 @@ export default function AdminDashboard() {
                   </tbody>
                 </table>
               </div>
+              <Pagination {...winnersPage} className="px-6 pb-4" />
             </div>
           </div>
         )}

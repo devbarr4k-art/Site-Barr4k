@@ -9,6 +9,7 @@ import { useDialog } from "@/components/ui/Dialog";
 import NumberInput from "@/components/ui/NumberInput";
 import ReplaceNumbersModal from "@/components/admin/ReplaceNumbersModal";
 import RaffleDraw from "@/components/admin/RaffleDraw";
+import Pagination, { usePagination } from "@/components/ui/Pagination";
 import {
   brl, centsToInput, MAX_RAFFLE_NUMBERS, padNumber, parseMoneyToCents,
   type OrderStatus, type Raffle, type RaffleOrder,
@@ -126,6 +127,7 @@ export default function RafflesManager() {
     const num = Number(q);
     return orders.filter((o) => o.username.includes(q) || (Number.isInteger(num) && o.numbers.includes(num)));
   }, [orders, query]);
+  const ordersPage = usePagination(shownOrders);
 
   const totalPending = raffles?.reduce((a, r) => a + r.pending_orders, 0) ?? 0;
 
@@ -368,7 +370,7 @@ export default function RafflesManager() {
               </div>
             ) : (
               <div className="space-y-3">
-                {shownOrders.map((o) => {
+                {ordersPage.pageItems.map((o) => {
                   const r = raffles.find((x) => x.id === o.raffle_id);
                   return (
                     <div key={o.id} className="glass-panel rounded-xl border border-gray-800 p-4 flex flex-col lg:flex-row lg:items-center gap-4">
@@ -422,6 +424,7 @@ export default function RafflesManager() {
                     </div>
                   );
                 })}
+                <Pagination {...ordersPage} />
               </div>
             )}
           </div>

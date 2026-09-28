@@ -5,6 +5,7 @@ import { History, RotateCcw, Trash2 } from "lucide-react";
 import { adminApi } from "@/lib/adminApi";
 import { avatarFor } from "@/lib/daily";
 import { useDialog } from "@/components/ui/Dialog";
+import Pagination, { usePagination } from "@/components/ui/Pagination";
 
 interface Winner {
   id: string;
@@ -24,6 +25,7 @@ interface Props {
 // Ganhadores do sorteio diário nos últimos 30 dias, com opção de excluir
 export default function DailyHistory({ refreshKey, canReopen, onReopened }: Props) {
   const [winners, setWinners] = useState<Winner[] | null>(null);
+  const historyPage = usePagination(winners ?? []);
   const [busyId, setBusyId] = useState<string | null>(null);
   const dialog = useDialog();
 
@@ -78,7 +80,7 @@ export default function DailyHistory({ refreshKey, canReopen, onReopened }: Prop
         <p className="text-gray-500 text-sm text-center py-6">Nenhum ganhador ainda.</p>
       ) : (
         <div className="space-y-2">
-          {winners.map((w) => (
+          {historyPage.pageItems.map((w) => (
             <div key={w.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-white/5 bg-black/40 p-3">
               <img src={avatarFor(w.twitch_username, w.avatar_url)} alt="" className="w-10 h-10 rounded-full border border-gray-700 object-cover" />
               <div className="min-w-0 flex-1">
@@ -109,6 +111,7 @@ export default function DailyHistory({ refreshKey, canReopen, onReopened }: Prop
               </div>
             </div>
           ))}
+          <Pagination {...historyPage} />
         </div>
       )}
     </div>

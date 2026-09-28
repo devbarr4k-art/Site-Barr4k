@@ -5,6 +5,7 @@ import { ExternalLink, ShieldCheck, Trash2 } from "lucide-react";
 import { adminApi } from "@/lib/adminApi";
 import { FAIR_KIND_LABEL, type FairDraw, type FairKind } from "@/lib/fair";
 import { useDialog } from "@/components/ui/Dialog";
+import Pagination, { usePagination } from "@/components/ui/Pagination";
 
 type Row = Pick<FairDraw, "id" | "kind" | "target_id" | "title" | "total_weight" | "drand_round" | "winner_label" | "winner_username" | "status" | "created_at">;
 
@@ -68,8 +69,18 @@ export default function FairDrawsManager() {
     setBusy(false);
   };
 
-  const allShownSelected = shown.length > 0 && shown.every((r) => selected.has(r.id));
-  const toggleAll = () => setSelected(allShownSelected ? new Set() : new Set(shown.map((r) => r.id)));
+  const drawsPage = usePagination(shown);
+  // "Selecionar todos" vale para a página que está na tela
+  const allShownSelected = drawsPage.pageItems.length > 0 && drawsPage.pageItems.every((r) => selected.has(r.id));
+  const toggleAll = () =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const r of drawsPage.pageItems) {
+        if (allShownSelected) next.delete(r.id);
+        else next.add(r.id);
+      }
+      return next;
+    });
   const toggle = (id: string) =>
     setSelected((prev) => {
       const next = new Set(prev);
@@ -131,7 +142,7 @@ export default function FairDrawsManager() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-800/70">
-                  {shown.map((r) => (
+                  {drawsPage.pageItems.map((r) => (
                     <tr key={r.id} className={selected.has(r.id) ? "bg-purple-500/5" : ""}>
                       <td className="px-4 py-3"><input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} aria-label="Selecionar" /></td>
                       <td className="px-4 py-3">
@@ -154,6 +165,7 @@ export default function FairDrawsManager() {
                   ))}
                 </tbody>
               </table>
+              <Pagination {...drawsPage} className="px-4 pb-4" />
             </div>
           )}
         </>

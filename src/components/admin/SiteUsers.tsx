@@ -7,6 +7,7 @@ import { adminApi } from "@/lib/adminApi";
 import { avatarFor } from "@/lib/daily";
 import { formatWhatsapp } from "@/lib/siteUsers";
 import { useDialog } from "@/components/ui/Dialog";
+import Pagination, { usePagination } from "@/components/ui/Pagination";
 
 type SiteUser = {
   twitch_username: string;
@@ -60,6 +61,7 @@ export default function SiteUsers() {
       u.twitch_username.includes(q) || u.email.includes(q) || (digits && u.whatsapp.includes(digits))
     );
   }, [users, query]);
+  const usersPage = usePagination(filtered);
 
   // Baixa a lista (a da busca, se tiver busca) num .txt que abre no Bloco de Notas
   const downloadList = () => {
@@ -183,7 +185,7 @@ export default function SiteUsers() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((u) => (
+                  {usersPage.pageItems.map((u) => (
                     <tr key={u.twitch_username} className="border-b border-gray-800 hover:bg-white/5 transition-colors">
                       <td className="px-6 py-4 font-bold text-white">
                         <div className="flex items-center gap-3">
@@ -249,6 +251,7 @@ export default function SiteUsers() {
                 </tbody>
               </table>
             </div>
+            <Pagination {...usersPage} className="px-6 pb-4" />
           </div>
         </>
       )}
