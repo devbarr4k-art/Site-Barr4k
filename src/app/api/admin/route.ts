@@ -453,7 +453,18 @@ export async function POST(request: Request) {
       // Entrada vinda do chat da Twitch (!comando), lida pelo painel aberto
       const chatUser = String(body.username || "");
       if (!chatUser) return fail("Usuário inválido.");
-      const result = await addChatEntry(String(body.giveawayId || ""), chatUser, Number(body.tier) || 0);
+      let tier = Number(body.tier) || 0;
+      // Badge de founder não informa o tier: consulta o tier real na API da Twitch
+      if (body.founder) {
+        const token = await getSessionAccessToken();
+        const { data: g } = await db.from("giveaways").select("twitch_channel").eq("id", body.giveawayId).maybeSingle();
+        if (token && g?.twitch_channel) {
+          const subs = await checkTwitchSubscriptions(g.twitch_channel, [chatUser], token);
+          const apiTier = subs.ok ? subs.subs[chatUser.toLowerCase()] ?? 0 : 0;
+          if (apiTier > tier) tier = apiTier;
+        }
+      }
+      const result = await addChatEntry(String(body.giveawayId || ""), chatUser, tier);
       if (!result.ok && result.reason === "error") return fail(result.message || "Erro ao registrar entrada.", 500);
       return Response.json(result);
     }

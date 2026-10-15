@@ -58,6 +58,12 @@ function getSubTier(tags: tmi.ChatUserstate): number {
   return tierFromBadgeVersion(version);
 }
 
+// O badge de founder substitui o de sub no chat e não diz o tier (vem sempre "founder/0"),
+// então o tier real precisa ser consultado na API da Twitch
+function isFounderOnly(tags: tmi.ChatUserstate): boolean {
+  return tags.badges?.founder !== undefined && tags.badges?.subscriber === undefined;
+}
+
 function SubBadge({ tier }: { tier: number }) {
   if (tier > 0) {
     return (
@@ -115,6 +121,8 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
   const trackRef = useRef<HTMLDivElement>(null);
   const clientRef = useRef<tmi.Client | null>(null);
   const seenRef = useRef<Set<string>>(new Set());
+  // Founders já consultados na API (evita uma consulta a cada mensagem)
+  const founderCheckedRef = useRef<Set<string>>(new Set());
   const participantsRef = useRef<Participant[]>([]);
   // Refs lidos pelo handler do chat, que é registrado uma vez só
   const dailyRef = useRef<Daily | null>(null);
@@ -215,14 +223,17 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
       if (!isCommand(message, current.bot_command || "!sorteio")) return;
 
       const tier = getSubTier(tags);
+      const founder = isFounderOnly(tags) && !founderCheckedRef.current.has(username);
+      if (founder) founderCheckedRef.current.add(username);
       const existing = participantsRef.current.find(
         (p) => p.twitch_username.toLowerCase() === username.toLowerCase()
       );
 
       if (existing) {
         // Se o usuário deu sub ou mudou para um tier maior depois de entrar
-        if (tier > existing.sub_tier) {
-          adminApi<{ data?: Participant; updated?: boolean }>("chatEntry", { giveawayId: current.id, username, tier })
+        // (founder que entrou pelo webhook como T1 também é reconsultado)
+        if (tier > existing.sub_tier || (founder && existing.sub_tier < 3)) {
+          adminApi<{ data?: Participant; updated?: boolean }>("chatEntry", { giveawayId: current.id, username, tier, founder })
             .then(({ data }) => {
               if (data) {
                 setParticipants((prev) =>
@@ -238,7 +249,7 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
       if (seenRef.current.has(username)) return;
       seenRef.current.add(username);
 
-      adminApi<{ data?: Participant }>("chatEntry", { giveawayId: current.id, username, tier })
+      adminApi<{ data?: Participant }>("chatEntry", { giveawayId: current.id, username, tier, founder })
         .then(({ data }) => {
           if (data) setParticipants((prev) => (prev.some((p) => p.twitch_username === data.twitch_username) ? prev : [...prev, data]));
         })
