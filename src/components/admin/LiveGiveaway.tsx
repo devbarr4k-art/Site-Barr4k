@@ -10,7 +10,7 @@ import { adminApi } from "@/lib/adminApi";
 import DrawCountdown from "@/components/admin/DrawCountdown";
 import type { FairDraw } from "@/lib/fair";
 import { uploadGiveawayImage } from "@/lib/image";
-import { avatarFor, chancesFor, isCommand, tierFromBadgeVersion } from "@/lib/daily";
+import { avatarFor, chancesFor, isCommand, subTierFromBadges } from "@/lib/daily";
 import DailyHistory from "@/components/admin/DailyHistory";
 import { useDialog } from "@/components/ui/Dialog";
 import { signIn } from "next-auth/react";
@@ -51,18 +51,6 @@ const REEL_SIZE = 64;
 const WIN_INDEX = 56;
 const SPIN_MS = 8500;
 
-// Tier do sub pelo badge do chat (founder conta como sub)
-function getSubTier(tags: tmi.ChatUserstate): number {
-  const version = tags.badges?.subscriber ?? tags.badges?.founder;
-  if (version === undefined) return tags.subscriber ? 1 : 0;
-  return tierFromBadgeVersion(version);
-}
-
-// O badge de founder substitui o de sub no chat e não diz o tier (vem sempre "founder/0"),
-// então o tier real precisa ser consultado na API da Twitch
-function isFounderOnly(tags: tmi.ChatUserstate): boolean {
-  return tags.badges?.founder !== undefined && tags.badges?.subscriber === undefined;
-}
 
 function SubBadge({ tier }: { tier: number }) {
   if (tier > 0) {
@@ -121,8 +109,8 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
   const trackRef = useRef<HTMLDivElement>(null);
   const clientRef = useRef<tmi.Client | null>(null);
   const seenRef = useRef<Set<string>>(new Set());
-  // Founders já consultados na API (evita uma consulta a cada mensagem)
-  const founderCheckedRef = useRef<Set<string>>(new Set());
+  // Quem já teve o tier conferido na API (evita uma consulta a cada mensagem)
+  const verifiedRef = useRef<Set<string>>(new Set());
   const participantsRef = useRef<Participant[]>([]);
   // Refs lidos pelo handler do chat, que é registrado uma vez só
   const dailyRef = useRef<Daily | null>(null);
@@ -222,18 +210,20 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
       if (!current.capture_open) return;
       if (!isCommand(message, current.bot_command || "!sorteio")) return;
 
-      const tier = getSubTier(tags);
-      const founder = isFounderOnly(tags) && !founderCheckedRef.current.has(username);
-      if (founder) founderCheckedRef.current.add(username);
+      const badge = subTierFromBadges(tags.badges, !!tags.subscriber);
+      const tier = badge.tier;
+      // Badge que não diz o tier (ex.: founder): o servidor confere na API uma vez por pessoa
+      const verify = badge.verify && !verifiedRef.current.has(username);
+      if (verify) verifiedRef.current.add(username);
       const existing = participantsRef.current.find(
         (p) => p.twitch_username.toLowerCase() === username.toLowerCase()
       );
 
       if (existing) {
         // Se o usuário deu sub ou mudou para um tier maior depois de entrar
-        // (founder que entrou pelo webhook como T1 também é reconsultado)
-        if (tier > existing.sub_tier || (founder && existing.sub_tier < 3)) {
-          adminApi<{ data?: Participant; updated?: boolean }>("chatEntry", { giveawayId: current.id, username, tier, founder })
+        // (quem entrou pelo webhook como T1 e precisa de conferência também)
+        if (tier > existing.sub_tier || (verify && existing.sub_tier < 3)) {
+          adminApi<{ data?: Participant; updated?: boolean }>("chatEntry", { giveawayId: current.id, username, tier, verify })
             .then(({ data }) => {
               if (data) {
                 setParticipants((prev) =>
@@ -249,7 +239,7 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
       if (seenRef.current.has(username)) return;
       seenRef.current.add(username);
 
-      adminApi<{ data?: Participant }>("chatEntry", { giveawayId: current.id, username, tier, founder })
+      adminApi<{ data?: Participant }>("chatEntry", { giveawayId: current.id, username, tier, verify })
         .then(({ data }) => {
           if (data) setParticipants((prev) => (prev.some((p) => p.twitch_username === data.twitch_username) ? prev : [...prev, data]));
         })
@@ -386,7 +376,12 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
     drawRef.current = null;
     drawLockRef.current = true;
     // Provably fair: o servidor sorteia (lista congelada + número público do drand) durante a contagem 3 · 2 · 1
-    const draw = adminApi<{ data: FairDraw }>("fairDraw", { kind: "diario", targetId: daily.id }).then((r) => r.data);
+    // Antes de sortear, confere o tier de todos na API da Twitch (pega founder e outros badges
+    // que não dizem o tier, inclusive quem entrou pelo webhook). Sem autorização, segue com o que tem
+    const draw = adminApi<{ participants?: Participant[] }>("refreshDailySubs", { giveawayId: daily.id, upgradeOnly: true })
+      .then((r) => { if (r.participants?.length) setParticipants(r.participants); }, () => {})
+      .then(() => adminApi<{ data: FairDraw }>("fairDraw", { kind: "diario", targetId: daily.id }))
+      .then((r) => r.data);
     draw.catch(() => {}); // o erro é mostrado depois da contagem
     setCountdown({
       until: draw,
@@ -404,8 +399,9 @@ export default function LiveGiveaway({ defaultChannel }: { defaultChannel: strin
       for (let i = 0; i < chancesFor(p.sub_tier, daily); i++) tickets.push(p);
     });
     // Os outros cards são só enfeite; o do traço é o ganhador sorteado no servidor
+    // Pelo ref: a lista pode ter mudado de tier na conferência feita antes do sorteio
     const winner =
-      participants.find((p) => p.twitch_username === draw.winner_username) ??
+      participantsRef.current.find((p) => p.twitch_username === draw.winner_username) ??
       ({ id: "", twitch_username: draw.winner_username ?? "", sub_tier: 0, avatar_url: null, status: "pending", created_at: "" } as Participant);
     drawRef.current = draw;
     // Sorteado que entrou nos últimos segundos e ainda não aparecia na lista do painel

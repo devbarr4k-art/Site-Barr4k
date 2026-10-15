@@ -1,7 +1,7 @@
 import { verifyEventSubSignature } from "@/lib/eventsub";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { addChatEntry } from "@/lib/dailyEntry";
-import { isCommand, tierFromBadgeVersion } from "@/lib/daily";
+import { isCommand, subTierFromBadges } from "@/lib/daily";
 
 // Webhook do EventSub: a Twitch chama esta rota a cada mensagem do chat do canal
 // enquanto a captação do sorteio diário está ligada.
@@ -43,9 +43,11 @@ export async function POST(request: Request) {
     .maybeSingle();
 
   if (daily && isCommand(text, daily.bot_command || "!sorteio")) {
+    // Aqui não há token do canal para consultar a API: quem precisar de conferência
+    // (ex.: founder) entra como T1 e o painel corrige antes do sorteio
     const badges: { set_id: string; id: string }[] = event.badges ?? [];
-    const subBadge = badges.find((b) => b.set_id === "subscriber") ?? badges.find((b) => b.set_id === "founder");
-    await addChatEntry(daily.id, chatter, tierFromBadgeVersion(subBadge?.id));
+    const { tier } = subTierFromBadges(Object.fromEntries(badges.map((b) => [b.set_id, b.id])));
+    await addChatEntry(daily.id, chatter, tier);
   }
 
   return new Response(null, { status: 204 });

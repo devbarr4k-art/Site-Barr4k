@@ -31,9 +31,21 @@ export function isCommand(message: string, command: string): boolean {
   return clean.split(/\s+/)[0] === command.trim().toLowerCase();
 }
 
-/** Tier do sub pela versão do badge: 3000+ = T3, 2000+ = T2, demais = T1; 0 = não é sub. */
-export function tierFromBadgeVersion(version: string | null | undefined): SubTier {
-  if (version === null || version === undefined) return 0;
-  const n = parseInt(version, 10) || 0;
-  return n >= 3000 ? 3 : n >= 2000 ? 2 : 1;
+/**
+ * Tier do sub pelos badges do chat (set_id -> versão), igual no tmi.js e no EventSub.
+ * Só o badge "subscriber" diz o tier (versão 3000+ = T3, 2000+ = T2, demais = T1).
+ * Quando ele não aparece mas a pessoa é sub (outro badge no lugar, como o de founder,
+ * que vem sempre "founder/0"), o tier fica como T1 e `verify` pede a consulta na API.
+ */
+export function subTierFromBadges(
+  badges: Record<string, string | null | undefined> | null | undefined,
+  isSub = false
+): { tier: SubTier; verify: boolean } {
+  const version = badges?.subscriber;
+  if (version !== null && version !== undefined) {
+    const n = parseInt(version, 10) || 0;
+    return { tier: n >= 3000 ? 3 : n >= 2000 ? 2 : 1, verify: false };
+  }
+  if (isSub || badges?.founder != null) return { tier: 1, verify: true };
+  return { tier: 0, verify: false };
 }

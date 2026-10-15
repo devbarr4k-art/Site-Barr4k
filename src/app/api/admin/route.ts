@@ -454,8 +454,8 @@ export async function POST(request: Request) {
       const chatUser = String(body.username || "");
       if (!chatUser) return fail("Usuário inválido.");
       let tier = Number(body.tier) || 0;
-      // Badge de founder não informa o tier: consulta o tier real na API da Twitch
-      if (body.founder) {
+      // Badge que não informa o tier (ex.: founder): consulta o tier real na API da Twitch
+      if (body.verify) {
         const token = await getSessionAccessToken();
         const { data: g } = await db.from("giveaways").select("twitch_channel").eq("id", body.giveawayId).maybeSingle();
         if (token && g?.twitch_channel) {
@@ -518,11 +518,13 @@ export async function POST(request: Request) {
       }
 
       const subMap = result.subs;
+      // upgradeOnly (conferência automática antes do sorteio): só sobe tier, nunca rebaixa
+      const upgradeOnly = !!body.upgradeOnly;
       let updatedCount = 0;
       await Promise.all(
         participants.map(async (p) => {
           const newTier = subMap[p.twitch_username.toLowerCase()] ?? 0;
-          if (newTier !== p.sub_tier) {
+          if (upgradeOnly ? newTier > (p.sub_tier ?? 0) : newTier !== p.sub_tier) {
             const newChances = chancesFor(newTier, daily);
             await db
               .from("participants")
