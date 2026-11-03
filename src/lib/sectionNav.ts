@@ -1,11 +1,11 @@
 // Navegação para as seções da home, usada pelo menu, pelo rodapé e pela própria home.
-// Cada seção tem endereço próprio, sem "#": /sorteios, /ultimos-vencedores, /hall-da-fama, /videos, /parceiros.
+// Cada seção tem endereço próprio, sem "#": /sorteios, /hall-da-fama, /ultimos-vencedores, /videos, /parceiros.
 // Essas rotas mostram a mesma home e rolam até a seção (src/app/<secao>/page.tsx).
 // Já na home, o clique só rola e troca o endereço, sem recarregar nada.
 
 const MENU_HEIGHT = 80;
 
-export const HOME_SECTIONS = ["sorteios", "ultimos-vencedores", "hall-da-fama", "videos", "parceiros"] as const;
+export const HOME_SECTIONS = ["sorteios", "hall-da-fama", "ultimos-vencedores", "videos", "parceiros"] as const;
 
 // Âncoras antigas que ainda podem estar em links compartilhados (ex.: /#active-giveaways)
 const RENAMED_SECTIONS: Record<string, string> = { "active-giveaways": "sorteios" };

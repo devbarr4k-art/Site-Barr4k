@@ -49,11 +49,11 @@ export default function Footer() {
               <Link href="/vendas" onClick={(e) => handleSectionLink(e, "/vendas", pathname)} className="text-gray-400 hover:text-purple-400 hover:translate-x-1 transition-all text-sm flex items-center gap-2">
                 <span className="w-1 h-1 bg-purple-500 rounded-full"></span> Venda
               </Link>
-              <Link href="/ultimos-vencedores" onClick={(e) => handleSectionLink(e, "/ultimos-vencedores", pathname)} className="text-gray-400 hover:text-purple-400 hover:translate-x-1 transition-all text-sm flex items-center gap-2">
-                <span className="w-1 h-1 bg-purple-500 rounded-full"></span> Últimos Vencedores
-              </Link>
               <Link href="/hall-da-fama" onClick={(e) => handleSectionLink(e, "/hall-da-fama", pathname)} className="text-gray-400 hover:text-purple-400 hover:translate-x-1 transition-all text-sm flex items-center gap-2">
                 <span className="w-1 h-1 bg-purple-500 rounded-full"></span> Hall da Fama
+              </Link>
+              <Link href="/ultimos-vencedores" onClick={(e) => handleSectionLink(e, "/ultimos-vencedores", pathname)} className="text-gray-400 hover:text-purple-400 hover:translate-x-1 transition-all text-sm flex items-center gap-2">
+                <span className="w-1 h-1 bg-purple-500 rounded-full"></span> Últimos Vencedores
               </Link>
               <Link href="/videos" onClick={(e) => handleSectionLink(e, "/videos", pathname)} className="text-gray-400 hover:text-purple-400 hover:translate-x-1 transition-all text-sm flex items-center gap-2">
                 <span className="w-1 h-1 bg-purple-500 rounded-full"></span> Vídeos

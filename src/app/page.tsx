@@ -441,6 +441,9 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Hall da Fama: ranking de quem mais venceu */}
+      {!isLoadingGiveaways && <HallRanking rows={hallRanking} settings={hallSettings} />}
+
       {/* Últimos Vencedores (todos os visíveis, do mais recente) */}
       <section id="ultimos-vencedores" className="py-20 bg-zinc-950 border-t border-white/5 relative scroll-mt-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -522,10 +525,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Hall da Fama: ranking de quem mais venceu */}
-      {!isLoadingGiveaways && <HallRanking rows={hallRanking} settings={hallSettings} />}
-
-      {/* Vídeos do YouTube (depois do Hall da Fama) */}
+      {/* Vídeos do YouTube (depois dos Últimos Vencedores) */}
       <VideosSection videos={videos} visibility={videosVisibility} />
 
       {/* Parceiros Section */}
