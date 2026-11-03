@@ -11,6 +11,8 @@ import { avatarFor } from "@/lib/daily";
 import { dataVersionQuery, useRefreshOnReturn } from "@/lib/freshData";
 import { DEFAULT_PARTNERS, type Partner } from "@/lib/partners";
 import VideosSection from "@/components/home/VideosSection";
+import HallRanking from "@/components/home/HallRanking";
+import { buildRanking, DEFAULT_RANKING, type RankingRow, type RankingSettings } from "@/lib/ranking";
 import { DEFAULT_VIDEOS_VISIBILITY, type Video, type VideosVisibility } from "@/lib/videos";
 
 const useCountdown = (targetDateString: string | null) => {
@@ -57,6 +59,8 @@ export default function Home() {
   const [activeGiveaways, setActiveGiveaways] = useState<any[]>([]);
   const [isLoadingGiveaways, setIsLoadingGiveaways] = useState(true);
   const [winners, setWinners] = useState<any[]>([]);
+  const [hallRanking, setHallRanking] = useState<RankingRow[]>([]);
+  const [hallSettings, setHallSettings] = useState<RankingSettings | null>(null);
   const [partners, setPartners] = useState<Partner[]>(DEFAULT_PARTNERS);
   const [videos, setVideos] = useState<Video[]>([]);
   const [videosVisibility, setVideosVisibility] = useState<VideosVisibility>(DEFAULT_VIDEOS_VISIBILITY);
@@ -71,7 +75,7 @@ export default function Home() {
   // Voltou para a aba: busca de novo, sem piscar a tela de carregamento
   useRefreshOnReturn(() => loadHome(true));
 
-  // Home e Hall da Fama numa chamada só, pela rota com cache da Vercel (/api/home).
+  // Home, Últimos Vencedores e Hall da Fama numa chamada só, pela rota com cache da Vercel (/api/home).
   // Se ela falhar, busca direto no banco como reserva.
   const loadHome = async (silent = false) => {
     if (!silent) setIsLoadingGiveaways(true);
@@ -86,6 +90,8 @@ export default function Home() {
         const json = await res.json();
         giveaways = json.giveaways;
         hall = json.winners;
+        if (Array.isArray(json.hallRanking)) setHallRanking(json.hallRanking);
+        if (json.hallRankingSettings) setHallSettings(json.hallRankingSettings);
         if (Array.isArray(json.partners)) setPartners(json.partners);
         if (Array.isArray(json.videos)) setVideos(json.videos);
         if (json.videosVisibility) setVideosVisibility(json.videosVisibility);
@@ -98,11 +104,12 @@ export default function Home() {
       const [g, w] = await Promise.all([
         supabase.from('giveaways').select('*').in('status', ['active', 'completed']).neq('type', 'daily')
           .order('created_at', { ascending: false }).limit(40),
-        supabase.from('winners').select('*, giveaways(image_url)').eq('in_hall_of_fame', true)
+        supabase.from('winners').select('*, giveaways(image_url, type)')
           .order('won_at', { ascending: false }),
       ]);
       giveaways = g.data ?? [];
-      hall = w.data ?? [];
+      hall = (w.data ?? []).filter((x: any) => x.in_hall_of_fame);
+      setHallRanking(buildRanking(w.data ?? [], DEFAULT_RANKING));
     }
     rawGiveaways.current = giveaways;
     classifyGiveaways(!silent);
@@ -353,8 +360,8 @@ export default function Home() {
                 Sorteios para depositantes!
               </p>
             </div>
-            <a href="/hall-da-fama" onClick={(e) => scrollToSection(e, "hall-da-fama")} className="text-gray-500 hover:text-white text-xs font-bold uppercase tracking-widest transition-colors mb-1">
-              VER HALL DA FAMA
+            <a href="/ultimos-vencedores" onClick={(e) => scrollToSection(e, "ultimos-vencedores")} className="text-gray-500 hover:text-white text-xs font-bold uppercase tracking-widest transition-colors mb-1">
+              VER ÚLTIMOS VENCEDORES
             </a>
           </div>
 
@@ -434,13 +441,13 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Latest Winners Section */}
-      <section id="hall-da-fama" className="py-20 bg-zinc-950 border-t border-white/5 relative scroll-mt-20">
+      {/* Últimos Vencedores (todos os visíveis, do mais recente) */}
+      <section id="ultimos-vencedores" className="py-20 bg-zinc-950 border-t border-white/5 relative scroll-mt-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
             <div>
               <h2 className="font-title text-3xl md:text-4xl text-white mb-4 flex items-center gap-3">
-                <Trophy className="w-8 h-8 text-purple-500" /> Hall da Fama
+                <Trophy className="w-8 h-8 text-purple-500" /> Últimos Vencedores
               </h2>
               <p className="text-gray-400 max-w-xl">Os sortudos que já levaram prêmios para casa recentemente. O próximo pode ser você!</p>
             </div>
@@ -449,7 +456,7 @@ export default function Home() {
           {isLoadingGiveaways ? (
             <div className="flex flex-col items-center justify-center py-16 gap-4">
               <div className="uiverse-loader"></div>
-              <p className="text-purple-500 font-bold tracking-widest uppercase text-xs animate-pulse">Carregando Hall da Fama...</p>
+              <p className="text-purple-500 font-bold tracking-widest uppercase text-xs animate-pulse">Carregando vencedores...</p>
             </div>
           ) : winners.length > 0 ? (
             <div className="flex overflow-x-auto gap-6 pb-6 snap-x snap-mandatory custom-scrollbar">
@@ -499,7 +506,7 @@ export default function Home() {
                     Pode ser você aqui!
                   </h3>
                   <p className="text-gray-400 max-w-md mx-auto">
-                    Sem últimos vencedores registrados. Participe dos sorteios ativos e garanta seu lugar no Hall da Fama!
+                    Ainda não tem vencedores registrados. Participe dos sorteios ativos e garanta seu lugar aqui!
                   </p>
                 </div>
                 <a
@@ -514,6 +521,9 @@ export default function Home() {
           )}
         </div>
       </section>
+
+      {/* Hall da Fama: ranking de quem mais venceu */}
+      {!isLoadingGiveaways && <HallRanking rows={hallRanking} settings={hallSettings} />}
 
       {/* Vídeos do YouTube (depois do Hall da Fama) */}
       <VideosSection videos={videos} visibility={videosVisibility} />

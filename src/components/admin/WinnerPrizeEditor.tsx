@@ -8,7 +8,7 @@ import { useDialog } from "@/components/ui/Dialog";
 
 type Winner = { id: string; prize: string; image_url?: string | null };
 
-// Imagem e texto do prêmio que aparecem no Hall da Fama, editáveis na própria linha
+// Imagem e texto do prêmio que aparecem em Últimos Vencedores, editáveis na própria linha
 export default function WinnerPrizeEditor({ winner, onChange }: {
   winner: Winner;
   onChange: (id: string, fields: Partial<Winner>) => void;

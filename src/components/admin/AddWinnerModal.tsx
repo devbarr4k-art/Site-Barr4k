@@ -103,7 +103,7 @@ export default function AddWinnerModal({ onClose, onAdded }: {
 
         <label className="flex items-center gap-3 cursor-pointer select-none">
           <input type="checkbox" checked={inHall} onChange={(e) => setInHall(e.target.checked)} className="w-5 h-5 accent-purple-600" />
-          <span className="text-sm text-gray-300 font-bold">Mostrar no Hall da Fama</span>
+          <span className="text-sm text-gray-300 font-bold">Mostrar em Últimos Vencedores</span>
         </label>
 
         <div className="flex justify-end gap-3 pt-2">

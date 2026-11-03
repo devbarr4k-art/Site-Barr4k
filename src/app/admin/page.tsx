@@ -21,6 +21,9 @@ import type { FairDraw } from "@/lib/fair";
 import RafflesManager from "@/components/admin/RafflesManager";
 import Pagination, { usePagination } from "@/components/ui/Pagination";
 import FairDrawsManager from "@/components/admin/FairDrawsManager";
+import PrizeCoins from "@/components/admin/PrizeCoins";
+import RankingSettingsPanel from "@/components/admin/RankingSettingsPanel";
+import WinnerCoinsCell from "@/components/admin/WinnerCoinsCell";
 import { FaYoutube } from "react-icons/fa";
 import NumberInput from "@/components/ui/NumberInput";
 import { useSounds } from "@/lib/useSounds";
@@ -154,6 +157,7 @@ export default function AdminDashboard() {
   const participantsPage = usePagination(participants);
   const sorteiosPage = usePagination(sorteios.filter((s) => s.type !== "daily"));
   const winnersPage = usePagination(winners);
+  const [winnersTab, setWinnersTab] = useState<"lista" | "valores" | "ranking">("lista");
   const rouletteTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const reelRef = useRef<HTMLDivElement>(null);
   const [countdown, setCountdown] = useState<{ run: () => void; until?: Promise<unknown> } | null>(null); // o que roda quando o 3 · 2 · 1 acabar
@@ -276,7 +280,8 @@ export default function AdminDashboard() {
   };
 
   const fetchWinners = async () => {
-    const { data } = await supabase.from("winners").select("*").order("won_at", { ascending: false });
+    // giveaways(type) separa mensal / diário / outros no ranking do Hall da Fama
+    const { data } = await supabase.from("winners").select("*, giveaways(type)").order("won_at", { ascending: false });
     if (data) setWinners(data);
   };
 
@@ -491,7 +496,7 @@ export default function AdminDashboard() {
   const handleDeleteWinner = async (winner: any) => {
     const ok = await dialog.confirm({
       title: `Excluir @${winner.twitch_username} dos vencedores?`,
-      message: `O vencedor de "${winner.prize}" sai desta lista, do Hall da Fama e do histórico. Não dá para desfazer.`,
+      message: `O vencedor de "${winner.prize}" sai desta lista, de Últimos Vencedores, do ranking do Hall da Fama e do histórico. Não dá para desfazer.`,
       confirmText: "Excluir vencedor",
       tone: "danger",
     });
@@ -876,7 +881,7 @@ export default function AdminDashboard() {
                                     ? "bg-purple-600/20 text-purple-400 border-purple-500/50 hover:bg-purple-600/40"
                                     : "bg-gray-800/50 text-gray-500 border-gray-700 hover:bg-gray-700"}`}
                                 >
-                                  {winner.in_hall_of_fame ? "No Hall da Fama" : "Colocar no Hall"}
+                                  {winner.in_hall_of_fame ? "Visível no site" : "Oculto no site"}
                                 </button>
                               </td>
                               <td className="px-6 py-4 text-right">
@@ -1017,12 +1022,29 @@ export default function AdminDashboard() {
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
               <div>
                 <h1 className="text-3xl font-bold text-white">Vencedores dos Sorteios</h1>
-                <p className="text-gray-400">Todos os vencedores ficam salvos aqui, mesmo depois que o sorteio é excluído. Controle quem aparece no Hall da Fama.</p>
+                <p className="text-gray-400">Todos os vencedores ficam salvos aqui, mesmo depois que o sorteio é excluído. Aparecem em Últimos Vencedores e somam no ranking do Hall da Fama.</p>
               </div>
               <button onClick={() => setIsAddWinnerOpen(true)} className="btn-neon px-6 py-3 rounded-lg font-bold flex items-center gap-2 shrink-0">
                 <Plus className="w-5 h-5" /> Adicionar Vencedor
               </button>
             </div>
+
+            <div className="flex bg-[#121214] border border-gray-800 rounded-lg overflow-hidden w-fit max-w-full overflow-x-auto">
+              {([["lista", "Vencedores"], ["valores", "Valor dos prêmios"], ["ranking", "Ranking do Hall da Fama"]] as const).map(([key, label]) => (
+                <button key={key} onClick={() => setWinnersTab(key)}
+                  className={`px-4 py-2.5 text-xs font-bold uppercase tracking-widest whitespace-nowrap transition-colors ${winnersTab === key ? "bg-purple-600 text-white" : "text-gray-500 hover:text-gray-300"}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {winnersTab === "valores" && (
+              <PrizeCoins
+                winners={winners}
+                onChanged={(prize, coins) => setWinners((prev) => prev.map((w) => (w.prize === prize ? { ...w, coins } : w)))}
+              />
+            )}
+            {winnersTab === "ranking" && <RankingSettingsPanel winners={winners} />}
 
             {isAddWinnerOpen && (
               <AddWinnerModal
@@ -1031,15 +1053,17 @@ export default function AdminDashboard() {
               />
             )}
 
+            {winnersTab === "lista" && (
             <div className="glass-panel rounded-xl overflow-hidden border border-gray-800">
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[800px] text-left text-sm text-gray-400">
+                <table className="w-full min-w-[900px] text-left text-sm text-gray-400">
                   <thead className="bg-purple-900/20 text-xs uppercase text-gray-300 border-b border-purple-900/50">
                     <tr>
                       <th className="px-6 py-4">Usuário</th>
                       <th className="px-6 py-4">Prêmio Ganho</th>
+                      <th className="px-6 py-4">Coins</th>
                       <th className="px-6 py-4">Data do Sorteio</th>
-                      <th className="px-6 py-4 text-center">Hall da Fama</th>
+                      <th className="px-6 py-4 text-center">Últimos Vencedores</th>
                       <th className="px-6 py-4 text-right">Excluir</th>
                     </tr>
                   </thead>
@@ -1055,6 +1079,10 @@ export default function AdminDashboard() {
                         <td className="px-6 py-4">
                           <WinnerPrizeEditor winner={winner} onChange={patchWinner} />
                         </td>
+                        <td className="px-6 py-4">
+                          <WinnerCoinsCell id={winner.id} coins={Number(winner.coins) || 0}
+                            onSaved={(coins) => setWinners((prev) => prev.map((w) => (w.id === winner.id ? { ...w, coins } : w)))} />
+                        </td>
                         <td className="px-6 py-4">{new Date(winner.won_at).toLocaleDateString("pt-BR")}</td>
                         <td className="px-6 py-4 text-center">
                           <button
@@ -1064,7 +1092,7 @@ export default function AdminDashboard() {
                                 : "bg-gray-800/50 text-gray-500 border-gray-700 hover:bg-gray-700"
                               }`}
                           >
-                            {winner.in_hall_of_fame ? "Destacado" : "Destacar"}
+                            {winner.in_hall_of_fame ? "Visível" : "Oculto"}
                           </button>
                         </td>
                         <td className="px-6 py-4 text-right">
@@ -1080,7 +1108,7 @@ export default function AdminDashboard() {
                     ))}
                     {winners.length === 0 && (
                       <tr>
-                        <td colSpan={5} className="px-6 py-10 text-center text-gray-500">Nenhum vencedor ainda.</td>
+                        <td colSpan={6} className="px-6 py-10 text-center text-gray-500">Nenhum vencedor ainda.</td>
                       </tr>
                     )}
                   </tbody>
@@ -1088,6 +1116,7 @@ export default function AdminDashboard() {
               </div>
               <Pagination {...winnersPage} className="px-6 pb-4" />
             </div>
+            )}
           </div>
         )}
 

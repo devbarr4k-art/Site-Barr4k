@@ -11,6 +11,7 @@ import { isValidEmail, normalizeWhatsapp } from "@/lib/siteUsers";
 import { isShortsLink, parseYouTubeId, VIDEOS_VISIBILITY_KEY } from "@/lib/videos";
 import { serverCaptureStatus, startServerCapture, stopServerCapture } from "@/lib/eventsub";
 import { FAIR_COLUMNS, MISSING_FAIR, runFairDraw, setFairStatus } from "@/lib/fairServer";
+import { normalizeRanking, RANKING_SETTINGS_KEY } from "@/lib/ranking";
 
 // O sorteio provably fair espera a rodada do drand sair (até ~7s)
 export const maxDuration = 30;
@@ -33,6 +34,7 @@ const PARTICIPANT_FIELDS = ["status", "twitch_username", "coins_used", "sub_tier
 
 const MISSING_TABLE = "Falta rodar o SQL supabase/migracao-usuarios-e-parceiros.sql no Supabase.";
 const MISSING_VIDEOS_ORDER = "Para salvar a ordem, rode no Supabase: alter table public.videos add column if not exists sort_order integer;";
+const MISSING_RANKING = "Falta rodar o SQL supabase/migracao-hall-ranking.sql no Supabase.";
 const MISSING_SETTINGS_TABLE = "Falta rodar o SQL supabase/migracao-configuracoes.sql no Supabase.";
 const MISSING_VIDEOS_TABLE = "Falta rodar o SQL supabase/migracao-videos.sql no Supabase.";
 
@@ -74,6 +76,25 @@ export async function POST(request: Request) {
       .limit(1)
       .maybeSingle();
     if (!other) await stopServerCapture(data.twitch_channel);
+  };
+
+  // Todo vencedor novo entra visível em "Últimos Vencedores" e já vem com o valor em coins
+  // do mesmo prêmio (o operador define uma vez em "Valor dos prêmios"). Sem a coluna coins
+  // (SQL do ranking não rodado), grava sem ela.
+  const insertWinnerRow = async (row: Record<string, unknown>) => {
+    let coins = Number(row.coins);
+    if (!Number.isFinite(coins) || coins < 0) {
+      const { data: same } = await db.from("winners").select("coins").eq("prize", row.prize as string).gt("coins", 0)
+        .order("won_at", { ascending: false }).limit(1).maybeSingle();
+      coins = Number(same?.coins) || 0;
+    }
+    const full = { in_hall_of_fame: true, ...row, coins: Math.floor(coins) };
+    let res = await db.from("winners").insert(full).select().single();
+    if (res.error && /coins/.test(res.error.message)) {
+      const { coins: _ignored, ...legacy } = full;
+      res = await db.from("winners").insert(legacy).select().single();
+    }
+    return res;
   };
 
   switch (action) {
@@ -224,17 +245,12 @@ export async function POST(request: Request) {
     }
 
     case "insertWinner": {
-      const { data, error } = await db
-        .from("winners")
-        .insert({
-          giveaway_id: body.giveawayId ?? null,
-          twitch_username: body.twitchUsername,
-          avatar_url: body.avatarUrl ?? null,
-          prize: String(body.prize ?? "").replace(/\s*\|\s*/g, " "),
-          in_hall_of_fame: false,
-        })
-        .select()
-        .single();
+      const { data, error } = await insertWinnerRow({
+        giveaway_id: body.giveawayId ?? null,
+        twitch_username: body.twitchUsername,
+        avatar_url: body.avatarUrl ?? null,
+        prize: String(body.prize ?? "").replace(/\s*\|\s*/g, " "),
+      });
       if (error) return fail(error.message, 500);
       await setFairStatus(body.drawId, "confirmed");
       return Response.json({ data });
@@ -278,7 +294,7 @@ export async function POST(request: Request) {
       const { data: draw } = await db.from("fair_draws").select(FAIR_COLUMNS).eq("id", body.drawId).eq("kind", "rifa").maybeSingle();
       if (!draw || draw.status === "waiting" || !draw.winner_username) return fail("Sorteio inválido.");
       if (draw.status !== "confirmed") {
-        const { error } = await db.from("winners").insert({
+        const { error } = await insertWinnerRow({
           giveaway_id: null,
           twitch_username: draw.winner_username,
           avatar_url: await fetchTwitchAvatar(draw.winner_username),
@@ -299,24 +315,21 @@ export async function POST(request: Request) {
       if (!prize) return fail("Preencha o prêmio.");
       const wonAt = body.wonAt ? new Date(body.wonAt) : new Date();
       if (Number.isNaN(wonAt.getTime())) return fail("Data inválida.");
-      const { data, error } = await db
-        .from("winners")
-        .insert({
-          twitch_username: username,
-          prize,
-          avatar_url: await fetchTwitchAvatar(username),
-          image_url: typeof body.imageUrl === "string" && body.imageUrl ? body.imageUrl : null,
-          in_hall_of_fame: !!body.inHall,
-          won_at: wonAt.toISOString(),
-        })
-        .select()
-        .single();
+      const { data, error } = await insertWinnerRow({
+        twitch_username: username,
+        prize,
+        avatar_url: await fetchTwitchAvatar(username),
+        image_url: typeof body.imageUrl === "string" && body.imageUrl ? body.imageUrl : null,
+        in_hall_of_fame: body.inHall !== false,
+        won_at: wonAt.toISOString(),
+        ...(body.coins !== undefined && body.coins !== "" ? { coins: body.coins } : {}),
+      });
       if (error) return fail(error.message, 500);
       return Response.json({ data });
     }
 
     case "updateWinner": {
-      // Texto do prêmio e imagem do vencedor (aparecem assim no Hall da Fama)
+      // Texto do prêmio e imagem do vencedor (aparecem assim em Últimos Vencedores)
       const fields: Record<string, unknown> = {};
       if (typeof body.prize === "string") {
         const prize = body.prize.trim();
@@ -327,6 +340,41 @@ export async function POST(request: Request) {
       const { error } = await db.from("winners").update(fields).eq("id", body.id);
       if (error) return fail(error.message, 500);
       return Response.json({ ok: true });
+    }
+
+    // ---- Hall da Fama (ranking) ----
+    case "setWinnerCoins": {
+      const coins = Math.floor(Number(body.coins));
+      if (!Number.isFinite(coins) || coins < 0) return fail("Coloque um número de coins (0 ou mais).");
+      const { error } = await db.from("winners").update({ coins }).eq("id", body.id);
+      if (error) return fail(/coins/.test(error.message) ? MISSING_RANKING : error.message, 500);
+      return Response.json({ ok: true });
+    }
+
+    case "setPrizeCoins": {
+      // Mesmo valor para todas as vitórias com este prêmio (ex.: "BANCA CSGOBIG" = 50 coins)
+      const prize = String(body.prize ?? "");
+      const coins = Math.floor(Number(body.coins));
+      if (!prize) return fail("Prêmio inválido.");
+      if (!Number.isFinite(coins) || coins < 0) return fail("Coloque um número de coins (0 ou mais).");
+      const { data, error } = await db.from("winners").update({ coins }).eq("prize", prize).select("id");
+      if (error) return fail(/coins/.test(error.message) ? MISSING_RANKING : error.message, 500);
+      return Response.json({ ok: true, updated: data?.length ?? 0 });
+    }
+
+    case "getRankingSettings": {
+      const { data } = await db.from("site_settings").select("value").eq("key", RANKING_SETTINGS_KEY).maybeSingle();
+      return Response.json({ data: normalizeRanking(data?.value) });
+    }
+
+    case "saveRankingSettings": {
+      const value = normalizeRanking(body.settings);
+      if (value.kinds.length === 0) return fail("Escolha pelo menos um tipo de sorteio para o ranking.");
+      const { error } = await db
+        .from("site_settings")
+        .upsert({ key: RANKING_SETTINGS_KEY, value, updated_at: new Date().toISOString() }, { onConflict: "key" });
+      if (error) return fail(/site_settings|schema cache|does not exist/i.test(error.message) ? MISSING_SETTINGS_TABLE : error.message, 500);
+      return Response.json({ ok: true, data: value });
     }
 
     case "setHallOfFame": {
@@ -563,7 +611,7 @@ export async function POST(request: Request) {
       const { data: daily } = await db.from("giveaways").select("id, title").eq("id", body.giveawayId).maybeSingle();
       if (!participant || !daily || participant.giveaway_id !== daily.id) return fail("Participante ou sorteio inválido.");
 
-      const { error } = await db.from("winners").insert({
+      const { error } = await insertWinnerRow({
         giveaway_id: daily.id,
         twitch_username: participant.twitch_username,
         avatar_url: participant.avatar_url,
