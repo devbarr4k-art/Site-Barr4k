@@ -16,7 +16,7 @@ import DrawCountdown from "@/components/admin/DrawCountdown";
 import SiteUsers from "@/components/admin/SiteUsers";
 import PartnersManager from "@/components/admin/PartnersManager";
 import VideosManager from "@/components/admin/VideosManager";
-import { Handshake, ShieldCheck, Ticket, UserRound } from "lucide-react";
+import { Handshake, Search, ShieldCheck, Ticket, UserRound } from "lucide-react";
 import type { FairDraw } from "@/lib/fair";
 import RafflesManager from "@/components/admin/RafflesManager";
 import Pagination, { usePagination } from "@/components/ui/Pagination";
@@ -24,6 +24,7 @@ import FairDrawsManager from "@/components/admin/FairDrawsManager";
 import PrizeCoins from "@/components/admin/PrizeCoins";
 import RankingSettingsPanel from "@/components/admin/RankingSettingsPanel";
 import WinnerCoinsCell from "@/components/admin/WinnerCoinsCell";
+import WinnerNameEditor from "@/components/admin/WinnerNameEditor";
 import { FaYoutube } from "react-icons/fa";
 import NumberInput from "@/components/ui/NumberInput";
 import { useSounds } from "@/lib/useSounds";
@@ -156,7 +157,9 @@ export default function AdminDashboard() {
   // Listas longas do painel em páginas de 10
   const participantsPage = usePagination(participants);
   const sorteiosPage = usePagination(sorteios.filter((s) => s.type !== "daily"));
-  const winnersPage = usePagination(winners);
+  const [winnersSearch, setWinnersSearch] = useState("");
+  const winnersQuery = winnersSearch.trim().replace(/^@/, "").toLowerCase();
+  const winnersPage = usePagination(winnersQuery ? winners.filter((w) => w.twitch_username?.includes(winnersQuery)) : winners);
   const [winnersTab, setWinnersTab] = useState<"lista" | "valores" | "ranking">("lista");
   const rouletteTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const reelRef = useRef<HTMLDivElement>(null);
@@ -1054,6 +1057,21 @@ export default function AdminDashboard() {
             )}
 
             {winnersTab === "lista" && (
+            <div className="space-y-4">
+            <div className="relative w-full sm:w-80">
+              <Search className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                value={winnersSearch}
+                onChange={(e) => setWinnersSearch(e.target.value)}
+                placeholder="Pesquisar vencedor pelo nick..."
+                className="w-full bg-[#121214] border border-gray-800 rounded-lg pl-9 pr-9 py-2.5 text-sm text-white outline-none focus:border-purple-500"
+              />
+              {winnersSearch && (
+                <button onClick={() => setWinnersSearch("")} aria-label="Limpar pesquisa" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white">
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
             <div className="glass-panel rounded-xl overflow-hidden border border-gray-800">
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[900px] text-left text-sm text-gray-400">
@@ -1070,11 +1088,8 @@ export default function AdminDashboard() {
                   <tbody>
                     {winnersPage.pageItems.map((winner: any) => (
                       <tr key={winner.id} className="border-b border-gray-800 hover:bg-white/5 transition-colors">
-                        <td className="px-6 py-4 font-bold text-white">
-                          <div className="flex items-center gap-3">
-                            <img src={avatarFor(winner.twitch_username, winner.avatar_url)} alt="" className="w-8 h-8 rounded-full object-cover border border-gray-700" />
-                            @{winner.twitch_username}
-                          </div>
+                        <td className="px-6 py-4">
+                          <WinnerNameEditor winner={winner} onChange={patchWinner} />
                         </td>
                         <td className="px-6 py-4">
                           <WinnerPrizeEditor winner={winner} onChange={patchWinner} />
@@ -1106,15 +1121,16 @@ export default function AdminDashboard() {
                         </td>
                       </tr>
                     ))}
-                    {winners.length === 0 && (
+                    {winnersPage.total === 0 && (
                       <tr>
-                        <td colSpan={6} className="px-6 py-10 text-center text-gray-500">Nenhum vencedor ainda.</td>
+                        <td colSpan={6} className="px-6 py-10 text-center text-gray-500">{winnersQuery ? `Nenhum vencedor com "${winnersQuery}" no nick.` : "Nenhum vencedor ainda."}</td>
                       </tr>
                     )}
                   </tbody>
                 </table>
               </div>
               <Pagination {...winnersPage} className="px-6 pb-4" />
+            </div>
             </div>
             )}
           </div>

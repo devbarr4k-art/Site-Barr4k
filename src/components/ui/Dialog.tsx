@@ -102,10 +102,17 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
     setDialog(null);
   };
 
-  // Esc cancela, Enter confirma; foco vai para o botão principal
+  // Foco no botão principal (Enter confirma), mas só um instante depois de abrir: se o popup
+  // foi aberto com Enter num campo, o resto daquele mesmo Enter confirmava sem a pessoa ler
   useEffect(() => {
     if (!dialog) return;
-    confirmButtonRef.current?.focus();
+    const t = setTimeout(() => confirmButtonRef.current?.focus(), 200);
+    return () => clearTimeout(t);
+  }, [dialog]);
+
+  // Esc cancela
+  useEffect(() => {
+    if (!dialog) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") close(false);
     };

@@ -337,9 +337,16 @@ export async function POST(request: Request) {
         fields.prize = prize;
       }
       if ("imageUrl" in body) fields.image_url = body.imageUrl || null;
+      // Trocar quem ganhou (nick errado): busca a foto da Twitch do nick novo
+      if (typeof body.twitchUsername === "string") {
+        const username = body.twitchUsername.trim().replace(/^@/, "").toLowerCase();
+        if (!/^[a-z0-9_]{3,25}$/.test(username)) return fail("Nick da Twitch inválido (só letras, números e _).");
+        fields.twitch_username = username;
+        fields.avatar_url = await fetchTwitchAvatar(username);
+      }
       const { error } = await db.from("winners").update(fields).eq("id", body.id);
       if (error) return fail(error.message, 500);
-      return Response.json({ ok: true });
+      return Response.json({ ok: true, ...("avatar_url" in fields ? { avatar_url: fields.avatar_url } : {}) });
     }
 
     // ---- Hall da Fama (ranking) ----
