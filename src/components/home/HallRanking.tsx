@@ -47,14 +47,16 @@ function PodiumCard({ row, place, onOpen }: { row: RankingRow; place: number; on
 
 const dateText = (iso: string) => new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
 
-// Extrato de um jogador: cada sorteio ganho, do primeiro ao último, somando até o total do ranking
+// Extrato de um jogador: cada sorteio ganho, do mais novo ao mais antigo, com o total acumulado de cada um
 function WinsModal({ row, place, onClose }: { row: RankingRow; place: number; onClose: () => void }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
-  let running = 0;
+  // Total acumulado na ordem em que os sorteios aconteceram; a lista mostra do mais novo pro mais antigo
+  let acc = 0;
+  const lines = row.history.map((w, i) => ({ ...w, n: i + 1, total: (acc += w.coins) })).reverse();
   return createPortal(
     <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-fade-in" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="w-full max-w-lg max-h-[85vh] flex flex-col rounded-2xl border border-purple-500/40 bg-[#0c0d10] shadow-[0_0_60px_rgba(147,51,234,0.25)] overflow-hidden">
@@ -71,17 +73,16 @@ function WinsModal({ row, place, onClose }: { row: RankingRow; place: number; on
           <span>#</span><span>Sorteio</span><span className="text-right w-16">Coins</span><span className="text-right w-16">Total</span>
         </div>
         <div className="overflow-y-auto custom-scrollbar">
-          {row.history.map((w, i) => {
-            running += w.coins;
+          {lines.map((w) => {
             return (
-              <div key={i} className="grid grid-cols-[2rem_1fr_auto_auto] gap-3 items-center px-5 py-3 border-b border-white/5">
-                <span className="text-gray-500 font-black text-sm">{i + 1}</span>
+              <div key={w.n} className="grid grid-cols-[2rem_1fr_auto_auto] gap-3 items-center px-5 py-3 border-b border-white/5">
+                <span className="text-gray-500 font-black text-sm">{w.n}</span>
                 <span className="min-w-0">
                   <span className="block text-white font-bold text-sm truncate">{w.prize}</span>
                   <span className="block text-xs text-gray-500">{dateText(w.won_at)}</span>
                 </span>
                 <span className="text-right w-16 text-yellow-400 font-black text-sm">+{coinsText(w.coins)}</span>
-                <span className="text-right w-16 text-gray-300 font-bold text-sm">{coinsText(running)}</span>
+                <span className="text-right w-16 text-gray-300 font-bold text-sm">{coinsText(w.total)}</span>
               </div>
             );
           })}
