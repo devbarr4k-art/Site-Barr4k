@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { Coins, Crown, Medal, Trophy } from "lucide-react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { Coins, Crown, Medal, Trophy, X } from "lucide-react";
 import { avatarFor } from "@/lib/daily";
 import type { RankingRow, RankingSettings } from "@/lib/ranking";
 
@@ -15,10 +16,11 @@ const PODIUM = [
   { place: 3, ring: "border-amber-600 shadow-[0_0_30px_rgba(217,119,6,0.35)]", badge: "bg-amber-600 text-black", glow: "from-amber-600/20", height: "md:mt-14" },
 ];
 
-function PodiumCard({ row, place }: { row: RankingRow; place: number }) {
+function PodiumCard({ row, place, onOpen }: { row: RankingRow; place: number; onOpen: () => void }) {
   const style = PODIUM[place - 1];
   return (
-    <div className={`relative rounded-2xl border border-purple-500/30 bg-[#0c0d10] overflow-hidden px-5 py-6 text-center ${style.height} ${place === 1 ? "md:scale-105 border-yellow-400/40" : ""}`}>
+    <button type="button" onClick={onOpen} title="Ver os sorteios que ganhou"
+      className={`group w-full relative rounded-2xl border border-purple-500/30 bg-[#0c0d10] overflow-hidden px-5 py-6 text-center transition-all hover:border-purple-400 hover:-translate-y-1 cursor-pointer ${style.height} ${place === 1 ? "md:scale-105 border-yellow-400/40" : ""}`}>
       <div className={`absolute inset-x-0 top-0 h-32 bg-gradient-to-b ${style.glow} to-transparent pointer-events-none`} />
       <div className="relative">
         {place === 1 && <Crown className="w-8 h-8 text-yellow-400 mx-auto mb-1 drop-shadow-[0_0_10px_rgba(250,204,21,0.8)]" />}
@@ -37,14 +39,68 @@ function PodiumCard({ row, place }: { row: RankingRow; place: number }) {
             <p className="text-yellow-400 font-black text-lg flex items-center justify-center gap-1"><Coins className="w-4 h-4" />{coinsText(row.coins)}</p>
           </div>
         </div>
+        <p className="mt-3 text-[11px] font-bold uppercase tracking-widest text-purple-400 opacity-70 group-hover:opacity-100">Ver sorteios</p>
       </div>
-    </div>
+    </button>
+  );
+}
+
+const dateText = (iso: string) => new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+
+// Extrato de um jogador: cada sorteio ganho, do primeiro ao último, somando até o total do ranking
+function WinsModal({ row, place, onClose }: { row: RankingRow; place: number; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  let running = 0;
+  return createPortal(
+    <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-fade-in" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="w-full max-w-lg max-h-[85vh] flex flex-col rounded-2xl border border-purple-500/40 bg-[#0c0d10] shadow-[0_0_60px_rgba(147,51,234,0.25)] overflow-hidden">
+        <div className="flex items-center gap-4 p-5 border-b border-white/10">
+          <img src={avatarFor(row.username, row.avatar_url)} alt="" className="w-14 h-14 rounded-full object-cover border-2 border-purple-500" />
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-bold uppercase tracking-widest text-purple-400">{place}º no Hall da Fama</p>
+            <p className="text-white font-black text-xl truncate">@{row.username}</p>
+          </div>
+          <button onClick={onClose} aria-label="Fechar" className="text-gray-400 hover:text-white"><X className="w-6 h-6" /></button>
+        </div>
+
+        <div className="grid grid-cols-[2rem_1fr_auto_auto] gap-3 px-5 py-2 text-[10px] font-bold uppercase tracking-widest text-gray-500 border-b border-white/5">
+          <span>#</span><span>Sorteio</span><span className="text-right w-16">Coins</span><span className="text-right w-16">Total</span>
+        </div>
+        <div className="overflow-y-auto custom-scrollbar">
+          {row.history.map((w, i) => {
+            running += w.coins;
+            return (
+              <div key={i} className="grid grid-cols-[2rem_1fr_auto_auto] gap-3 items-center px-5 py-3 border-b border-white/5">
+                <span className="text-gray-500 font-black text-sm">{i + 1}</span>
+                <span className="min-w-0">
+                  <span className="block text-white font-bold text-sm truncate">{w.prize}</span>
+                  <span className="block text-xs text-gray-500">{dateText(w.won_at)}</span>
+                </span>
+                <span className="text-right w-16 text-yellow-400 font-black text-sm">+{coinsText(w.coins)}</span>
+                <span className="text-right w-16 text-gray-300 font-bold text-sm">{coinsText(running)}</span>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="flex items-center justify-between gap-3 px-5 py-4 border-t border-white/10 bg-purple-600/10">
+          <span className="text-white font-black">{winsText(row.wins)}</span>
+          <span className="text-yellow-400 font-black text-lg flex items-center gap-1.5"><Coins className="w-5 h-5" />{coinsText(row.coins)} coins</span>
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 }
 
 /** Hall da Fama: quem mais venceu, somando vitórias e coins (regras no painel, aba Vencedores). */
 export default function HallRanking({ rows, settings }: { rows: RankingRow[]; settings: RankingSettings | null }) {
   const [showAll, setShowAll] = useState(false);
+  const [open, setOpen] = useState<{ row: RankingRow; place: number } | null>(null);
   const top = rows.slice(0, 3);
   const rest = rows.slice(3);
   const visibleRest = showAll ? rest : rest.slice(0, 7);
@@ -58,8 +114,7 @@ export default function HallRanking({ rows, settings }: { rows: RankingRow[]; se
             <Trophy className="w-9 h-9 text-yellow-400" /> Hall da <span className="text-purple-500">Fama</span>
           </h2>
           <p className="text-gray-400 mt-3">
-            {settings?.period === "month" ? "Ranking do mês" : "Ranking de todos os tempos"}: quem mais venceu sorteios do BARR4K
-            {settings?.order === "wins" ? ", por número de vitórias." : ", somando as coins ganhas."}
+            Os maiores sortudos da live!
           </p>
         </div>
 
@@ -76,7 +131,7 @@ export default function HallRanking({ rows, settings }: { rows: RankingRow[]; se
               {[1, 0, 2].map((i) =>
                 top[i] ? (
                   <div key={top[i].username} className={i === 0 ? "order-1 md:order-2" : i === 1 ? "order-2 md:order-1" : "order-3"}>
-                    <PodiumCard row={top[i]} place={i + 1} />
+                    <PodiumCard row={top[i]} place={i + 1} onOpen={() => setOpen({ row: top[i], place: i + 1 })} />
                   </div>
                 ) : null
               )}
@@ -88,7 +143,8 @@ export default function HallRanking({ rows, settings }: { rows: RankingRow[]; se
                   <span>#</span><span>Jogador</span><span className="text-right w-24">Vitórias</span><span className="text-right w-28">Coins</span>
                 </div>
                 {visibleRest.map((r, i) => (
-                  <div key={r.username} className="grid grid-cols-[3rem_1fr_auto_auto] gap-4 items-center px-5 py-3 border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors">
+                  <button type="button" key={r.username} onClick={() => setOpen({ row: r, place: i + 4 })} title="Ver os sorteios que ganhou"
+                    className="w-full text-left grid grid-cols-[3rem_1fr_auto_auto] gap-4 items-center px-5 py-3 border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors cursor-pointer">
                     <span className="text-gray-400 font-black">{i + 4}</span>
                     <span className="flex items-center gap-3 min-w-0">
                       <img src={avatarFor(r.username, r.avatar_url)} alt="" className="w-8 h-8 rounded-full object-cover border border-gray-700 shrink-0" />
@@ -96,7 +152,7 @@ export default function HallRanking({ rows, settings }: { rows: RankingRow[]; se
                     </span>
                     <span className="text-right w-24 text-gray-200 font-bold">{winsText(r.wins)}</span>
                     <span className="text-right w-28 text-yellow-400 font-black flex items-center justify-end gap-1"><Coins className="w-3.5 h-3.5" />{coinsText(r.coins)}</span>
-                  </div>
+                  </button>
                 ))}
                 {rest.length > 7 && (
                   <button onClick={() => setShowAll(!showAll)} className="w-full py-3 text-sm font-bold text-purple-400 hover:text-purple-300 hover:bg-white/5 transition-colors">
@@ -105,9 +161,11 @@ export default function HallRanking({ rows, settings }: { rows: RankingRow[]; se
                 )}
               </div>
             )}
+            <p className="text-center text-xs text-gray-500 mt-4">Clique em um jogador para ver cada sorteio que ele ganhou.</p>
           </>
         )}
       </div>
+      {open && <WinsModal row={open.row} place={open.place} onClose={() => setOpen(null)} />}
     </section>
   );
 }

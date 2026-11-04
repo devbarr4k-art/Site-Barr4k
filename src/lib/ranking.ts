@@ -32,13 +32,16 @@ export function normalizeRanking(value: unknown): RankingSettings {
 
 export type RankingWinner = {
   twitch_username: string;
+  prize?: string | null;
   avatar_url?: string | null;
   coins?: number | null;
   won_at: string;
   giveaways?: { type?: string | null } | null;
 };
 
-export type RankingRow = { username: string; avatar_url: string | null; wins: number; coins: number; last_win: string };
+export type RankingWin = { prize: string; coins: number; won_at: string };
+// history: as vitórias que somam no ranking, da primeira para a última (o site mostra ao clicar)
+export type RankingRow = { username: string; avatar_url: string | null; wins: number; coins: number; last_win: string; history: RankingWin[] };
 
 /** Mensal (e destaque), diário ou outros (rifa e vencedor lançado à mão, sem sorteio ligado). */
 export const kindOf = (w: RankingWinner): RankingKind =>
@@ -56,9 +59,11 @@ export function buildRanking(winners: RankingWinner[], settings: RankingSettings
   for (const w of winners) {
     if (!settings.kinds.includes(kindOf(w))) continue;
     if (new Date(w.won_at).getTime() < since) continue;
-    const row = byUser.get(w.twitch_username) ?? { username: w.twitch_username, avatar_url: null, wins: 0, coins: 0, last_win: w.won_at };
+    const row = byUser.get(w.twitch_username) ?? { username: w.twitch_username, avatar_url: null, wins: 0, coins: 0, last_win: w.won_at, history: [] as RankingWin[] };
     row.wins += 1;
-    row.coins += Math.max(0, Number(w.coins) || 0);
+    const coins = Math.max(0, Number(w.coins) || 0);
+    row.coins += coins;
+    row.history.push({ prize: w.prize ?? "Prêmio", coins, won_at: w.won_at });
     if (w.won_at >= row.last_win || !row.avatar_url) {
       row.avatar_url = w.avatar_url ?? row.avatar_url;
       row.last_win = w.won_at > row.last_win ? w.won_at : row.last_win;
@@ -67,6 +72,7 @@ export function buildRanking(winners: RankingWinner[], settings: RankingSettings
   }
   const main = settings.order === "coins" ? "coins" : "wins";
   const tie = main === "coins" ? "wins" : "coins";
+  for (const row of byUser.values()) row.history.sort((a, b) => (a.won_at < b.won_at ? -1 : 1));
   return [...byUser.values()]
     .sort((a, b) => b[main] - a[main] || b[tie] - a[tie] || (a.last_win < b.last_win ? -1 : 1)) // empate total: quem chegou antes
     .slice(0, settings.limit);
