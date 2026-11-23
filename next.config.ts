@@ -11,6 +11,13 @@ const nextConfig: NextConfig = {
       { source: "/ragi09/:path*", destination: "/rifas/:path*", permanent: false },
     ];
   },
+  // barr4k.com/trader = página de links (projeto Site-Barr4k-Links na Vercel, que mora em /trader)
+  async rewrites() {
+    return [
+      { source: "/trader", destination: "https://site-barr4k-links.vercel.app/trader" },
+      { source: "/trader/:path*", destination: "https://site-barr4k-links.vercel.app/trader/:path*" },
+    ];
+  },
   images: {
     // Fotos de perfil da Twitch exibidas na navbar
     remotePatterns: [{ protocol: "https", hostname: "static-cdn.jtvnw.net" }],
